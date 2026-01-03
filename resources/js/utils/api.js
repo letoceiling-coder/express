@@ -135,14 +135,24 @@ export const apiDelete = async (url) => {
 export const categoriesAPI = {
     // Получить список категорий
     async getAll(params = {}) {
-        const response = await apiGet('/categories', params);
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Ошибка загрузки категорий' }));
-            console.error('Categories API error:', errorData, response.status);
-            throw new Error(errorData.message || 'Ошибка загрузки категорий');
+        try {
+            const response = await axios.get(`${API_BASE}/categories`, {
+                params: { ...params, per_page: 0 }, // Отключаем пагинацию для получения всех категорий
+                headers: getAuthHeaders(),
+                withCredentials: true,
+            });
+            // Обрабатываем разные форматы ответа
+            const data = response.data;
+            if (Array.isArray(data.data)) {
+                return { data: data.data };
+            } else if (Array.isArray(data)) {
+                return { data };
+            }
+            return { data: [] };
+        } catch (error) {
+            console.error('Categories API error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.message || 'Ошибка загрузки категорий');
         }
-        const data = await response.json();
-        return { data: data.data || data };
     },
 
     // Получить категорию по ID
