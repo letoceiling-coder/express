@@ -726,31 +726,35 @@ export const reviewsAPI = {
 export const paymentSettingsAPI = {
     // Получить настройки ЮКасса
     async getYooKassaSettings() {
-        const response = await apiGet('/payment-settings/yookassa');
-        if (!response.ok) {
-            throw new Error('Ошибка загрузки настроек ЮКасса');
+        try {
+            const response = await apiGet('/payment-settings/yookassa');
+            return { data: response.data || response };
+        } catch (error) {
+            handleApiError(error);
+            throw error;
         }
-        return response.json();
     },
 
     // Обновить настройки ЮКасса
     async updateYooKassaSettings(data) {
-        const response = await apiPut('/payment-settings/yookassa', data);
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Ошибка обновления настроек ЮКасса');
+        try {
+            const response = await apiPut('/payment-settings/yookassa', data);
+            return { data: response.data || response };
+        } catch (error) {
+            handleApiError(error);
+            throw error;
         }
-        return response.json();
     },
 
     // Проверить подключение к ЮКасса
     async testYooKassaConnection(data) {
-        const response = await apiPost('/payment-settings/yookassa/test', data);
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Ошибка проверки подключения');
+        try {
+            const response = await apiPost('/payment-settings/yookassa/test', data);
+            return { data: response.data || response };
+        } catch (error) {
+            handleApiError(error);
+            throw error;
         }
-        return response.json();
     },
 };
 

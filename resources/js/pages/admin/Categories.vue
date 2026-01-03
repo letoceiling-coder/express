@@ -152,7 +152,9 @@ export default {
     },
     computed: {
         filteredCategories() {
-            let filtered = [...this.categories];
+            // Гарантируем, что categories всегда массив
+            const categories = Array.isArray(this.categories) ? this.categories : [];
+            let filtered = [...categories];
 
             // Поиск
             if (this.searchQuery) {
@@ -193,9 +195,11 @@ export default {
             this.error = null;
             try {
                 const response = await categoriesAPI.getAll();
-                this.categories = response.data || [];
+                // Гарантируем, что categories всегда массив
+                this.categories = Array.isArray(response.data) ? response.data : [];
             } catch (error) {
                 this.error = error.message || 'Ошибка загрузки категорий';
+                this.categories = []; // В случае ошибки устанавливаем пустой массив
             } finally {
                 this.loading = false;
             }
