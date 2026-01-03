@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\v1\DeliveryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\v1\OrderController;
+use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +79,15 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('deliveries.status');
         Route::get('orders/{orderId}/delivery', [DeliveryController::class, 'getByOrder'])
             ->name('orders.delivery');
+        
+        // Payments
+        Route::apiResource('payments', PaymentController::class);
+        Route::put('payments/{id}/status', [PaymentController::class, 'updateStatus'])
+            ->name('payments.status');
+        Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])
+            ->name('payments.refund');
+        Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])
+            ->name('orders.payments');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
