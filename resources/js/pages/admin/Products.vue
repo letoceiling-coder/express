@@ -191,7 +191,9 @@ export default {
     },
     computed: {
         filteredProducts() {
-            let filtered = [...this.products];
+            // Гарантируем, что products всегда массив
+            const products = Array.isArray(this.products) ? this.products : [];
+            let filtered = [...products];
 
             // Поиск
             if (this.searchQuery) {
@@ -243,9 +245,11 @@ export default {
             this.error = null;
             try {
                 const response = await productsAPI.getAll();
-                this.products = response.data || [];
+                // Гарантируем, что products всегда массив
+                this.products = Array.isArray(response.data) ? response.data : [];
             } catch (error) {
                 this.error = error.message || 'Ошибка загрузки товаров';
+                this.products = []; // В случае ошибки устанавливаем пустой массив
             } finally {
                 this.loading = false;
             }
