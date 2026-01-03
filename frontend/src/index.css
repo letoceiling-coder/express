@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* "Свой Хлеб" - Telegram Mini App Design System */
+
+@layer base {
+  :root {
+    /* Light mode (Admin Panel) */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    /* Primary Green: #2BA85B */
+    --primary: 145 59% 42%;
+    --primary-foreground: 0 0% 100%;
+    /* Primary Dark: #1f7a40 */
+    --primary-hover: 145 59% 30%;
+
+    /* Secondary Gray: #F5F5F5 */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 12%;
+
+    --muted: 0 0% 96%;
+    /* Text Light: #666666 */
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 145 59% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Error Red: #E74C3C */
+    --destructive: 6 78% 57%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 59% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Border: #E0E0E0 */
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 145 59% 42%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 0 0% 12%;
+    --sidebar-primary: 145 59% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 92%;
+    --sidebar-accent-foreground: 0 0% 12%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 145 59% 42%;
+  }
+
+  .dark {
+    /* Dark mode (Telegram Mini App) */
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Primary Green for dark mode */
+    --primary: 145 59% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 145 59% 38%;
+
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 6 78% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 59% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 145 59% 45%;
+
+    --sidebar-background: 0 0% 11%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 145 59% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 145 59% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Safe area for notch */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Skeleton loading shimmer */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Touch feedback */
+  .touch-feedback {
+    @apply transition-all duration-75 active:scale-[0.98] active:opacity-80;
+  }
+
+  /* Story link underline animation */
+  .story-link {
+    @apply relative inline-block;
+  }
+  .story-link::after {
+    content: '';
+    @apply absolute w-full scale-x-0 h-0.5 bottom-0 left-0 bg-primary origin-bottom-right transition-transform duration-300;
+  }
+  .story-link:hover::after {
+    @apply scale-x-100 origin-bottom-left;
+  }
+
+  /* Hover scale */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  /* Card shadow */
+  .card-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Order status colors - Light mode */
+.status-new {
+  background-color: hsl(210 100% 95%);
+  color: hsl(210 100% 35%);
+}
+.status-accepted {
+  background-color: hsl(145 60% 94%);
+  color: hsl(145 60% 30%);
+}
+.status-preparing {
+  background-color: hsl(38 100% 95%);
+  color: hsl(38 80% 35%);
+}
+.status-ready_for_delivery {
+  background-color: hsl(340 80% 95%);
+  color: hsl(340 80% 40%);
+}
+.status-in_transit {
+  background-color: hsl(280 60% 95%);
+  color: hsl(280 60% 40%);
+}
+.status-delivered {
+  background-color: hsl(145 60% 94%);
+  color: hsl(145 60% 25%);
+}
+.status-cancelled {
+  background-color: hsl(6 78% 95%);
+  color: hsl(6 78% 45%);
+}
+
+/* Order status colors - Dark mode */
+.dark .status-new {
+  background-color: hsl(210 100% 20% / 0.3);
+  color: hsl(210 100% 70%);
+}
+.dark .status-accepted {
+  background-color: hsl(145 60% 20% / 0.3);
+  color: hsl(145 60% 60%);
+}
+.dark .status-preparing {
+  background-color: hsl(38 100% 20% / 0.3);
+  color: hsl(38 80% 60%);
+}
+.dark .status-ready_for_delivery {
+  background-color: hsl(340 80% 20% / 0.3);
+  color: hsl(340 80% 70%);
+}
+.dark .status-in_transit {
+  background-color: hsl(280 60% 20% / 0.3);
+  color: hsl(280 60% 70%);
+}
+.dark .status-delivered {
+  background-color: hsl(145 60% 20% / 0.3);
+  color: hsl(145 60% 55%);
+}
+.dark .status-cancelled {
+  background-color: hsl(6 78% 20% / 0.3);
+  color: hsl(6 78% 65%);
+}

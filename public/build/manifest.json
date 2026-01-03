@@ -1,0 +1,209 @@
+{
+  "_StatusBadge-DT3dX3Ra.js": {
+    "file": "assets/StatusBadge-DT3dX3Ra.js",
+    "name": "StatusBadge",
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "_api-BACpyIk9.js": {
+    "file": "assets/api-BACpyIk9.js",
+    "name": "api"
+  },
+  "_sweetalert2.esm.all-C0u8rGqG.js": {
+    "file": "assets/sweetalert2.esm.all-C0u8rGqG.js",
+    "name": "sweetalert2.esm.all"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-Cqo7U9As.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/admin.js": {
+    "file": "assets/admin-DQAOPUI1.js",
+    "name": "admin",
+    "src": "resources/js/admin.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/pages/auth/Login.vue",
+      "resources/js/pages/auth/Register.vue",
+      "resources/js/pages/auth/ForgotPassword.vue",
+      "resources/js/pages/auth/ResetPassword.vue",
+      "resources/js/layouts/AdminLayout.vue",
+      "resources/js/pages/admin/Dashboard.vue",
+      "resources/js/pages/admin/Media.vue",
+      "resources/js/pages/admin/Notifications.vue",
+      "resources/js/pages/admin/Users.vue",
+      "resources/js/pages/admin/Roles.vue",
+      "resources/js/pages/admin/Subscription.vue",
+      "resources/js/pages/admin/Documentation.vue",
+      "resources/js/pages/admin/Support.vue",
+      "resources/js/pages/admin/SupportTicket.vue",
+      "resources/js/pages/admin/Bots.vue"
+    ]
+  },
+  "resources/js/layouts/AdminLayout.vue": {
+    "file": "assets/AdminLayout-fkwErxXr.js",
+    "name": "AdminLayout",
+    "src": "resources/js/layouts/AdminLayout.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/pages/admin/Bots.vue": {
+    "file": "assets/Bots-Dlu9X_37.js",
+    "name": "Bots",
+    "src": "resources/js/pages/admin/Bots.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_api-BACpyIk9.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js"
+    ]
+  },
+  "resources/js/pages/admin/Dashboard.vue": {
+    "file": "assets/Dashboard-Bedyjz5T.js",
+    "name": "Dashboard",
+    "src": "resources/js/pages/admin/Dashboard.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ],
+    "css": [
+      "assets/Dashboard-D98d5vu7.css"
+    ]
+  },
+  "resources/js/pages/admin/Documentation.vue": {
+    "file": "assets/Documentation-CH1NaU_q.js",
+    "name": "Documentation",
+    "src": "resources/js/pages/admin/Documentation.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ],
+    "css": [
+      "assets/Documentation-tNpxse_g.css"
+    ]
+  },
+  "resources/js/pages/admin/Media.vue": {
+    "file": "assets/Media-BSLd3gI6.js",
+    "name": "Media",
+    "src": "resources/js/pages/admin/Media.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_api-BACpyIk9.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js"
+    ],
+    "css": [
+      "assets/Media-hr2Yuciu.css"
+    ]
+  },
+  "resources/js/pages/admin/Notifications.vue": {
+    "file": "assets/Notifications-CjJbwS7u.js",
+    "name": "Notifications",
+    "src": "resources/js/pages/admin/Notifications.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js"
+    ]
+  },
+  "resources/js/pages/admin/Roles.vue": {
+    "file": "assets/Roles-DuptqeLu.js",
+    "name": "Roles",
+    "src": "resources/js/pages/admin/Roles.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_api-BACpyIk9.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js"
+    ]
+  },
+  "resources/js/pages/admin/Subscription.vue": {
+    "file": "assets/Subscription-Bom946iW.js",
+    "name": "Subscription",
+    "src": "resources/js/pages/admin/Subscription.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ],
+    "css": [
+      "assets/Subscription-DhbbnHGm.css"
+    ]
+  },
+  "resources/js/pages/admin/Support.vue": {
+    "file": "assets/Support-I_LaQy7c.js",
+    "name": "Support",
+    "src": "resources/js/pages/admin/Support.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js",
+      "_StatusBadge-DT3dX3Ra.js"
+    ]
+  },
+  "resources/js/pages/admin/SupportTicket.vue": {
+    "file": "assets/SupportTicket-BE9RGB9t.js",
+    "name": "SupportTicket",
+    "src": "resources/js/pages/admin/SupportTicket.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js",
+      "_StatusBadge-DT3dX3Ra.js"
+    ]
+  },
+  "resources/js/pages/admin/Users.vue": {
+    "file": "assets/Users-YSY8ZgKh.js",
+    "name": "Users",
+    "src": "resources/js/pages/admin/Users.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_api-BACpyIk9.js",
+      "_sweetalert2.esm.all-C0u8rGqG.js"
+    ]
+  },
+  "resources/js/pages/auth/ForgotPassword.vue": {
+    "file": "assets/ForgotPassword-qDejyxvF.js",
+    "name": "ForgotPassword",
+    "src": "resources/js/pages/auth/ForgotPassword.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/pages/auth/Login.vue": {
+    "file": "assets/Login-DjFv9EGl.js",
+    "name": "Login",
+    "src": "resources/js/pages/auth/Login.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/pages/auth/Register.vue": {
+    "file": "assets/Register-t2xTxRl8.js",
+    "name": "Register",
+    "src": "resources/js/pages/auth/Register.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/pages/auth/ResetPassword.vue": {
+    "file": "assets/ResetPassword-ChLRUrrZ.js",
+    "name": "ResetPassword",
+    "src": "resources/js/pages/auth/ResetPassword.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  }
+}
