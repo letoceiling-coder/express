@@ -420,6 +420,13 @@ const routes = [
                 component: () => import('./pages/admin/ReviewEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать отзыв' },
             },
+            // Settings
+            {
+                path: 'settings',
+                name: 'admin.settings',
+                component: () => import('./pages/admin/Settings.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки' },
+            },
             // Payment Settings
             {
                 path: 'settings/payments/yookassa',

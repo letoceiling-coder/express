@@ -291,18 +291,29 @@ export default {
         // Проверка существования роута перед использованием
         const isRouteAvailable = (routeName) => {
             if (!routeName) {
-                console.warn('⚠️ Route name is empty');
                 return false;
             }
             try {
-                const resolvedRoute = router.resolve({ name: routeName });
-                const isAvailable = resolvedRoute && resolvedRoute.name === routeName;
-                if (!isAvailable) {
-                    console.warn('⚠️ Route not available:', routeName, 'resolved:', resolvedRoute);
+                // Получаем все зарегистрированные роуты
+                const allRoutes = router.getRoutes();
+                const routeExists = allRoutes.some(route => route.name === routeName);
+                
+                if (!routeExists) {
+                    // Тихий режим - не логируем предупреждения для отсутствующих роутов
+                    // так как они могут быть добавлены позже или намеренно не реализованы
+                    return false;
                 }
-                return isAvailable;
+                
+                // Дополнительно проверяем через resolve
+                try {
+                    const resolvedRoute = router.resolve({ name: routeName });
+                    return resolvedRoute && resolvedRoute.name === routeName;
+                } catch (resolveError) {
+                    // Если resolve не работает, но роут существует в списке, считаем его доступным
+                    return routeExists;
+                }
             } catch (error) {
-                console.warn('⚠️ Route resolution error:', routeName, error);
+                // В случае любой ошибки возвращаем false без логирования
                 return false;
             }
         };
