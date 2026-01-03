@@ -50,19 +50,31 @@ export const productsAPI = {
   async getAll(categoryId?: string): Promise<Product[]> {
     const params = new URLSearchParams();
     params.append('is_available', 'true');
+    params.append('per_page', '0'); // Отключаем пагинацию для получения всех продуктов
     if (categoryId && categoryId !== 'all') {
       params.append('category_id', categoryId);
     }
 
     const response = await apiRequest(`/products?${params.toString()}`);
     // Гарантируем, что products всегда массив
+    // Обрабатываем разные форматы ответа: массив, объект с data (пагинация или нет)
     let products: any[] = [];
+    
     if (Array.isArray(response.data)) {
+      // Если response.data - это уже массив
       products = response.data;
-    } else if (response.data?.data && Array.isArray(response.data.data)) {
+    } else if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+      // Если это объект пагинации с полем data
       products = response.data.data;
     } else if (Array.isArray(response)) {
+      // Если response сам по себе массив (нестандартный формат)
       products = response;
+    }
+    
+    // Дополнительная проверка: если products все еще не массив, возвращаем пустой массив
+    if (!Array.isArray(products)) {
+      console.warn('Products API returned non-array data:', response);
+      products = [];
     }
     
     return products.map((product: any) => ({
