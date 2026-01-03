@@ -2,7 +2,7 @@
     <div v-if="open" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-card rounded-lg border border-border w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
             <!-- Header -->
-            <div class="flex items-center justify-between p-6 border-b border-border">
+            <div class="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                 <div>
                     <h2 class="text-xl font-bold text-foreground">
                         {{ multiple ? 'Выберите файлы' : 'Выберите файл' }}
@@ -20,7 +20,7 @@
             </div>
 
             <!-- Media Library -->
-            <div class="flex-1 overflow-y-auto min-h-0">
+            <div class="flex-1 overflow-y-auto min-h-0 p-4">
                 <Media
                     :selectionMode="true"
                     @file-selected="handleFileSelected"
@@ -28,7 +28,7 @@
             </div>
 
             <!-- Footer with selected items -->
-            <div v-if="selectedItems.length > 0" class="p-4 border-t border-border bg-muted/30">
+            <div v-if="selectedItems.length > 0" class="p-4 border-t border-border bg-muted/30 flex-shrink-0">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-sm font-medium text-foreground">
                         Выбрано: {{ selectedItems.length }}
@@ -69,7 +69,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-4 p-4 border-t border-border">
+            <div class="flex items-center justify-end gap-4 p-4 border-t border-border flex-shrink-0">
                 <button
                     @click="handleClose"
                     class="h-10 px-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80"
