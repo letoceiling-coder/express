@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { handleApiError, getErrorMessage, getValidationErrors } from './errors.js';
 
 /**
  * ⚠️ ВАЖНО: Правила использования API роутов в Vue компонентах

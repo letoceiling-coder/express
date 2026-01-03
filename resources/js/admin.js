@@ -1,5 +1,6 @@
 import './bootstrap';
 import { createApp } from 'vue';
+import Toast from './components/admin/Toast.vue';
 import { createStore } from 'vuex';
 import { createRouter, createWebHistory } from 'vue-router';
 import axios from 'axios';
