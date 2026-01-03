@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DeployController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\CategoryController;
+use App\Http\Controllers\Api\v1\ComplaintController;
 use App\Http\Controllers\Api\v1\DeliveryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
@@ -100,6 +101,13 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('returns.reject');
         Route::get('orders/{orderId}/returns', [ReturnController::class, 'getByOrder'])
             ->name('orders.returns');
+        
+        // Complaints
+        Route::apiResource('complaints', ComplaintController::class);
+        Route::put('complaints/{id}/status', [ComplaintController::class, 'updateStatus'])
+            ->name('complaints.status');
+        Route::get('orders/{orderId}/complaints', [ComplaintController::class, 'getByOrder'])
+            ->name('orders.complaints');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
