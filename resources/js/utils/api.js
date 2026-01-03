@@ -126,7 +126,8 @@ export const categoriesAPI = {
         if (!response.ok) {
             throw new Error('Ошибка загрузки категорий');
         }
-        return response.json();
+        const data = await response.json();
+        return { data };
     },
 
     // Получить категорию по ID
@@ -135,27 +136,30 @@ export const categoriesAPI = {
         if (!response.ok) {
             throw new Error('Ошибка загрузки категории');
         }
-        return response.json();
+        const data = await response.json();
+        return { data };
     },
 
     // Создать категорию
     async create(data) {
         const response = await apiPost('/categories', data);
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ message: 'Ошибка создания категории' }));
             throw new Error(error.message || 'Ошибка создания категории');
         }
-        return response.json();
+        const result = await response.json();
+        return { data: result };
     },
 
     // Обновить категорию
     async update(id, data) {
         const response = await apiPut(`/categories/${id}`, data);
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ message: 'Ошибка обновления категории' }));
             throw new Error(error.message || 'Ошибка обновления категории');
         }
-        return response.json();
+        const result = await response.json();
+        return { data: result };
     },
 
     // Удалить категорию
@@ -164,7 +168,7 @@ export const categoriesAPI = {
         if (!response.ok) {
             throw new Error('Ошибка удаления категории');
         }
-        return true;
+        return { data: true };
     },
 };
 
