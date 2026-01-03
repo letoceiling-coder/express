@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
 use App\Http\Controllers\Api\v1\ReviewController;
+use App\Http\Controllers\Api\v1\TelegramController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -133,6 +134,14 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payment-settings.yookassa.test');
         Route::post('payment-settings/yookassa/webhook', [PaymentSettingsController::class, 'webhookYooKassa'])
             ->name('payment-settings.yookassa.webhook');
+        
+        // Telegram MiniApp
+        Route::post('telegram/validate-init-data', [TelegramController::class, 'validateInitData'])
+            ->name('telegram.validate-init-data');
+        Route::get('telegram/user-info', [TelegramController::class, 'getUserInfo'])
+            ->name('telegram.user-info');
+        Route::post('telegram/notify-order', [TelegramController::class, 'notifyOrder'])
+            ->name('telegram.notify-order');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {

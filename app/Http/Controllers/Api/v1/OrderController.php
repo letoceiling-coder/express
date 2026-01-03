@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\Order;
+use App\Services\Telegram\TelegramMiniAppService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,12 @@ use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
+    protected TelegramMiniAppService $telegramMiniAppService;
+
+    public function __construct(TelegramMiniAppService $telegramMiniAppService)
+    {
+        $this->telegramMiniAppService = $telegramMiniAppService;
+    }
     /**
      * Создать новый заказ
      * 
@@ -75,6 +82,13 @@ class OrderController extends Controller
             DB::commit();
 
             $order->load(['items.product', 'manager', 'bot']);
+
+            // Отправляем уведомление о новом заказе
+            try {
+                $this->telegramMiniAppService->notifyNewOrder($order, $order->bot_id);
+            } catch (\Exception $e) {
+                Log::warning('Не удалось отправить уведомление о новом заказе: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'data' => $order,
@@ -225,17 +239,28 @@ class OrderController extends Controller
 
         try {
             $order = Order::findOrFail($id);
+            $oldStatus = $order->status;
+            $newStatus = $request->get('status');
 
-            if (!$order->canChangeStatus($request->get('status'))) {
+            if (!$order->canChangeStatus($newStatus)) {
                 return response()->json([
                     'message' => 'Нельзя изменить статус заказа, который уже доставлен или отменен',
                 ], 422);
             }
 
-            $order->status = $request->get('status');
+            $order->status = $newStatus;
             $order->save();
 
             $order->load(['items.product', 'manager', 'bot']);
+
+            // Отправляем уведомление об изменении статуса
+            if ($oldStatus !== $newStatus) {
+                try {
+                    $this->telegramMiniAppService->notifyOrderStatusChange($order, $oldStatus, $newStatus);
+                } catch (\Exception $e) {
+                    Log::warning('Не удалось отправить уведомление об изменении статуса заказа: ' . $e->getMessage());
+                }
+            }
 
             return response()->json([
                 'data' => $order,
