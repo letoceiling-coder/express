@@ -286,6 +286,31 @@ const routes = [
                 component: () => import('./pages/admin/CategoryEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать категорию' },
             },
+            // Products
+            {
+                path: 'products',
+                name: 'admin.products',
+                component: () => import('./pages/admin/Products.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Товары' },
+            },
+            {
+                path: 'products/create',
+                name: 'admin.products.create',
+                component: () => import('./pages/admin/ProductCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать товар' },
+            },
+            {
+                path: 'products/:id/edit',
+                name: 'admin.products.edit',
+                component: () => import('./pages/admin/ProductEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать товар' },
+            },
+            {
+                path: 'products/:id/history',
+                name: 'admin.products.history',
+                component: () => import('./pages/admin/ProductHistory.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'История товара' },
+            },
         ],
     },
 ];
