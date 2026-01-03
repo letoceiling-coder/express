@@ -17,6 +17,84 @@ class AdminMenu
     {
         $menu = collect([
             [
+                'title' => 'Главная',
+                'route' => 'admin.dashboard',
+                'icon' => 'home',
+                'roles' => ['admin', 'manager'],
+            ],
+            // Каталог (группа)
+            [
+                'title' => 'Каталог',
+                'icon' => 'shopping-cart',
+                'roles' => ['admin', 'manager'],
+                'children' => [
+                    [
+                        'title' => 'Категории',
+                        'route' => 'admin.categories',
+                        'icon' => 'folder',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                    [
+                        'title' => 'Товары',
+                        'route' => 'admin.products',
+                        'icon' => 'database',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                ],
+            ],
+            // Заказы (группа)
+            [
+                'title' => 'Заказы',
+                'icon' => 'shopping-cart',
+                'roles' => ['admin', 'manager'],
+                'children' => [
+                    [
+                        'title' => 'Заказы',
+                        'route' => 'admin.orders',
+                        'icon' => 'shopping-cart',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                    [
+                        'title' => 'Доставки',
+                        'route' => 'admin.deliveries',
+                        'icon' => 'shopping-cart',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                    [
+                        'title' => 'Платежи',
+                        'route' => 'admin.payments',
+                        'icon' => 'credit-card',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                ],
+            ],
+            // Обратная связь (группа)
+            [
+                'title' => 'Обратная связь',
+                'icon' => 'users',
+                'roles' => ['admin', 'manager'],
+                'children' => [
+                    [
+                        'title' => 'Возвраты',
+                        'route' => 'admin.returns',
+                        'icon' => 'shopping-cart',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                    [
+                        'title' => 'Претензии',
+                        'route' => 'admin.complaints',
+                        'icon' => 'award',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                    [
+                        'title' => 'Отзывы',
+                        'route' => 'admin.reviews',
+                        'icon' => 'award',
+                        'roles' => ['admin', 'manager'],
+                    ],
+                ],
+            ],
+            [
                 'title' => 'Медиа',
                 'route' => 'admin.media',
                 'icon' => 'image',
@@ -46,10 +124,25 @@ class AdminMenu
                 'icon' => 'bot',
                 'roles' => ['admin'],
             ],
+            // Настройки (группа)
             [
-                'title' => 'Конфигурации',
+                'title' => 'Настройки',
                 'icon' => 'settings',
                 'roles' => ['admin'],
+                'children' => [
+                    [
+                        'title' => 'Платежи (ЮКасса)',
+                        'route' => 'admin.settings.payments.yookassa',
+                        'icon' => 'credit-card',
+                        'roles' => ['admin'],
+                    ],
+                    [
+                        'title' => 'Общие',
+                        'route' => 'admin.settings',
+                        'icon' => 'settings',
+                        'roles' => ['admin'],
+                    ],
+                ],
             ],
             [
                 'title' => 'Подписка',

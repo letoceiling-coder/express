@@ -272,7 +272,8 @@ export default {
                 award: AwardIcon,
                 bot: BotIcon,
             };
-            return icons[iconName] || HomeIcon;
+            // Добавляем иконки для новых пунктов (используем существующие)
+            return icons[iconName?.toLowerCase()] || icons[iconName] || HomeIcon;
         };
 
         const handleLogout = async () => {
