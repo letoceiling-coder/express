@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\v1\OrderController;
 use App\Http\Controllers\Api\v1\PaymentController;
+use App\Http\Controllers\Api\v1\PaymentSettingsController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
@@ -120,6 +121,18 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('products.reviews');
         Route::get('orders/{orderId}/review', [ReviewController::class, 'getByOrder'])
             ->name('orders.review');
+        
+        // Payment Settings
+        Route::get('payment-settings', [PaymentSettingsController::class, 'index'])
+            ->name('payment-settings.index');
+        Route::get('payment-settings/yookassa', [PaymentSettingsController::class, 'getYooKassa'])
+            ->name('payment-settings.yookassa');
+        Route::put('payment-settings/yookassa', [PaymentSettingsController::class, 'updateYooKassa'])
+            ->name('payment-settings.yookassa.update');
+        Route::post('payment-settings/yookassa/test', [PaymentSettingsController::class, 'testYooKassa'])
+            ->name('payment-settings.yookassa.test');
+        Route::post('payment-settings/yookassa/webhook', [PaymentSettingsController::class, 'webhookYooKassa'])
+            ->name('payment-settings.yookassa.webhook');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
