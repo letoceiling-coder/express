@@ -682,6 +682,7 @@ if (store.state.token) {
 
 app.use(store);
 app.use(router);
+app.component('Toast', Toast);
 
 // Mount app
 // Монтируем приложение в контейнер #admin-app
