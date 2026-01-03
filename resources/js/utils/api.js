@@ -167,3 +167,35 @@ export const categoriesAPI = {
     },
 };
 
+// ============================================
+// Media API
+// ============================================
+export const mediaAPI = {
+    // Получить список медиа
+    async getAll(params = {}) {
+        const response = await apiGet('/media', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки медиа');
+        }
+        return response.json();
+    },
+
+    // Получить медиа по ID
+    async getById(id) {
+        const response = await apiGet(`/media/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки медиа');
+        }
+        return response.json();
+    },
+
+    // Удалить медиа
+    async delete(id) {
+        const response = await apiDelete(`/media/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления медиа');
+        }
+        return true;
+    },
+};
+

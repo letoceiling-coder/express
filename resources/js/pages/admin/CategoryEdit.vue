@@ -126,54 +126,26 @@
         </div>
 
         <!-- Медиа селектор -->
-        <div v-if="showMediaSelector" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-            <div class="bg-card rounded-lg border border-border p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-foreground">Выбор изображения</h2>
-                    <button
-                        @click="showMediaSelector = false"
-                        class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted"
-                    >
-                        ✕
-                    </button>
-                </div>
-                <p class="text-sm text-muted-foreground mb-4">
-                    Откройте медиа-библиотеку в отдельной вкладке и скопируйте ID выбранного изображения:
-                </p>
-                <div class="space-y-4">
-                    <a
-                        href="/admin/media"
-                        target="_blank"
-                        class="block h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 text-center"
-                    >
-                        Открыть медиа-библиотеку
-                    </a>
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-2">ID изображения</label>
-                        <input
-                            v-model="mediaIdInput"
-                            type="number"
-                            placeholder="Введите ID изображения"
-                            class="w-full h-10 px-3 rounded-lg border border-input bg-background"
-                        />
-                    </div>
-                    <button
-                        @click="handleSelectMediaById"
-                        class="w-full h-10 px-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90"
-                    >
-                        Выбрать
-                    </button>
-                </div>
-            </div>
-        </div>
+        <MediaSelector
+            :open="showMediaSelector"
+            :multiple="false"
+            :allowedTypes="['photo']"
+            :currentSelection="selectedImage ? [selectedImage] : []"
+            @close="showMediaSelector = false"
+            @select="handleMediaSelected"
+        />
     </div>
 </template>
 
 <script>
-import { categoriesAPI, apiGet } from '../../utils/api.js';
+import { categoriesAPI } from '../../utils/api.js';
+import MediaSelector from '../../components/admin/MediaSelector.vue';
 
 export default {
     name: 'CategoryEdit',
+    components: {
+        MediaSelector,
+    },
     data() {
         return {
             category: null,
@@ -189,7 +161,6 @@ export default {
             error: null,
             showMediaSelector: false,
             selectedImage: null,
-            mediaIdInput: '',
         };
     },
     mounted() {
@@ -240,25 +211,10 @@ export default {
                 this.loading = false;
             }
         },
-        async handleSelectMediaById() {
-            if (!this.mediaIdInput) {
-                alert('Введите ID изображения');
-                return;
-            }
-
-            try {
-                const response = await apiGet(`/media/${this.mediaIdInput}`);
-                if (!response.ok) {
-                    throw new Error('Изображение не найдено');
-                }
-                const media = await response.json();
-                this.selectedImage = media.data;
-                this.form.image_id = media.data.id;
-                this.showMediaSelector = false;
-                this.mediaIdInput = '';
-            } catch (error) {
-                alert(error.message || 'Ошибка загрузки изображения');
-            }
+        handleMediaSelected(media) {
+            this.selectedImage = media;
+            this.form.image_id = media.id;
+            this.showMediaSelector = false;
         },
     },
 };
