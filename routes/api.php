@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\CategoryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
+use App\Http\Controllers\Api\v1\ProductController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -53,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Categories
         Route::apiResource('categories', CategoryController::class);
+        
+        // Products
+        Route::apiResource('products', ProductController::class);
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
