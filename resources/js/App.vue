@@ -13,10 +13,3 @@ export default {
     },
 };
 </script>
-
-<script>
-export default {
-    name: 'App',
-};
-</script>
-

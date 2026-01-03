@@ -294,27 +294,14 @@ export default {
                 return false;
             }
             try {
-                // Получаем все зарегистрированные роуты
-                const allRoutes = router.getRoutes();
-                const routeExists = allRoutes.some(route => route.name === routeName);
-                
-                if (!routeExists) {
-                    // Тихий режим - не логируем предупреждения для отсутствующих роутов
-                    // так как они могут быть добавлены позже или намеренно не реализованы
-                    return false;
-                }
-                
-                // Дополнительно проверяем через resolve
-                try {
-                    const resolvedRoute = router.resolve({ name: routeName });
-                    return resolvedRoute && resolvedRoute.name === routeName;
-                } catch (resolveError) {
-                    // Если resolve не работает, но роут существует в списке, считаем его доступным
-                    return routeExists;
-                }
+                // Проверяем через getRoutes() - это работает даже с lazy-loaded компонентами
+                const routes = router.getRoutes();
+                const routeExists = routes.some(route => route.name === routeName);
+                return routeExists;
             } catch (error) {
-                // В случае любой ошибки возвращаем false без логирования
-                return false;
+                // В случае ошибки, разрешаем роут (пусть Vue Router сам решит)
+                console.warn('⚠️ Route check error:', routeName, error);
+                return true; // Разрешаем, пусть роутер сам проверит
             }
         };
 
