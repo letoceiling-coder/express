@@ -267,8 +267,8 @@ export default {
                 // Заполняем форму (если настройки уже есть)
                 if (this.settings) {
                     this.form = {
-                        mode: this.settings.mode || 'sandbox',
-                        shop_id: this.settings.shop_id || '',
+                        mode: this.settings.is_test_mode ? 'sandbox' : 'production',
+                        shop_id: this.settings.is_test_mode ? (this.settings.test_shop_id || '') : (this.settings.shop_id || ''),
                         secret_key: '', // Не показываем реальный ключ
                         return_url: this.settings.return_url || '',
                         webhook_url: this.settings.webhook_url || this.webhookUrl,
@@ -306,7 +306,7 @@ export default {
         },
         async handleTestConnection() {
             if (!this.form.shop_id || !this.form.secret_key) {
-                alert('Заполните Shop ID и Secret Key перед проверкой');
+                window.showToast('error', 'Заполните Shop ID и Secret Key перед проверкой');
                 return;
             }
 
@@ -317,18 +317,20 @@ export default {
                 const response = await paymentSettingsAPI.testYooKassaConnection({
                     shop_id: this.form.shop_id,
                     secret_key: this.form.secret_key,
-                    mode: this.form.mode,
+                    is_test_mode: this.form.mode === 'sandbox',
                 });
                 
                 this.testResult = {
                     success: true,
                     message: response.data?.message || 'Подключение к API ЮКасса успешно установлено',
                 };
+                window.showToast('success', 'Подключение успешно установлено');
             } catch (error) {
                 this.testResult = {
                     success: false,
                     message: error.message || 'Не удалось подключиться к API ЮКасса',
                 };
+                window.showToast('error', error.message || 'Не удалось подключиться к API ЮКасса');
             } finally {
                 this.testing = false;
             }
