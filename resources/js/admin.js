@@ -419,6 +419,13 @@ const routes = [
                 component: () => import('./pages/admin/ReviewEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать отзыв' },
             },
+            // Payment Settings
+            {
+                path: 'settings/payments/yookassa',
+                name: 'admin.settings.payments.yookassa',
+                component: () => import('./pages/admin/PaymentSettingsYooKassa.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки ЮКасса' },
+            },
         ],
     },
 ];
