@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DeployController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\CategoryController;
+use App\Http\Controllers\Api\v1\DeliveryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\v1\OrderController;
@@ -70,6 +71,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('orders', OrderController::class);
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
+        
+        // Deliveries
+        Route::apiResource('deliveries', DeliveryController::class);
+        Route::put('deliveries/{id}/status', [DeliveryController::class, 'updateStatus'])
+            ->name('deliveries.status');
+        Route::get('orders/{orderId}/delivery', [DeliveryController::class, 'getByOrder'])
+            ->name('orders.delivery');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
