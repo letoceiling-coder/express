@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { handleApiError, getErrorMessage, getValidationErrors } from './errors.js';
 
+// Настройка axios для работы с Sanctum
+axios.defaults.withCredentials = true; // Важно для Sanctum cookies
+axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
 /**
  * ⚠️ ВАЖНО: Правила использования API роутов в Vue компонентах
  * 
@@ -45,23 +50,31 @@ const getAuthHeaders = () => {
 
 // GET запрос
 export const apiGet = async (url, params = {}) => {
-    let fullUrl = `${API_BASE}${url}`;
+    const fullUrl = `${API_BASE}${url}`;
+    const headers = getAuthHeaders();
     
-    // Если params - объект и не пустой, добавляем параметры
-    if (params && Object.keys(params).length > 0) {
-        const queryString = new URLSearchParams(params).toString();
-        // Если url уже содержит параметры, добавляем через &
-        if (url.includes('?')) {
-            fullUrl = `${fullUrl}&${queryString}`;
-        } else {
-            fullUrl = `${fullUrl}?${queryString}`;
+    try {
+        const response = await axios.get(fullUrl, {
+            params,
+            headers,
+            withCredentials: true,
+        });
+        return {
+            ok: true,
+            status: response.status,
+            json: async () => response.data,
+        };
+    } catch (error) {
+        // Преобразуем ошибку axios в формат fetch Response
+        if (error.response) {
+            return {
+                ok: false,
+                status: error.response.status,
+                json: async () => error.response.data,
+            };
         }
+        throw error;
     }
-    
-    return fetch(fullUrl, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-    });
 };
 
 // POST запрос
@@ -124,10 +137,12 @@ export const categoriesAPI = {
     async getAll(params = {}) {
         const response = await apiGet('/categories', params);
         if (!response.ok) {
-            throw new Error('Ошибка загрузки категорий');
+            const errorData = await response.json().catch(() => ({ message: 'Ошибка загрузки категорий' }));
+            console.error('Categories API error:', errorData, response.status);
+            throw new Error(errorData.message || 'Ошибка загрузки категорий');
         }
         const data = await response.json();
-        return { data };
+        return { data: data.data || data };
     },
 
     // Получить категорию по ID
