@@ -342,6 +342,45 @@ export const deliveriesAPI = {
         }
         return response.json();
     },
+
+    // Создать доставку
+    async create(data) {
+        const response = await apiPost('/deliveries', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания доставки');
+        }
+        return response.json();
+    },
+
+    // Обновить доставку
+    async update(id, data) {
+        const response = await apiPut(`/deliveries/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления доставки');
+        }
+        return response.json();
+    },
+
+    // Изменить статус доставки
+    async updateStatus(id, status) {
+        const response = await apiPut(`/deliveries/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Удалить доставку
+    async delete(id) {
+        const response = await apiDelete(`/deliveries/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления доставки');
+        }
+        return true;
+    },
 };
 
 // ============================================

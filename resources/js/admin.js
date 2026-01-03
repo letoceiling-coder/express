@@ -324,6 +324,25 @@ const routes = [
                 component: () => import('./pages/admin/OrderDetail.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Детали заказа' },
             },
+            // Deliveries
+            {
+                path: 'deliveries',
+                name: 'admin.deliveries',
+                component: () => import('./pages/admin/Deliveries.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Доставки' },
+            },
+            {
+                path: 'deliveries/create',
+                name: 'admin.deliveries.create',
+                component: () => import('./pages/admin/DeliveryCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать доставку' },
+            },
+            {
+                path: 'deliveries/:id/edit',
+                name: 'admin.deliveries.edit',
+                component: () => import('./pages/admin/DeliveryEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать доставку' },
+            },
         ],
     },
 ];
