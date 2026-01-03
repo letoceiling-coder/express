@@ -13,6 +13,85 @@ use Illuminate\Support\Facades\Log;
 class OrderController extends Controller
 {
     /**
+     * Создать новый заказ
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'nullable|string|unique:orders,order_id',
+            'telegram_id' => 'required|integer',
+            'phone' => 'required|string|max:255',
+            'delivery_address' => 'required|string',
+            'delivery_time' => 'required|string|max:255',
+            'comment' => 'nullable|string',
+            'total_amount' => 'required|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'nullable|integer|exists:products,id',
+            'items.*.product_name' => 'required|string',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Генерируем order_id если не указан
+            if (!$request->has('order_id') || empty($request->get('order_id'))) {
+                $now = now();
+                $dateStr = $now->format('Ymd');
+                $randomNum = rand(1, 9999);
+                $orderId = "ORD-{$dateStr}-{$randomNum}";
+            } else {
+                $orderId = $request->get('order_id');
+            }
+
+            // Создаем заказ
+            $order = Order::create([
+                'order_id' => $orderId,
+                'telegram_id' => $request->get('telegram_id'),
+                'phone' => $request->get('phone'),
+                'delivery_address' => $request->get('delivery_address'),
+                'delivery_time' => $request->get('delivery_time'),
+                'comment' => $request->get('comment'),
+                'total_amount' => $request->get('total_amount'),
+                'status' => Order::STATUS_NEW,
+                'payment_status' => Order::PAYMENT_STATUS_PENDING,
+            ]);
+
+            // Создаем элементы заказа
+            foreach ($request->get('items') as $itemData) {
+                $order->items()->create([
+                    'product_id' => $itemData['product_id'] ?? null,
+                    'product_name' => $itemData['product_name'],
+                    'product_image' => $itemData['product_image'] ?? null,
+                    'quantity' => $itemData['quantity'],
+                    'unit_price' => $itemData['unit_price'],
+                ]);
+            }
+
+            DB::commit();
+
+            $order->load(['items.product', 'manager', 'bot']);
+
+            return response()->json([
+                'data' => $order,
+                'message' => 'Заказ успешно создан',
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Ошибка при создании заказа: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Ошибка при создании заказа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Получить список заказов
      * 
      * @param Request $request

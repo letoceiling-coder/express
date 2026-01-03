@@ -1,18 +1,42 @@
-import { supabase } from '@/integrations/supabase/client';
 import { Category, Product, Order, CreateOrderPayload, OrderItem } from '@/types';
+
+const API_BASE = '/api/v1';
+
+// Утилита для работы с API
+const apiRequest = async (url: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('token');
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE}${url}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Ошибка запроса' }));
+    throw new Error(error.message || 'Ошибка запроса');
+  }
+
+  return response.json();
+};
 
 // Categories API
 export const categoriesAPI = {
   async getAll(): Promise<Category[]> {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
+    const response = await apiRequest('/categories');
+    const categories = response.data || [];
     
-    if (error) throw error;
-    
-    return (data || []).map(cat => ({
-      id: cat.id,
+    return categories.map((cat: any) => ({
+      id: String(cat.id),
       name: cat.name,
       createdAt: new Date(cat.created_at),
       updatedAt: new Date(cat.updated_at),
@@ -23,26 +47,22 @@ export const categoriesAPI = {
 // Products API
 export const productsAPI = {
   async getAll(categoryId?: string): Promise<Product[]> {
-    let query = supabase
-      .from('products')
-      .select('*')
-      .eq('is_available', true);
-    
+    const params = new URLSearchParams();
+    params.append('is_available', 'true');
     if (categoryId && categoryId !== 'all') {
-      query = query.eq('category_id', categoryId);
+      params.append('category_id', categoryId);
     }
+
+    const response = await apiRequest(`/products?${params.toString()}`);
+    const products = response.data?.data || response.data || [];
     
-    const { data, error } = await query.order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    return (data || []).map(product => ({
-      id: product.id,
+    return products.map((product: any) => ({
+      id: String(product.id),
       name: product.name,
-      description: product.description,
+      description: product.description || '',
       price: Number(product.price),
-      categoryId: product.category_id || '',
-      imageUrl: product.image_url || '',
+      categoryId: product.category_id ? String(product.category_id) : '',
+      imageUrl: product.image?.url || '',
       isWeightProduct: product.is_weight_product || false,
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
@@ -50,114 +70,68 @@ export const productsAPI = {
   },
 
   async getById(id: string): Promise<Product | null> {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (error) return null;
-    
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      price: Number(data.price),
-      categoryId: data.category_id || '',
-      imageUrl: data.image_url || '',
-      isWeightProduct: data.is_weight_product || false,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
+    try {
+      const response = await apiRequest(`/products/${id}`);
+      const product = response.data;
+      
+      if (!product) return null;
+      
+      return {
+        id: String(product.id),
+        name: product.name,
+        description: product.description || '',
+        price: Number(product.price),
+        categoryId: product.category_id ? String(product.category_id) : '',
+        imageUrl: product.image?.url || '',
+        isWeightProduct: product.is_weight_product || false,
+        createdAt: new Date(product.created_at),
+        updatedAt: new Date(product.updated_at),
+      };
+    } catch (error) {
+      return null;
+    }
   },
 };
 
 // Orders API
 export const ordersAPI = {
   async create(payload: CreateOrderPayload, telegramId: number): Promise<Order> {
-    // Generate order ID
+    // Генерируем order_id на клиенте (или можно доверить серверу)
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
     const randomNum = Math.floor(Math.random() * 1000) + 1;
     const orderId = `ORD-${dateStr}-${randomNum}`;
-    
-    // Insert order
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        order_id: orderId,
-        telegram_id: telegramId,
-        phone: payload.phone,
-        delivery_address: payload.deliveryAddress,
-        delivery_time: payload.deliveryTime,
-        comment: payload.comment || null,
-        total_amount: payload.totalAmount,
-        status: 'new',
-        payment_status: 'pending',
-      })
-      .select()
-      .single();
-    
-    if (orderError) throw orderError;
-    
-    // Insert order items
-    const orderItems = payload.items.map(item => ({
-      order_id: orderData.id,
-      product_id: item.productId,
-      product_name: item.productName || '',
-      product_image: item.productImage || null,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      total: item.quantity * item.unitPrice,
-    }));
-    
-    const { data: itemsData, error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems)
-      .select();
-    
-    if (itemsError) throw itemsError;
+
+    const orderData = {
+      order_id: orderId,
+      telegram_id: telegramId,
+      phone: payload.phone,
+      delivery_address: payload.deliveryAddress,
+      delivery_time: payload.deliveryTime,
+      comment: payload.comment || null,
+      total_amount: payload.totalAmount,
+      status: 'new',
+      payment_status: 'pending',
+      items: payload.items.map(item => ({
+        product_id: item.productId ? Number(item.productId) : null,
+        product_name: item.productName || '',
+        product_image: item.productImage || null,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })),
+    };
+
+    // ВАЖНО: Этот endpoint нужно будет создать на сервере
+    // Пока используем прямое создание через OrderController (если будет метод store)
+    const response = await apiRequest('/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+
+    const order = response.data;
     
     return {
-      id: orderData.id,
-      orderId: orderData.order_id,
-      telegramId: orderData.telegram_id,
-      status: orderData.status as Order['status'],
-      phone: orderData.phone,
-      deliveryAddress: orderData.delivery_address,
-      deliveryTime: orderData.delivery_time,
-      comment: orderData.comment || undefined,
-      totalAmount: Number(orderData.total_amount),
-      items: (itemsData || []).map(item => ({
-        id: item.id,
-        productId: item.product_id || '',
-        productName: item.product_name,
-        productImage: item.product_image || undefined,
-        quantity: item.quantity,
-        unitPrice: Number(item.unit_price),
-        total: Number(item.total),
-      })),
-      paymentId: orderData.payment_id || undefined,
-      paymentStatus: orderData.payment_status as Order['paymentStatus'],
-      createdAt: new Date(orderData.created_at),
-      updatedAt: new Date(orderData.updated_at),
-    };
-  },
-
-  async getByTelegramId(telegramId: number): Promise<Order[]> {
-    const { data: orders, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items (*)
-      `)
-      .eq('telegram_id', telegramId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    return (orders || []).map(order => ({
-      id: order.id,
+      id: String(order.id),
       orderId: order.order_id,
       telegramId: order.telegram_id,
       status: order.status as Order['status'],
@@ -166,9 +140,39 @@ export const ordersAPI = {
       deliveryTime: order.delivery_time,
       comment: order.comment || undefined,
       totalAmount: Number(order.total_amount),
-      items: (order.order_items || []).map((item: any) => ({
-        id: item.id,
-        productId: item.product_id || '',
+      items: (order.items || []).map((item: any) => ({
+        id: String(item.id),
+        productId: item.product_id ? String(item.product_id) : '',
+        productName: item.product_name,
+        productImage: item.product_image || undefined,
+        quantity: item.quantity,
+        unitPrice: Number(item.unit_price),
+        total: Number(item.total),
+      })),
+      paymentId: order.payment_id || undefined,
+      paymentStatus: order.payment_status as Order['paymentStatus'],
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+    };
+  },
+
+  async getByTelegramId(telegramId: number): Promise<Order[]> {
+    const response = await apiRequest(`/orders?telegram_id=${telegramId}`);
+    const orders = response.data?.data || response.data || [];
+    
+    return orders.map((order: any) => ({
+      id: String(order.id),
+      orderId: order.order_id,
+      telegramId: order.telegram_id,
+      status: order.status as Order['status'],
+      phone: order.phone,
+      deliveryAddress: order.delivery_address,
+      deliveryTime: order.delivery_time,
+      comment: order.comment || undefined,
+      totalAmount: Number(order.total_amount),
+      items: (order.items || []).map((item: any) => ({
+        id: String(item.id),
+        productId: item.product_id ? String(item.product_id) : '',
         productName: item.product_name,
         productImage: item.product_image || undefined,
         quantity: item.quantity,
@@ -183,53 +187,57 @@ export const ordersAPI = {
   },
 
   async getByOrderId(orderId: string): Promise<Order | null> {
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items (*)
-      `)
-      .eq('order_id', orderId)
-      .single();
-    
-    if (error) return null;
-    
-    return {
-      id: order.id,
-      orderId: order.order_id,
-      telegramId: order.telegram_id,
-      status: order.status as Order['status'],
-      phone: order.phone,
-      deliveryAddress: order.delivery_address,
-      deliveryTime: order.delivery_time,
-      comment: order.comment || undefined,
-      totalAmount: Number(order.total_amount),
-      items: (order.order_items || []).map((item: any) => ({
-        id: item.id,
-        productId: item.product_id || '',
-        productName: item.product_name,
-        productImage: item.product_image || undefined,
-        quantity: item.quantity,
-        unitPrice: Number(item.unit_price),
-        total: Number(item.total),
-      })),
-      paymentId: order.payment_id || undefined,
-      paymentStatus: order.payment_status as Order['paymentStatus'],
-      createdAt: new Date(order.created_at),
-      updatedAt: new Date(order.updated_at),
-    };
+    try {
+      // Ищем по order_id через поиск
+      const response = await apiRequest(`/orders?search=${orderId}`);
+      const orders = response.data?.data || response.data || [];
+      const order = orders.find((o: any) => o.order_id === orderId);
+      
+      if (!order) return null;
+      
+      return {
+        id: String(order.id),
+        orderId: order.order_id,
+        telegramId: order.telegram_id,
+        status: order.status as Order['status'],
+        phone: order.phone,
+        deliveryAddress: order.delivery_address,
+        deliveryTime: order.delivery_time,
+        comment: order.comment || undefined,
+        totalAmount: Number(order.total_amount),
+        items: (order.items || []).map((item: any) => ({
+          id: String(item.id),
+          productId: item.product_id ? String(item.product_id) : '',
+          productName: item.product_name,
+          productImage: item.product_image || undefined,
+          quantity: item.quantity,
+          unitPrice: Number(item.unit_price),
+          total: Number(item.total),
+        })),
+        paymentId: order.payment_id || undefined,
+        paymentStatus: order.payment_status as Order['paymentStatus'],
+        createdAt: new Date(order.created_at),
+        updatedAt: new Date(order.updated_at),
+      };
+    } catch (error) {
+      return null;
+    }
   },
 
   async updatePaymentStatus(orderId: string, paymentId: string, status: 'succeeded' | 'failed'): Promise<void> {
-    const { error } = await supabase
-      .from('orders')
-      .update({
+    // Ищем заказ по order_id
+    const orders = await this.getByTelegramId(0); // Получаем все заказы или создаем отдельный метод
+    const order = await this.getByOrderId(orderId);
+    
+    if (!order) throw new Error('Заказ не найден');
+
+    await apiRequest(`/orders/${order.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
         payment_id: paymentId,
         payment_status: status,
         status: status === 'succeeded' ? 'accepted' : 'cancelled',
-      })
-      .eq('order_id', orderId);
-    
-    if (error) throw error;
+      }),
+    });
   },
 };

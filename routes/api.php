@@ -67,7 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('products.history.show');
         
         // Orders
-        Route::apiResource('orders', OrderController::class)->except(['store']);
+        Route::apiResource('orders', OrderController::class);
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
         
