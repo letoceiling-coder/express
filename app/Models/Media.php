@@ -46,6 +46,24 @@ class Media extends Model
     protected $table = 'media';
 
     /**
+     * Boot метод для установки папки "Общая" по умолчанию
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($media) {
+            // Если folder_id не указан, устанавливаем папку "Общая"
+            if (is_null($media->folder_id)) {
+                $generalFolder = Folder::where('name', 'Общая')->whereNull('parent_id')->first();
+                if ($generalFolder) {
+                    $media->folder_id = $generalFolder->id;
+                }
+            }
+        });
+    }
+
+    /**
      * Атрибуты, которые можно массово присваивать
      * 
      * @var array<string>
@@ -84,6 +102,15 @@ class Media extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+    ];
+
+    /**
+     * Атрибуты, которые должны быть добавлены в JSON-сериализацию
+     * 
+     * @var array<string>
+     */
+    protected $appends = [
+        'url',
     ];
 
     /**
