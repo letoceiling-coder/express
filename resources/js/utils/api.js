@@ -464,3 +464,95 @@ export const paymentsAPI = {
     },
 };
 
+// ============================================
+// Returns API
+// ============================================
+export const returnsAPI = {
+    // Получить все возвраты
+    async getAll(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await apiGet(`/returns${queryString ? `?${queryString}` : ''}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки возвратов');
+        }
+        return response.json();
+    },
+
+    // Получить возврат по ID
+    async getById(id) {
+        const response = await apiGet(`/returns/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки возврата');
+        }
+        return response.json();
+    },
+
+    // Получить возвраты для заказа
+    async getByOrder(orderId) {
+        const response = await apiGet(`/orders/${orderId}/returns`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки возвратов');
+        }
+        return response.json();
+    },
+
+    // Создать возврат
+    async create(data) {
+        const response = await apiPost('/returns', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания возврата');
+        }
+        return response.json();
+    },
+
+    // Обновить возврат
+    async update(id, data) {
+        const response = await apiPut(`/returns/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления возврата');
+        }
+        return response.json();
+    },
+
+    // Изменить статус возврата
+    async updateStatus(id, status) {
+        const response = await apiPut(`/returns/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Одобрить возврат
+    async approve(id, data = {}) {
+        const response = await apiPost(`/returns/${id}/approve`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка одобрения возврата');
+        }
+        return response.json();
+    },
+
+    // Отклонить возврат
+    async reject(id, reason) {
+        const response = await apiPost(`/returns/${id}/reject`, { reason });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка отклонения возврата');
+        }
+        return response.json();
+    },
+
+    // Удалить возврат
+    async delete(id) {
+        const response = await apiDelete(`/returns/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления возврата');
+        }
+        return true;
+    },
+};
+
