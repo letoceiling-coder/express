@@ -199,3 +199,64 @@ export const mediaAPI = {
     },
 };
 
+// ============================================
+// Products API
+// ============================================
+export const productsAPI = {
+    // Получить список товаров
+    async getAll(params = {}) {
+        const response = await apiGet('/products', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки товаров');
+        }
+        return response.json();
+    },
+
+    // Получить товар по ID
+    async getById(id) {
+        const response = await apiGet(`/products/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки товара');
+        }
+        return response.json();
+    },
+
+    // Создать товар
+    async create(data) {
+        const response = await apiPost('/products', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания товара');
+        }
+        return response.json();
+    },
+
+    // Обновить товар
+    async update(id, data) {
+        const response = await apiPut(`/products/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления товара');
+        }
+        return response.json();
+    },
+
+    // Удалить товар
+    async delete(id) {
+        const response = await apiDelete(`/products/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления товара');
+        }
+        return true;
+    },
+
+    // Получить историю изменений товара
+    async getHistory(id, params = {}) {
+        const response = await apiGet(`/products/${id}/history`, params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки истории');
+        }
+        return response.json();
+    },
+};
+
