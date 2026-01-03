@@ -44,10 +44,11 @@ class PaymentSettingsController extends Controller
         $settings = PaymentSetting::forProvider('yookassa');
 
         if (!$settings) {
+            // Возвращаем 200 с null, чтобы фронтенд мог показать форму создания
             return response()->json([
                 'data' => null,
-                'message' => 'Настройки ЮКасса не найдены',
-            ], 404);
+                'message' => 'Настройки ЮКасса не найдены. Вы можете создать их ниже.',
+            ]);
         }
 
         $data = $settings->toArray();
