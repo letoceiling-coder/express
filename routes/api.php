@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\v1\CategoryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
+use App\Http\Controllers\Api\v1\OrderController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,11 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('products.history');
         Route::get('products/{productId}/history/{historyId}', [ProductHistoryController::class, 'show'])
             ->name('products.history.show');
+        
+        // Orders
+        Route::apiResource('orders', OrderController::class)->except(['store']);
+        Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
+            ->name('orders.status');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
