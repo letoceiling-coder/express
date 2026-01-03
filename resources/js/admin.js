@@ -343,6 +343,25 @@ const routes = [
                 component: () => import('./pages/admin/DeliveryEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать доставку' },
             },
+            // Payments
+            {
+                path: 'payments',
+                name: 'admin.payments',
+                component: () => import('./pages/admin/Payments.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Платежи' },
+            },
+            {
+                path: 'payments/create',
+                name: 'admin.payments.create',
+                component: () => import('./pages/admin/PaymentCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать платеж' },
+            },
+            {
+                path: 'payments/:id/edit',
+                name: 'admin.payments.edit',
+                component: () => import('./pages/admin/PaymentEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать платеж' },
+            },
         ],
     },
 ];

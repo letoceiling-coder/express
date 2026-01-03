@@ -404,5 +404,63 @@ export const paymentsAPI = {
         }
         return response.json();
     },
+
+    // Получить платеж по ID
+    async getById(id) {
+        const response = await apiGet(`/payments/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки платежа');
+        }
+        return response.json();
+    },
+
+    // Создать платеж
+    async create(data) {
+        const response = await apiPost('/payments', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания платежа');
+        }
+        return response.json();
+    },
+
+    // Обновить платеж
+    async update(id, data) {
+        const response = await apiPut(`/payments/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления платежа');
+        }
+        return response.json();
+    },
+
+    // Изменить статус платежа
+    async updateStatus(id, status) {
+        const response = await apiPut(`/payments/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Возврат платежа
+    async refund(id, amount = null) {
+        const response = await apiPost(`/payments/${id}/refund`, amount ? { amount } : {});
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка возврата платежа');
+        }
+        return response.json();
+    },
+
+    // Удалить платеж
+    async delete(id) {
+        const response = await apiDelete(`/payments/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления платежа');
+        }
+        return true;
+    },
 };
 
