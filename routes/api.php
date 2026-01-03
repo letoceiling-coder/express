@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
+use App\Http\Controllers\Api\v1\ReviewController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -108,6 +109,17 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('complaints.status');
         Route::get('orders/{orderId}/complaints', [ComplaintController::class, 'getByOrder'])
             ->name('orders.complaints');
+        
+        // Reviews
+        Route::apiResource('reviews', ReviewController::class);
+        Route::put('reviews/{id}/status', [ReviewController::class, 'updateStatus'])
+            ->name('reviews.status');
+        Route::post('reviews/{id}/response', [ReviewController::class, 'addResponse'])
+            ->name('reviews.response');
+        Route::get('products/{productId}/reviews', [ReviewController::class, 'getByProduct'])
+            ->name('products.reviews');
+        Route::get('orders/{orderId}/review', [ReviewController::class, 'getByOrder'])
+            ->name('orders.review');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
