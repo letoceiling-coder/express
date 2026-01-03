@@ -726,35 +726,35 @@ export const reviewsAPI = {
 export const paymentSettingsAPI = {
     // Получить настройки ЮКасса
     async getYooKassaSettings() {
-        try {
-            const response = await apiGet('/payment-settings/yookassa');
-            return { data: response.data || response };
-        } catch (error) {
-            handleApiError(error);
-            throw error;
+        const response = await apiGet('/payment-settings/yookassa');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка загрузки настроек ЮКасса' }));
+            throw new Error(error.message || 'Ошибка загрузки настроек ЮКасса');
         }
+        const data = await response.json();
+        return { data };
     },
 
     // Обновить настройки ЮКасса
     async updateYooKassaSettings(data) {
-        try {
-            const response = await apiPut('/payment-settings/yookassa', data);
-            return { data: response.data || response };
-        } catch (error) {
-            handleApiError(error);
-            throw error;
+        const response = await apiPut('/payment-settings/yookassa', data);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка обновления настроек ЮКасса' }));
+            throw new Error(error.message || 'Ошибка обновления настроек ЮКасса');
         }
+        const result = await response.json();
+        return { data: result };
     },
 
     // Проверить подключение к ЮКасса
     async testYooKassaConnection(data) {
-        try {
-            const response = await apiPost('/payment-settings/yookassa/test', data);
-            return { data: response.data || response };
-        } catch (error) {
-            handleApiError(error);
-            throw error;
+        const response = await apiPost('/payment-settings/yookassa/test', data);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка проверки подключения' }));
+            throw new Error(error.message || 'Ошибка проверки подключения');
         }
+        const result = await response.json();
+        return { data: result };
     },
 };
 
