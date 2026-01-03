@@ -362,6 +362,25 @@ const routes = [
                 component: () => import('./pages/admin/PaymentEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать платеж' },
             },
+            // Returns
+            {
+                path: 'returns',
+                name: 'admin.returns',
+                component: () => import('./pages/admin/Returns.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Возвраты' },
+            },
+            {
+                path: 'returns/create',
+                name: 'admin.returns.create',
+                component: () => import('./pages/admin/ReturnCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать возврат' },
+            },
+            {
+                path: 'returns/:id/edit',
+                name: 'admin.returns.edit',
+                component: () => import('./pages/admin/ReturnEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать возврат' },
+            },
         ],
     },
 ];
