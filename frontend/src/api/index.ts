@@ -33,7 +33,8 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
 export const categoriesAPI = {
   async getAll(): Promise<Category[]> {
     const response = await apiRequest('/categories');
-    const categories = response.data || [];
+    // Гарантируем, что categories всегда массив
+    const categories = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     
     return categories.map((cat: any) => ({
       id: String(cat.id),
@@ -54,7 +55,15 @@ export const productsAPI = {
     }
 
     const response = await apiRequest(`/products?${params.toString()}`);
-    const products = response.data?.data || response.data || [];
+    // Гарантируем, что products всегда массив
+    let products: any[] = [];
+    if (Array.isArray(response.data)) {
+      products = response.data;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      products = response.data.data;
+    } else if (Array.isArray(response)) {
+      products = response;
+    }
     
     return products.map((product: any) => ({
       id: String(product.id),
