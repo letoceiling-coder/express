@@ -381,6 +381,25 @@ const routes = [
                 component: () => import('./pages/admin/ReturnEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать возврат' },
             },
+            // Complaints
+            {
+                path: 'complaints',
+                name: 'admin.complaints',
+                component: () => import('./pages/admin/Complaints.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Претензии' },
+            },
+            {
+                path: 'complaints/create',
+                name: 'admin.complaints.create',
+                component: () => import('./pages/admin/ComplaintCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать претензию' },
+            },
+            {
+                path: 'complaints/:id/edit',
+                name: 'admin.complaints.edit',
+                component: () => import('./pages/admin/ComplaintEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать претензию' },
+            },
         ],
     },
 ];

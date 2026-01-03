@@ -556,3 +556,85 @@ export const returnsAPI = {
     },
 };
 
+// ============================================
+// Complaints API
+// ============================================
+export const complaintsAPI = {
+    // Получить все претензии
+    async getAll(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await apiGet(`/complaints${queryString ? `?${queryString}` : ''}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки претензий');
+        }
+        return response.json();
+    },
+
+    // Получить претензию по ID
+    async getById(id) {
+        const response = await apiGet(`/complaints/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки претензии');
+        }
+        return response.json();
+    },
+
+    // Получить претензии для заказа
+    async getByOrder(orderId) {
+        const response = await apiGet(`/orders/${orderId}/complaints`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки претензий');
+        }
+        return response.json();
+    },
+
+    // Создать претензию
+    async create(data) {
+        const response = await apiPost('/complaints', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания претензии');
+        }
+        return response.json();
+    },
+
+    // Обновить претензию
+    async update(id, data) {
+        const response = await apiPut(`/complaints/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления претензии');
+        }
+        return response.json();
+    },
+
+    // Изменить статус претензии
+    async updateStatus(id, status) {
+        const response = await apiPut(`/complaints/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Добавить комментарий к претензии
+    async addComment(id, comment) {
+        const response = await apiPost(`/complaints/${id}/comments`, { comment });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка добавления комментария');
+        }
+        return response.json();
+    },
+
+    // Удалить претензию
+    async delete(id) {
+        const response = await apiDelete(`/complaints/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления претензии');
+        }
+        return true;
+    },
+};
+
