@@ -1,6 +1,6 @@
 # Версионирование проекта
 
-## Текущая версия: v1.1.0
+## Текущая версия: v1.0.0
 
 ## 📦 Установка определенной версии
 
@@ -14,11 +14,11 @@
 
 ```bash
 # Клонировать сразу версию 1.0.0
-git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/express.git
 
 # Для другой версии просто замените номер:
-git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/aip.git
-git clone --branch v2.0.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/express.git
+git clone --branch v2.0.0 --depth 1 https://github.com/letoceiling-coder/express.git
 ```
 
 **Преимущества:**
@@ -201,7 +201,9 @@ git push origin --delete v1.0.0
 
 Все версии проекта с описанием изменений. Версии отсортированы от новых к старым.
 
-### v1.1.0 (2025-12-26) - Актуальная реализация добавление ботов настройка webhook
+## Будущие версии
+
+### v1.1.0 (планируется) - Управление каталогом товаров
 
 **Статус:** Стабильная версия
 
@@ -241,26 +243,37 @@ git push origin --delete v1.0.0
 
 **Установка:**
 ```bash
-git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/express.git
 ```
 
 ---
 
-### v1.0.0 (2025-12-27) - Initial stable release
+### v1.0.0 (2025-01-20) - Initial release
 
 **Статус:** Стабильная версия
 
 **Основные возможности:**
-- Стабильная версия с автоматическим деплоем
-- Интеграция с GitHub Actions
-- Полнофункциональная админ-панель
-- Система медиа-библиотеки
-- Система поддержки
+- Telegram Mini App с React frontend
+- Laravel 11 backend API
+- Vue 3 админ-панель для управления
+- Система медиа-библиотеки с поддержкой папок
+- Система поддержки с интеграцией CRM
+- Управление пользователями и ролями
 - Проверка подписки
+- Система уведомлений
+- Управление Telegram ботами
+- Автоматический деплой через GitHub Actions
+
+**Технологический стек:**
+- Backend: Laravel 11, PHP 8.2+
+- Frontend (Admin): Vue 3 + TypeScript + Vite
+- Frontend (MiniApp): React 18 + TypeScript
+- База данных: MySQL/PostgreSQL
+- Авторизация: Laravel Sanctum
 
 **Установка:**
 ```bash
-git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/express.git
 ```
 
 ---
