@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\v1\CategoryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\v1\ProductController;
+use App\Http\Controllers\Api\v1\ProductHistoryController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -57,6 +58,12 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Products
         Route::apiResource('products', ProductController::class);
+        
+        // Product History
+        Route::get('products/{id}/history', [ProductHistoryController::class, 'index'])
+            ->name('products.history');
+        Route::get('products/{productId}/history/{historyId}', [ProductHistoryController::class, 'show'])
+            ->name('products.history.show');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
