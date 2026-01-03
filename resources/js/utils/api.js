@@ -115,3 +115,55 @@ export const apiDelete = async (url) => {
     });
 };
 
+// ============================================
+// Categories API
+// ============================================
+export const categoriesAPI = {
+    // Получить список категорий
+    async getAll(params = {}) {
+        const response = await apiGet('/categories', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки категорий');
+        }
+        return response.json();
+    },
+
+    // Получить категорию по ID
+    async getById(id) {
+        const response = await apiGet(`/categories/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки категории');
+        }
+        return response.json();
+    },
+
+    // Создать категорию
+    async create(data) {
+        const response = await apiPost('/categories', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания категории');
+        }
+        return response.json();
+    },
+
+    // Обновить категорию
+    async update(id, data) {
+        const response = await apiPut(`/categories/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления категории');
+        }
+        return response.json();
+    },
+
+    // Удалить категорию
+    async delete(id) {
+        const response = await apiDelete(`/categories/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления категории');
+        }
+        return true;
+    },
+};
+

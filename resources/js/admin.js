@@ -267,6 +267,25 @@ const routes = [
                 component: () => import('./pages/admin/Bots.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Боты' },
             },
+            // Categories
+            {
+                path: 'categories',
+                name: 'admin.categories',
+                component: () => import('./pages/admin/Categories.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Категории' },
+            },
+            {
+                path: 'categories/create',
+                name: 'admin.categories.create',
+                component: () => import('./pages/admin/CategoryCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать категорию' },
+            },
+            {
+                path: 'categories/:id/edit',
+                name: 'admin.categories.edit',
+                component: () => import('./pages/admin/CategoryEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать категорию' },
+            },
         ],
     },
 ];
