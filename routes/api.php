@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\v1\OrderController;
 use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
+use App\Http\Controllers\Api\v1\ReturnController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -88,6 +89,17 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payments.refund');
         Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])
             ->name('orders.payments');
+        
+        // Returns
+        Route::apiResource('returns', ReturnController::class);
+        Route::put('returns/{id}/status', [ReturnController::class, 'updateStatus'])
+            ->name('returns.status');
+        Route::post('returns/{id}/approve', [ReturnController::class, 'approve'])
+            ->name('returns.approve');
+        Route::post('returns/{id}/reject', [ReturnController::class, 'reject'])
+            ->name('returns.reject');
+        Route::get('orders/{orderId}/returns', [ReturnController::class, 'getByOrder'])
+            ->name('orders.returns');
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
