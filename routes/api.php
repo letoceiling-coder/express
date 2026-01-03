@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\DeployController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\BotController;
+use App\Http\Controllers\Api\v1\CategoryController;
 use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('media/{id}/restore', [MediaController::class, 'restore'])->name('media.restore');
         Route::delete('media/trash/empty', [MediaController::class, 'emptyTrash'])->name('media.trash.empty');
         Route::apiResource('media', MediaController::class);
+        
+        // Categories
+        Route::apiResource('categories', CategoryController::class);
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
