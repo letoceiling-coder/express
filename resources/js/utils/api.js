@@ -260,3 +260,110 @@ export const productsAPI = {
     },
 };
 
+// ============================================
+// Orders API
+// ============================================
+export const ordersAPI = {
+    // Получить список заказов
+    async getAll(params = {}) {
+        const response = await apiGet('/orders', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки заказов');
+        }
+        return response.json();
+    },
+
+    // Получить заказ по ID
+    async getById(id) {
+        const response = await apiGet(`/orders/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки заказа');
+        }
+        return response.json();
+    },
+
+    // Обновить заказ
+    async update(id, data) {
+        const response = await apiPut(`/orders/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления заказа');
+        }
+        return response.json();
+    },
+
+    // Изменить статус заказа
+    async updateStatus(id, status) {
+        const response = await apiPut(`/orders/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Удалить заказ
+    async delete(id) {
+        const response = await apiDelete(`/orders/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления заказа');
+        }
+        return true;
+    },
+};
+
+// ============================================
+// Deliveries API
+// ============================================
+export const deliveriesAPI = {
+    // Получить список доставок
+    async getAll(params = {}) {
+        const response = await apiGet('/deliveries', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки доставок');
+        }
+        return response.json();
+    },
+
+    // Получить доставку по ID
+    async getById(id) {
+        const response = await apiGet(`/deliveries/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки доставки');
+        }
+        return response.json();
+    },
+
+    // Получить доставку для заказа
+    async getByOrder(orderId) {
+        const response = await apiGet(`/orders/${orderId}/delivery`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки доставки');
+        }
+        return response.json();
+    },
+};
+
+// ============================================
+// Payments API
+// ============================================
+export const paymentsAPI = {
+    // Получить список платежей
+    async getAll(params = {}) {
+        const response = await apiGet('/payments', params);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки платежей');
+        }
+        return response.json();
+    },
+
+    // Получить платежи для заказа
+    async getByOrder(orderId) {
+        const response = await apiGet(`/orders/${orderId}/payments`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки платежей');
+        }
+        return response.json();
+    },
+};
+

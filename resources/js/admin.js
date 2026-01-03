@@ -311,6 +311,19 @@ const routes = [
                 component: () => import('./pages/admin/ProductHistory.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'История товара' },
             },
+            // Orders
+            {
+                path: 'orders',
+                name: 'admin.orders',
+                component: () => import('./pages/admin/Orders.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Заказы' },
+            },
+            {
+                path: 'orders/:id',
+                name: 'admin.orders.detail',
+                component: () => import('./pages/admin/OrderDetail.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Детали заказа' },
+            },
         ],
     },
 ];
