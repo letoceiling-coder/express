@@ -400,6 +400,25 @@ const routes = [
                 component: () => import('./pages/admin/ComplaintEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать претензию' },
             },
+            // Reviews
+            {
+                path: 'reviews',
+                name: 'admin.reviews',
+                component: () => import('./pages/admin/Reviews.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Отзывы' },
+            },
+            {
+                path: 'reviews/create',
+                name: 'admin.reviews.create',
+                component: () => import('./pages/admin/ReviewCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать отзыв' },
+            },
+            {
+                path: 'reviews/:id/edit',
+                name: 'admin.reviews.edit',
+                component: () => import('./pages/admin/ReviewEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать отзыв' },
+            },
         ],
     },
 ];

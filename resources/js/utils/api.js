@@ -638,3 +638,84 @@ export const complaintsAPI = {
     },
 };
 
+// ============================================
+// Reviews API
+// ============================================
+export const reviewsAPI = {
+    // Получить все отзывы
+    async getAll(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await apiGet(`/reviews${queryString ? `?${queryString}` : ''}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки отзывов');
+        }
+        return response.json();
+    },
+
+    // Получить отзыв по ID
+    async getById(id) {
+        const response = await apiGet(`/reviews/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки отзыва');
+        }
+        return response.json();
+    },
+
+    // Получить отзывы для заказа
+    async getByOrder(orderId) {
+        const response = await apiGet(`/orders/${orderId}/reviews`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки отзывов');
+        }
+        return response.json();
+    },
+
+    // Получить отзывы для товара
+    async getByProduct(productId) {
+        const response = await apiGet(`/products/${productId}/reviews`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки отзывов');
+        }
+        return response.json();
+    },
+
+    // Создать отзыв
+    async create(data) {
+        const response = await apiPost('/reviews', data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка создания отзыва');
+        }
+        return response.json();
+    },
+
+    // Обновить отзыв
+    async update(id, data) {
+        const response = await apiPut(`/reviews/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка обновления отзыва');
+        }
+        return response.json();
+    },
+
+    // Изменить статус отзыва (модерация)
+    async updateStatus(id, status) {
+        const response = await apiPut(`/reviews/${id}/status`, { status });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка изменения статуса');
+        }
+        return response.json();
+    },
+
+    // Удалить отзыв
+    async delete(id) {
+        const response = await apiDelete(`/reviews/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления отзыва');
+        }
+        return true;
+    },
+};
+
