@@ -290,15 +290,41 @@ export default {
             this.testResult = null;
 
             try {
-                await paymentSettingsAPI.updateYooKassaSettings(this.form);
-                alert('Настройки успешно сохранены');
+                // Преобразуем mode в is_test_mode для отправки на сервер
+                const formData = {
+                    ...this.form,
+                    is_test_mode: this.form.mode === 'sandbox',
+                    provider: 'yookassa',
+                };
+                
+                // В зависимости от режима используем соответствующие поля
+                if (this.form.mode === 'sandbox') {
+                    formData.test_shop_id = this.form.shop_id;
+                    formData.test_secret_key = this.form.secret_key;
+                    // Очищаем production поля, если они были
+                    delete formData.shop_id;
+                    delete formData.secret_key;
+                } else {
+                    formData.shop_id = this.form.shop_id;
+                    formData.secret_key = this.form.secret_key;
+                    // Очищаем тестовые поля
+                    delete formData.test_shop_id;
+                    delete formData.test_secret_key;
+                }
+                
+                // Удаляем mode, так как он не нужен на сервере
+                delete formData.mode;
+
+                await paymentSettingsAPI.updateYooKassaSettings(formData);
+                window.showToast('success', 'Настройки успешно сохранены');
                 await this.loadSettings();
             } catch (error) {
                 const errorData = error.response?.data || {};
                 if (errorData.errors) {
                     this.errors = errorData.errors;
+                    window.showToast('error', 'Ошибка валидации. Проверьте введенные данные.');
                 } else {
-                    alert(error.message || 'Ошибка сохранения настроек');
+                    window.showToast('error', error.message || 'Ошибка сохранения настроек');
                 }
             } finally {
                 this.loading = false;
