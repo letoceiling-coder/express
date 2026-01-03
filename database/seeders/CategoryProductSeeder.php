@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
+use App\Models\Folder;
 use App\Models\Media;
 use App\Models\Product;
 use Illuminate\Database\Seeder;
@@ -14,6 +15,11 @@ use Illuminate\Support\Str;
 
 class CategoryProductSeeder extends Seeder
 {
+    /**
+     * Папка "Общая" для медиа-файлов
+     */
+    private ?Folder $generalFolder = null;
+
     /**
      * Данные категорий и товаров из mockData.ts
      */
@@ -202,7 +208,7 @@ class CategoryProductSeeder extends Seeder
     /**
      * Загрузить изображение из URL и создать запись в Media
      */
-    private function downloadImageToMedia(string $url, string $name): ?Media
+    private function downloadImageToMedia(string $url, string $name, ?Folder $folder = null): ?Media
     {
         try {
             // Загружаем изображение с отключенной проверкой SSL для локальной разработки
@@ -283,7 +289,7 @@ class CategoryProductSeeder extends Seeder
                 'height' => $height,
                 'type' => 'photo',
                 'size' => strlen($imageContent),
-                'folder_id' => null,
+                'folder_id' => $folder?->id ?? $this->generalFolder?->id,
                 'user_id' => null,
                 'temporary' => false,
                 'metadata' => json_encode([
@@ -301,11 +307,37 @@ class CategoryProductSeeder extends Seeder
     }
 
     /**
+     * Получить или создать папку "Общая"
+     */
+    private function getOrCreateGeneralFolder(): ?Folder
+    {
+        $folder = Folder::where('name', 'Общая')->whereNull('parent_id')->first();
+        
+        if (!$folder) {
+            $folder = Folder::create([
+                'name' => 'Общая',
+                'slug' => 'obshchaya',
+                'src' => '/media/photos/obshchaya',
+                'parent_id' => null,
+                'position' => 0,
+                'protected' => false,
+                'is_trash' => false,
+            ]);
+            $this->command->info('Created folder: Общая');
+        }
+        
+        return $folder;
+    }
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
     {
         $this->command->info('Starting Category and Product seeder...');
+        
+        // Создаем или получаем папку "Общая"
+        $this->generalFolder = $this->getOrCreateGeneralFolder();
 
         // Создаем категории
         $categoryMap = [];
@@ -339,7 +371,7 @@ class CategoryProductSeeder extends Seeder
             $imageMedia = null;
             if (!empty($productData['imageUrl'])) {
                 $this->command->info("Downloading image for: {$productData['name']}");
-                $imageMedia = $this->downloadImageToMedia($productData['imageUrl'], $productData['name']);
+                $imageMedia = $this->downloadImageToMedia($productData['imageUrl'], $productData['name'], $this->generalFolder);
                 
                 if ($imageMedia) {
                     $this->command->info("  ✓ Image downloaded: {$imageMedia->name}");

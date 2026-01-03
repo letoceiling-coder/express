@@ -235,11 +235,24 @@ export const mediaAPI = {
 export const productsAPI = {
     // Получить список товаров
     async getAll(params = {}) {
-        const response = await apiGet('/products', params);
-        if (!response.ok) {
-            throw new Error('Ошибка загрузки товаров');
+        try {
+            const response = await axios.get(`${API_BASE}/products`, {
+                params: { ...params, per_page: 0 }, // Отключаем пагинацию для получения всех товаров
+                headers: getAuthHeaders(),
+                withCredentials: true,
+            });
+            // Обрабатываем разные форматы ответа
+            const data = response.data;
+            if (Array.isArray(data.data)) {
+                return { data: data.data };
+            } else if (Array.isArray(data)) {
+                return { data };
+            }
+            return { data: [] };
+        } catch (error) {
+            console.error('Products API error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.message || 'Ошибка загрузки товаров');
         }
-        return response.json();
     },
 
     // Получить товар по ID
