@@ -65,7 +65,7 @@ class BroadcastController extends Controller
         $validator = Validator::make($request->all(), [
             'bot_id' => 'required|exists:bots,id',
             'telegram_user_ids' => 'nullable|array',
-            'type' => 'required|in:message,photo,document,media_group',
+            'type' => 'required|in:message,photo,video,document,media_group',
             'content' => 'required|array',
         ]);
 

@@ -475,6 +475,72 @@ class TelegramService
     }
 
     /**
+     * Отправить видео
+     */
+    public function sendVideo(string $token, int|string $chatId, string $video, array $options = []): array
+    {
+        try {
+            $params = array_merge([
+                'chat_id' => $chatId,
+                'video' => $video,
+            ], $options);
+
+            Log::info('📤 Sending video via Telegram API', [
+                'chat_id' => $chatId,
+                'has_options' => !empty($options),
+            ]);
+
+            $response = Http::timeout(30)->post($this->apiBaseUrl . $token . '/sendVideo', $params);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if ($data['ok'] ?? false) {
+                    Log::info('✅ Video sent successfully', [
+                        'chat_id' => $chatId,
+                        'message_id' => $data['result']['message_id'] ?? null,
+                    ]);
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+                
+                Log::error('❌ Telegram API error sending video', [
+                    'chat_id' => $chatId,
+                    'description' => $data['description'] ?? 'Unknown error',
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => $data['description'] ?? 'Не удалось отправить видео',
+                ];
+            }
+            
+            Log::error('❌ HTTP error sending video', [
+                'chat_id' => $chatId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            
+            return [
+                'success' => false,
+                'message' => 'Ошибка подключения к Telegram API',
+            ];
+        } catch (\Exception $e) {
+            Log::error('❌ Telegram sendVideo error: ' . $e->getMessage(), [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Ошибка: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Получить информацию о чате
      */
     public function getChat(string $token, int|string $chatId): array

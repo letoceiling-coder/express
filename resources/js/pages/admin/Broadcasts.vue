@@ -36,8 +36,10 @@
                         @change="handleTypeChange"
                     >
                         <option value="message">Сообщение (текст)</option>
-                        <option value="photo">Фото</option>
+                        <option value="photo">Фото + текст</option>
+                        <option value="video">Видео + текст</option>
                         <option value="document">Документ</option>
+                        <option value="media_group">Галерея (фото/видео)</option>
                     </select>
                 </div>
 
@@ -57,22 +59,85 @@
                 </div>
 
                 <div v-if="form.type === 'photo'">
-                    <label class="text-sm font-medium text-foreground mb-1 block">URL фото или file_id *</label>
-                    <input
-                        v-model="form.content.photo"
-                        type="text"
-                        required
-                        placeholder="https://example.com/photo.jpg или AgACAgIAAxkBAAI..."
-                        class="w-full h-10 px-3 rounded-lg border border-input bg-background font-mono text-sm"
-                    />
+                    <label class="text-sm font-medium text-foreground mb-1 block">Фото *</label>
+                    <div class="flex gap-2">
+                        <button
+                            type="button"
+                            @click="showMediaSelector = true; mediaSelectorType = 'photo'"
+                            class="px-4 py-2 border border-border bg-background/50 hover:bg-accent/10 rounded-lg transition-colors"
+                        >
+                            Выбрать из медиа-библиотеки
+                        </button>
+                        <input
+                            v-model="form.content.photo"
+                            type="text"
+                            placeholder="Или введите URL/file_id"
+                            class="flex-1 h-10 px-3 rounded-lg border border-input bg-background font-mono text-sm"
+                        />
+                    </div>
+                    <div v-if="selectedPhoto" class="mt-2">
+                        <div class="relative inline-block">
+                            <img :src="selectedPhoto.url" :alt="selectedPhoto.name" class="w-32 h-32 object-cover rounded border border-border" />
+                            <button
+                                type="button"
+                                @click="removePhoto"
+                                class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
                     <p class="text-xs text-muted-foreground mt-1">
-                        Можно использовать URL изображения или file_id из Telegram
+                        Выберите фото из медиа-библиотеки или введите URL/file_id
                     </p>
                     <label class="text-sm font-medium text-foreground mb-1 block mt-3">Подпись к фото (опционально)</label>
                     <textarea
                         v-model="form.content.caption"
                         rows="3"
                         placeholder="Подпись к фото..."
+                        class="w-full px-3 py-2 rounded-lg border border-input bg-background resize-none"
+                    ></textarea>
+                </div>
+
+                <div v-if="form.type === 'video'">
+                    <label class="text-sm font-medium text-foreground mb-1 block">Видео *</label>
+                    <div class="flex gap-2">
+                        <button
+                            type="button"
+                            @click="showMediaSelector = true; mediaSelectorType = 'video'"
+                            class="px-4 py-2 border border-border bg-background/50 hover:bg-accent/10 rounded-lg transition-colors"
+                        >
+                            Выбрать из медиа-библиотеки
+                        </button>
+                        <input
+                            v-model="form.content.video"
+                            type="text"
+                            placeholder="Или введите URL/file_id"
+                            class="flex-1 h-10 px-3 rounded-lg border border-input bg-background font-mono text-sm"
+                        />
+                    </div>
+                    <div v-if="selectedVideo" class="mt-2">
+                        <div class="relative inline-block">
+                            <div class="w-32 h-32 bg-muted rounded border border-border flex items-center justify-center">
+                                <span class="text-2xl">🎥</span>
+                            </div>
+                            <button
+                                type="button"
+                                @click="removeVideo"
+                                class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        Выберите видео из медиа-библиотеки или введите URL/file_id
+                    </p>
+                    <label class="text-sm font-medium text-foreground mb-1 block mt-3">Подпись к видео (опционально)</label>
+                    <textarea
+                        v-model="form.content.caption"
+                        rows="3"
+                        placeholder="Подпись к видео..."
                         class="w-full px-3 py-2 rounded-lg border border-input bg-background resize-none"
                     ></textarea>
                 </div>
@@ -96,6 +161,55 @@
                         placeholder="Подпись к документу..."
                         class="w-full px-3 py-2 rounded-lg border border-input bg-background resize-none"
                     ></textarea>
+                </div>
+
+                <div v-if="form.type === 'media_group'">
+                    <label class="text-sm font-medium text-foreground mb-1 block">Медиа-файлы *</label>
+                    <button
+                        type="button"
+                        @click="showMediaSelector = true; mediaSelectorType = 'media_group'"
+                        class="w-full px-4 py-2 border border-border bg-background/50 hover:bg-accent/10 rounded-lg transition-colors mb-2"
+                    >
+                        {{ selectedMedia.length > 0 ? `Выбрано файлов: ${selectedMedia.length}` : 'Выбрать медиа-файлы' }}
+                    </button>
+                    <p class="text-xs text-muted-foreground mb-2">
+                        Можно выбрать до 10 фото или видео (в одной галерее могут быть только фото или только видео)
+                    </p>
+                    
+                    <div v-if="selectedMedia.length > 0" class="grid grid-cols-4 gap-2 mt-2">
+                        <div
+                            v-for="(media, index) in selectedMedia"
+                            :key="media.id || index"
+                            class="relative group"
+                        >
+                            <img
+                                v-if="media.type === 'photo'"
+                                :src="media.url"
+                                :alt="media.name"
+                                class="w-full h-24 object-cover rounded border border-border"
+                            />
+                            <div
+                                v-else
+                                class="w-full h-24 bg-muted rounded border border-border flex items-center justify-center"
+                            >
+                                <span class="text-xl">🎥</span>
+                            </div>
+                            <button
+                                type="button"
+                                @click="removeMedia(index)"
+                                class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                ×
+                            </button>
+                            <input
+                                v-model="media.caption"
+                                type="text"
+                                placeholder="Подпись (опционально)"
+                                class="w-full mt-1 px-2 py-1 text-xs rounded border border-border bg-background"
+                                @input="updateMediaCaption(index, $event.target.value)"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Получатели -->
@@ -230,6 +344,16 @@
             </div>
         </div>
 
+        <!-- MediaSelector Modal -->
+        <MediaSelector
+            :open="showMediaSelector"
+            :multiple="mediaSelectorType === 'media_group'"
+            :allowedTypes="mediaSelectorType === 'photo' ? ['photo'] : mediaSelectorType === 'video' ? ['video'] : ['photo', 'video']"
+            :currentSelection="mediaSelectorType === 'photo' ? (selectedPhoto ? [selectedPhoto] : []) : mediaSelectorType === 'video' ? (selectedVideo ? [selectedVideo] : []) : selectedMedia"
+            @close="showMediaSelector = false"
+            @select="handleMediaSelect"
+        />
+
         <!-- Модальное окно выбора пользователей -->
         <div v-if="showUserSelector" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="bg-background border border-border rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -303,9 +427,13 @@
 
 <script>
 import axios from 'axios';
+import MediaSelector from '../../components/admin/MediaSelector.vue';
 
 export default {
     name: 'Broadcasts',
+    components: {
+        MediaSelector,
+    },
     data() {
         return {
             bots: [],
@@ -322,6 +450,11 @@ export default {
             userSearchTimeout: null,
             previewResult: null,
             sendResult: null,
+            showMediaSelector: false,
+            mediaSelectorType: 'photo', // 'photo', 'video', 'media_group'
+            selectedPhoto: null,
+            selectedVideo: null,
+            selectedMedia: [],
             form: {
                 bot_id: '',
                 type: 'message',
@@ -329,8 +462,10 @@ export default {
                 content: {
                     text: '',
                     photo: '',
+                    video: '',
                     document: '',
                     caption: '',
+                    media: [],
                 },
                 options: {
                     parse_mode: null,
@@ -399,9 +534,63 @@ export default {
             this.form.content = {
                 text: '',
                 photo: '',
+                video: '',
                 document: '',
                 caption: '',
+                media: [],
             };
+            this.selectedPhoto = null;
+            this.selectedVideo = null;
+            this.selectedMedia = [];
+        },
+        handleMediaSelect(files) {
+            const selected = Array.isArray(files) ? files : [files];
+            
+            if (this.mediaSelectorType === 'photo') {
+                this.selectedPhoto = selected[0] || null;
+                if (this.selectedPhoto) {
+                    this.form.content.photo = this.selectedPhoto.url || '';
+                }
+            } else if (this.mediaSelectorType === 'video') {
+                this.selectedVideo = selected[0] || null;
+                if (this.selectedVideo) {
+                    this.form.content.video = this.selectedVideo.url || '';
+                }
+            } else if (this.mediaSelectorType === 'media_group') {
+                this.selectedMedia = selected.map(media => ({
+                    ...media,
+                    caption: media.caption || '',
+                }));
+                this.updateMediaGroup();
+            }
+            
+            this.showMediaSelector = false;
+        },
+        removePhoto() {
+            this.selectedPhoto = null;
+            this.form.content.photo = '';
+        },
+        removeVideo() {
+            this.selectedVideo = null;
+            this.form.content.video = '';
+        },
+        removeMedia(index) {
+            this.selectedMedia.splice(index, 1);
+            this.updateMediaGroup();
+        },
+        updateMediaCaption(index, caption) {
+            if (this.selectedMedia[index]) {
+                this.selectedMedia[index].caption = caption;
+                this.updateMediaGroup();
+            }
+        },
+        updateMediaGroup() {
+            // Формируем массив media для Telegram API
+            this.form.content.media = this.selectedMedia.map((media, index) => ({
+                type: media.type === 'photo' ? 'photo' : 'video',
+                media: media.url || '',
+                caption: media.caption || undefined,
+            }));
         },
         handleRecipientTypeChange() {
             if (this.recipientType === 'all') {
@@ -438,16 +627,22 @@ export default {
                 return !!this.form.content.text;
             } else if (this.form.type === 'photo') {
                 return !!this.form.content.photo;
+            } else if (this.form.type === 'video') {
+                return !!this.form.content.video;
             } else if (this.form.type === 'document') {
                 return !!this.form.content.document;
+            } else if (this.form.type === 'media_group') {
+                return this.selectedMedia.length > 0 && this.selectedMedia.length <= 10;
             }
             return false;
         },
         getTypeLabel(type) {
             const labels = {
                 message: 'Сообщение',
-                photo: 'Фото',
+                photo: 'Фото + текст',
+                video: 'Видео + текст',
                 document: 'Документ',
+                media_group: 'Галерея',
             };
             return labels[type] || type;
         },
@@ -462,10 +657,12 @@ export default {
             this.sendResult = null;
 
             try {
+                const content = this.buildContent();
+                
                 const payload = {
                     bot_id: this.form.bot_id,
                     type: this.form.type,
-                    content: this.form.content,
+                    content: content,
                     telegram_user_ids: this.recipientType === 'all' ? null : this.form.telegram_user_ids,
                 };
 
@@ -487,10 +684,13 @@ export default {
             this.sendResult = null;
 
             try {
+                // Формируем content только с нужными полями для выбранного типа
+                const content = this.buildContent();
+                
                 const payload = {
                     bot_id: this.form.bot_id,
                     type: this.form.type,
-                    content: this.form.content,
+                    content: content,
                     options: this.form.options,
                     telegram_user_ids: this.recipientType === 'all' ? null : this.form.telegram_user_ids,
                 };
@@ -523,6 +723,33 @@ export default {
                 this.sending = false;
             }
         },
+        buildContent() {
+            // Формируем объект content только с нужными полями для выбранного типа
+            const content = {};
+            
+            if (this.form.type === 'message') {
+                content.text = this.form.content.text || '';
+            } else if (this.form.type === 'photo') {
+                content.photo = this.form.content.photo || '';
+                if (this.form.content.caption) {
+                    content.caption = this.form.content.caption;
+                }
+            } else if (this.form.type === 'video') {
+                content.video = this.form.content.video || '';
+                if (this.form.content.caption) {
+                    content.caption = this.form.content.caption;
+                }
+            } else if (this.form.type === 'document') {
+                content.document = this.form.content.document || '';
+                if (this.form.content.caption) {
+                    content.caption = this.form.content.caption;
+                }
+            } else if (this.form.type === 'media_group') {
+                content.media = this.form.content.media || [];
+            }
+            
+            return content;
+        },
         resetForm() {
             this.form = {
                 bot_id: '',
@@ -531,8 +758,10 @@ export default {
                 content: {
                     text: '',
                     photo: '',
+                    video: '',
                     document: '',
                     caption: '',
+                    media: [],
                 },
                 options: {
                     parse_mode: null,
@@ -541,6 +770,9 @@ export default {
             };
             this.recipientType = 'all';
             this.selectedUsers = [];
+            this.selectedMedia = [];
+            this.selectedPhoto = null;
+            this.selectedVideo = null;
             this.previewResult = null;
             this.sendResult = null;
         },

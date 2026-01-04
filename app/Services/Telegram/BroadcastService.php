@@ -174,13 +174,19 @@ class BroadcastService
                 $token,
                 $telegramId,
                 $content['photo'] ?? '',
-                array_merge($options, ['caption' => $content['caption'] ?? ''])
+                array_merge($options, array_filter(['caption' => $content['caption'] ?? null]))
+            ),
+            'video' => $this->telegramService->sendVideo(
+                $token,
+                $telegramId,
+                $content['video'] ?? '',
+                array_merge($options, array_filter(['caption' => $content['caption'] ?? null]))
             ),
             'document' => $this->telegramService->sendDocument(
                 $token,
                 $telegramId,
                 $content['document'] ?? '',
-                array_merge($options, ['caption' => $content['caption'] ?? ''])
+                array_merge($options, array_filter(['caption' => $content['caption'] ?? null]))
             ),
             'media_group' => $this->telegramService->sendMediaGroup(
                 $token,
