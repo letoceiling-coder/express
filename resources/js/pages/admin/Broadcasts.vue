@@ -545,15 +545,37 @@ export default {
         handleMediaSelect(files) {
             const selected = Array.isArray(files) ? files : [files];
             
+            // Функция для преобразования относительного URL в абсолютный
+            const getAbsoluteUrl = (url) => {
+                if (!url) return '';
+                // Если это telegram_file_id, возвращаем как есть
+                if (url.startsWith('BQACAgIAA') || url.match(/^[A-Za-z0-9_-]+$/)) {
+                    return url;
+                }
+                // Если URL уже абсолютный, возвращаем как есть
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    return url;
+                }
+                // Преобразуем относительный URL в абсолютный
+                if (url.startsWith('/')) {
+                    return window.location.origin + url;
+                }
+                return url;
+            };
+            
             if (this.mediaSelectorType === 'photo') {
                 this.selectedPhoto = selected[0] || null;
                 if (this.selectedPhoto) {
-                    this.form.content.photo = this.selectedPhoto.url || '';
+                    // Приоритет: telegram_file_id > url
+                    const photoUrl = this.selectedPhoto.telegram_file_id || this.selectedPhoto.url || '';
+                    this.form.content.photo = getAbsoluteUrl(photoUrl);
                 }
             } else if (this.mediaSelectorType === 'video') {
                 this.selectedVideo = selected[0] || null;
                 if (this.selectedVideo) {
-                    this.form.content.video = this.selectedVideo.url || '';
+                    // Приоритет: telegram_file_id > url
+                    const videoUrl = this.selectedVideo.telegram_file_id || this.selectedVideo.url || '';
+                    this.form.content.video = getAbsoluteUrl(videoUrl);
                 }
             } else if (this.mediaSelectorType === 'media_group') {
                 this.selectedMedia = selected.map(media => ({
@@ -584,12 +606,34 @@ export default {
             }
         },
         updateMediaGroup() {
+            // Функция для преобразования относительного URL в абсолютный
+            const getAbsoluteUrl = (url) => {
+                if (!url) return '';
+                // Если это telegram_file_id, возвращаем как есть
+                if (url.startsWith('BQACAgIAA') || url.match(/^[A-Za-z0-9_-]+$/)) {
+                    return url;
+                }
+                // Если URL уже абсолютный, возвращаем как есть
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    return url;
+                }
+                // Преобразуем относительный URL в абсолютный
+                if (url.startsWith('/')) {
+                    return window.location.origin + url;
+                }
+                return url;
+            };
+            
             // Формируем массив media для Telegram API
-            this.form.content.media = this.selectedMedia.map((media, index) => ({
-                type: media.type === 'photo' ? 'photo' : 'video',
-                media: media.url || '',
-                caption: media.caption || undefined,
-            }));
+            this.form.content.media = this.selectedMedia.map((media, index) => {
+                // Приоритет: telegram_file_id > url
+                const mediaUrl = media.telegram_file_id || media.url || '';
+                return {
+                    type: media.type === 'photo' ? 'photo' : 'video',
+                    media: getAbsoluteUrl(mediaUrl),
+                    caption: media.caption || undefined,
+                };
+            });
         },
         handleRecipientTypeChange() {
             if (this.recipientType === 'all') {
