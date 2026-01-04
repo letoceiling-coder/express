@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\Order;
 use App\Services\Telegram\TelegramMiniAppService;
+use App\Services\Telegram\TelegramUserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +15,14 @@ use Illuminate\Support\Facades\Log;
 class OrderController extends Controller
 {
     protected TelegramMiniAppService $telegramMiniAppService;
+    protected TelegramUserService $telegramUserService;
 
-    public function __construct(TelegramMiniAppService $telegramMiniAppService)
-    {
+    public function __construct(
+        TelegramMiniAppService $telegramMiniAppService,
+        TelegramUserService $telegramUserService
+    ) {
         $this->telegramMiniAppService = $telegramMiniAppService;
+        $this->telegramUserService = $telegramUserService;
     }
     /**
      * Создать новый заказ
@@ -55,10 +60,19 @@ class OrderController extends Controller
                 $orderId = $request->get('order_id');
             }
 
+            // Получаем bot_id из запроса или определяем по умолчанию
+            $botId = $request->get('bot_id');
+            if (!$botId) {
+                // Получаем первого активного бота
+                $bot = \App\Models\Bot::where('is_active', true)->first();
+                $botId = $bot ? $bot->id : null;
+            }
+
             // Создаем заказ
             $order = Order::create([
                 'order_id' => $orderId,
                 'telegram_id' => $request->get('telegram_id'),
+                'bot_id' => $botId,
                 'phone' => $request->get('phone'),
                 'delivery_address' => $request->get('delivery_address'),
                 'delivery_time' => $request->get('delivery_time'),
@@ -82,6 +96,43 @@ class OrderController extends Controller
             DB::commit();
 
             $order->load(['items.product', 'manager', 'bot']);
+
+            // Синхронизируем пользователя Telegram
+            if ($botId && $request->get('telegram_id')) {
+                try {
+                    // Пытаемся синхронизировать пользователя (если есть данные в запросе)
+                    $userData = $request->get('user', []);
+                    if (!empty($userData)) {
+                        $this->telegramUserService->syncUser($botId, array_merge($userData, [
+                            'id' => $request->get('telegram_id'),
+                            'telegram_id' => $request->get('telegram_id'),
+                        ]));
+                    } else {
+                        // Создаем пользователя с минимальными данными
+                        $telegramUser = \App\Models\TelegramUser::firstOrCreate(
+                            [
+                                'bot_id' => $botId,
+                                'telegram_id' => $request->get('telegram_id'),
+                            ],
+                            [
+                                'first_name' => null,
+                                'last_name' => null,
+                                'username' => null,
+                            ]
+                        );
+                    }
+
+                    // Обновляем статистику пользователя
+                    $telegramUser = \App\Models\TelegramUser::where('bot_id', $botId)
+                        ->where('telegram_id', $request->get('telegram_id'))
+                        ->first();
+                    if ($telegramUser) {
+                        $this->telegramUserService->updateStatistics($telegramUser);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Не удалось синхронизировать пользователя Telegram: ' . $e->getMessage());
+                }
+            }
 
             // Отправляем уведомление о новом заказе
             try {

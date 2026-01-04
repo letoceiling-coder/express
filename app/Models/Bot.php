@@ -22,4 +22,14 @@ class Bot extends Model
         'is_active' => 'boolean',
         'settings' => 'array',
     ];
+
+    /**
+     * Связь с пользователями бота
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function telegramUsers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TelegramUser::class, 'bot_id', 'id');
+    }
 }

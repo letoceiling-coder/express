@@ -268,6 +268,26 @@ const routes = [
                 component: () => import('./pages/admin/Bots.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Боты' },
             },
+            // Telegram Users
+            {
+                path: 'telegram-users',
+                name: 'admin.telegram-users',
+                component: () => import('./pages/admin/TelegramUsers.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Пользователи бота' },
+            },
+            {
+                path: 'telegram-users/:id',
+                name: 'admin.telegram-users.detail',
+                component: () => import('./pages/admin/TelegramUserDetail.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Детали пользователя' },
+            },
+            // Broadcasts
+            {
+                path: 'broadcasts',
+                name: 'admin.broadcasts',
+                component: () => import('./pages/admin/Broadcasts.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Рассылки' },
+            },
             // Categories
             {
                 path: 'categories',

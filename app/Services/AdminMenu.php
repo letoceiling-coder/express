@@ -119,6 +119,18 @@ class AdminMenu
                 'roles' => ['admin'],
             ],
             [
+                'title' => 'Пользователи бота',
+                'route' => 'admin.telegram-users',
+                'icon' => 'users',
+                'roles' => ['admin', 'manager'],
+            ],
+            [
+                'title' => 'Рассылки',
+                'route' => 'admin.broadcasts',
+                'icon' => 'send',
+                'roles' => ['admin', 'manager'],
+            ],
+            [
                 'title' => 'Боты',
                 'route' => 'admin.bots',
                 'icon' => 'bot',

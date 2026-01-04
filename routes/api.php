@@ -157,6 +157,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('telegram/notify-order', [TelegramController::class, 'notifyOrder'])
             ->name('telegram.notify-order');
         
+        // Telegram Users
+        Route::apiResource('telegram-users', TelegramUserController::class);
+        Route::post('telegram-users/{id}/block', [TelegramUserController::class, 'block']);
+        Route::post('telegram-users/{id}/unblock', [TelegramUserController::class, 'unblock']);
+        Route::post('telegram-users/{id}/sync', [TelegramUserController::class, 'sync']);
+        Route::get('telegram-users/{id}/statistics', [TelegramUserController::class, 'statistics']);
+        
+        // Broadcasts
+        Route::post('broadcasts/send', [BroadcastController::class, 'send']);
+        Route::post('broadcasts/preview', [BroadcastController::class, 'preview']);
+        
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {
             Route::apiResource('roles', RoleController::class);

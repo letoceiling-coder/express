@@ -12,10 +12,14 @@ use Illuminate\Support\Facades\Validator;
 class BotController extends Controller
 {
     protected TelegramService $telegramService;
+    protected \App\Services\Telegram\TelegramUserService $telegramUserService;
 
-    public function __construct(TelegramService $telegramService)
-    {
+    public function __construct(
+        TelegramService $telegramService,
+        \App\Services\Telegram\TelegramUserService $telegramUserService
+    ) {
         $this->telegramService = $telegramService;
+        $this->telegramUserService = $telegramUserService;
     }
 
     /**
@@ -318,13 +322,26 @@ class BotController extends Controller
                 $message = $update['message'];
                 $chatId = $message['chat']['id'] ?? null;
                 $text = $message['text'] ?? null;
+                $from = $message['from'] ?? null;
                 
                 \Illuminate\Support\Facades\Log::info('💬 Message received', [
                     'bot_id' => $bot->id,
                     'chat_id' => $chatId,
                     'text' => $text,
-                    'from' => $message['from'] ?? null,
+                    'from' => $from,
                 ]);
+                
+                // Синхронизация пользователя
+                if ($from) {
+                    try {
+                        $this->telegramUserService->syncUser($bot->id, $from);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Error syncing telegram user', [
+                            'bot_id' => $bot->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
                 
                 // Обработка команды /start
                 if ($text === '/start' || str_starts_with($text, '/start')) {
