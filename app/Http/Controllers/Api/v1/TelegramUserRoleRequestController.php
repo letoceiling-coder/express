@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\TelegramUserRoleRequest;
+use App\Services\TelegramService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,12 @@ use Illuminate\Support\Facades\Log;
 
 class TelegramUserRoleRequestController extends Controller
 {
+    protected TelegramService $telegramService;
+
+    public function __construct(TelegramService $telegramService)
+    {
+        $this->telegramService = $telegramService;
+    }
     /**
      * Список заявок на роли
      * GET /api/v1/telegram-user-role-requests?status={pending|approved|rejected}&requested_role={courier|admin}
@@ -56,7 +63,7 @@ class TelegramUserRoleRequestController extends Controller
         try {
             DB::beginTransaction();
 
-            $roleRequest = TelegramUserRoleRequest::with('telegramUser')->findOrFail($id);
+            $roleRequest = TelegramUserRoleRequest::with(['telegramUser.bot'])->findOrFail($id);
 
             if ($roleRequest->status !== TelegramUserRoleRequest::STATUS_PENDING) {
                 return response()->json([
@@ -86,6 +93,33 @@ class TelegramUserRoleRequestController extends Controller
                 'processed_by' => auth()->id(),
             ]);
 
+            // Отправляем уведомление пользователю в Telegram
+            try {
+                $telegramUser = $roleRequest->telegramUser;
+                $bot = $telegramUser->bot;
+                if ($bot && $bot->token) {
+                    $roleName = $roleRequest->requested_role === 'courier' ? 'курьера' : 'администратора';
+                    $message = "✅ Ваша заявка на роль {$roleName} одобрена! Теперь у вас есть соответствующие права доступа.";
+                    
+                    $this->telegramService->sendMessage(
+                        $bot->token,
+                        $telegramUser->telegram_id,
+                        $message
+                    );
+                    
+                    Log::info('Role approval notification sent', [
+                        'request_id' => $roleRequest->id,
+                        'telegram_user_id' => $telegramUser->telegram_id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to send role approval notification: ' . $e->getMessage(), [
+                    'request_id' => $roleRequest->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Не прерываем выполнение, если не удалось отправить уведомление
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Заявка одобрена',
@@ -112,7 +146,7 @@ class TelegramUserRoleRequestController extends Controller
     public function reject(Request $request, string $id): JsonResponse
     {
         try {
-            $roleRequest = TelegramUserRoleRequest::findOrFail($id);
+            $roleRequest = TelegramUserRoleRequest::with(['telegramUser.bot'])->findOrFail($id);
 
             if ($roleRequest->status !== TelegramUserRoleRequest::STATUS_PENDING) {
                 return response()->json([
@@ -136,6 +170,37 @@ class TelegramUserRoleRequestController extends Controller
                 'processed_by' => auth()->id(),
                 'rejection_reason' => $rejectionReason,
             ]);
+
+            // Отправляем уведомление пользователю в Telegram
+            try {
+                $telegramUser = $roleRequest->telegramUser;
+                $bot = $telegramUser->bot;
+                if ($bot && $bot->token) {
+                    $roleName = $roleRequest->requested_role === 'courier' ? 'курьера' : 'администратора';
+                    $message = "❌ Ваша заявка на роль {$roleName} отклонена.";
+                    
+                    if ($rejectionReason) {
+                        $message .= "\n\nПричина: {$rejectionReason}";
+                    }
+                    
+                    $this->telegramService->sendMessage(
+                        $bot->token,
+                        $telegramUser->telegram_id,
+                        $message
+                    );
+                    
+                    Log::info('Role rejection notification sent', [
+                        'request_id' => $roleRequest->id,
+                        'telegram_user_id' => $telegramUser->telegram_id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to send role rejection notification: ' . $e->getMessage(), [
+                    'request_id' => $roleRequest->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Не прерываем выполнение, если не удалось отправить уведомление
+            }
 
             return response()->json([
                 'success' => true,
