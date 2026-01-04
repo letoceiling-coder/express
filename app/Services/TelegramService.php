@@ -252,15 +252,21 @@ class TelegramService
                 ];
             }
             
+            $errorBody = $response->body();
             Log::error('❌ HTTP error sending message', [
                 'chat_id' => $chatId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $errorBody,
+                'url' => $this->apiBaseUrl . $token . '/sendMessage',
             ]);
+            
+            // Пытаемся получить более детальную информацию об ошибке
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения к Telegram API',
+                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('❌ Telegram sendMessage error: ' . $e->getMessage(), [
@@ -318,15 +324,20 @@ class TelegramService
                 ];
             }
             
+            $errorBody = $response->body();
             Log::error('❌ HTTP error sending photo', [
                 'chat_id' => $chatId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $errorBody,
+                'url' => $this->apiBaseUrl . $token . '/sendPhoto',
             ]);
+            
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения к Telegram API',
+                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('❌ Telegram sendPhoto error: ' . $e->getMessage(), [
@@ -384,15 +395,20 @@ class TelegramService
                 ];
             }
             
+            $errorBody = $response->body();
             Log::error('❌ HTTP error sending document', [
                 'chat_id' => $chatId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $errorBody,
+                'url' => $this->apiBaseUrl . $token . '/sendDocument',
             ]);
+            
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения к Telegram API',
+                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('❌ Telegram sendDocument error: ' . $e->getMessage(), [
@@ -451,15 +467,20 @@ class TelegramService
                 ];
             }
             
+            $errorBody = $response->body();
             Log::error('❌ HTTP error sending media group', [
                 'chat_id' => $chatId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $errorBody,
+                'url' => $this->apiBaseUrl . $token . '/sendMediaGroup',
             ]);
+            
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения к Telegram API',
+                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('❌ Telegram sendMediaGroup error: ' . $e->getMessage(), [
@@ -517,15 +538,20 @@ class TelegramService
                 ];
             }
             
+            $errorBody = $response->body();
             Log::error('❌ HTTP error sending video', [
                 'chat_id' => $chatId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $errorBody,
+                'url' => $this->apiBaseUrl . $token . '/sendVideo',
             ]);
+            
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения к Telegram API',
+                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('❌ Telegram sendVideo error: ' . $e->getMessage(), [
