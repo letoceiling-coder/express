@@ -214,10 +214,12 @@ class TelegramService
     public function sendMessage(string $token, int|string $chatId, string $text, array $options = []): array
     {
         try {
+            $filteredOptions = $this->filterParseMode($options);
+            
             $params = array_merge([
                 'chat_id' => $chatId,
                 'text' => $text,
-            ], $options);
+            ], $filteredOptions);
 
             Log::info('📤 Sending message via Telegram API', [
                 'chat_id' => $chatId,
@@ -287,10 +289,12 @@ class TelegramService
     public function sendPhoto(string $token, int|string $chatId, string $photo, array $options = []): array
     {
         try {
+            $filteredOptions = $this->filterParseMode($options);
+            
             $params = array_merge([
                 'chat_id' => $chatId,
                 'photo' => $photo,
-            ], $options);
+            ], $filteredOptions);
 
             Log::info('📤 Sending photo via Telegram API', [
                 'chat_id' => $chatId,
@@ -358,10 +362,12 @@ class TelegramService
     public function sendDocument(string $token, int|string $chatId, string $document, array $options = []): array
     {
         try {
+            $filteredOptions = $this->filterParseMode($options);
+            
             $params = array_merge([
                 'chat_id' => $chatId,
                 'document' => $document,
-            ], $options);
+            ], $filteredOptions);
 
             Log::info('📤 Sending document via Telegram API', [
                 'chat_id' => $chatId,
@@ -501,10 +507,12 @@ class TelegramService
     public function sendVideo(string $token, int|string $chatId, string $video, array $options = []): array
     {
         try {
+            $filteredOptions = $this->filterParseMode($options);
+            
             $params = array_merge([
                 'chat_id' => $chatId,
                 'video' => $video,
-            ], $options);
+            ], $filteredOptions);
 
             Log::info('📤 Sending video via Telegram API', [
                 'chat_id' => $chatId,

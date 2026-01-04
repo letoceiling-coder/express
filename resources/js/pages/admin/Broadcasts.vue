@@ -271,7 +271,6 @@
                             >
                                 <option :value="null">Без форматирования</option>
                                 <option value="HTML">HTML</option>
-                                <option value="Markdown">Markdown</option>
                                 <option value="MarkdownV2">MarkdownV2</option>
                             </select>
                         </div>

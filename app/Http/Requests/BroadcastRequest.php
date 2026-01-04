@@ -30,7 +30,7 @@ class BroadcastRequest extends FormRequest
             'type' => 'required|in:message,photo,video,document,media_group',
             'content' => 'required|array',
             'options' => 'nullable|array',
-            'options.parse_mode' => 'nullable|in:HTML,Markdown,MarkdownV2',
+            'options.parse_mode' => 'nullable|in:HTML,MarkdownV2',
             'options.disable_notification' => 'nullable|boolean',
         ];
         
