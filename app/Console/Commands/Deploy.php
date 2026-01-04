@@ -56,6 +56,26 @@ class Deploy extends Command
 
             // Шаг 2: Проверка git статуса
             $hasChanges = $this->checkGitStatus($dryRun);
+
+            // Шаг 3: Проверка remote репозитория
+            $this->ensureGitRemote($dryRun);
+
+            // Шаг 3.5: Проверка актуальности коммитов
+            $this->checkCommitsUpToDate($dryRun);
+
+            // Шаг 4: Добавление изменений в git
+            // Важно: всегда добавляем файлы сборки после сборки, даже если git status не показывает изменений
+            // Это гарантирует, что новые файлы сборки будут включены в коммит
+            if (!$this->option('skip-build') || $hasChanges) {
+                $this->addChangesToGit($dryRun);
+                
+                // Проверяем статус после добавления файлов (файлы сборки могли измениться)
+                if (!$dryRun) {
+                    $statusAfterAdd = Process::run('git status --porcelain');
+                    $hasChangesAfterAdd = !empty(trim($statusAfterAdd->output()));
+                    $hasChanges = $hasChanges || $hasChangesAfterAdd;
+                }
+            }
             
             if (!$hasChanges && !$dryRun) {
                 $this->warn('⚠️  Нет изменений для коммита.');
@@ -70,17 +90,8 @@ class Deploy extends Command
                 }
             }
 
-            // Шаг 3: Проверка remote репозитория
-            $this->ensureGitRemote($dryRun);
-
-            // Шаг 3.5: Проверка актуальности коммитов
-            $this->checkCommitsUpToDate($dryRun);
-
-            // Шаг 4: Добавление изменений в git
+            // Шаг 5: Создание коммита (если есть изменения)
             if ($hasChanges) {
-                $this->addChangesToGit($dryRun);
-                
-                // Шаг 5: Создание коммита
                 $commitMessage = $this->createCommit($dryRun);
                 
                 // Шаг 6: Отправка в репозиторий
