@@ -131,6 +131,12 @@ class AdminMenu
                 'roles' => ['admin', 'manager'],
             ],
             [
+                'title' => 'Заявки на роли',
+                'route' => 'admin.role-requests',
+                'icon' => 'shield',
+                'roles' => ['admin', 'manager'],
+            ],
+            [
                 'title' => 'Боты',
                 'route' => 'admin.bots',
                 'icon' => 'bot',

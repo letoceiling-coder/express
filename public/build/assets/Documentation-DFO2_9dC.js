@@ -1,136 +1,4 @@
-<template>
-    <div class="documentation-page">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-foreground">Документация</h1>
-            <p class="text-muted-foreground mt-1">Полная техническая документация системы управления</p>
-        </div>
-
-        <div class="flex gap-6">
-            <!-- Боковое меню навигации -->
-            <aside class="w-64 flex-shrink-0">
-                <div class="bg-card rounded-lg border border-border p-4 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
-                    <nav class="space-y-1">
-                        <template v-for="section in sections" :key="section.id">
-                            <button
-                                v-if="!section.children || section.children.length === 0"
-                                @click="activeSection = section.id; scrollToTop()"
-                                :class="[
-                                    'w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                                    activeSection === section.id
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                                ]"
-                            >
-                                {{ section.title }}
-                            </button>
-                            <div v-else>
-                                <div class="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                    {{ section.title.replace(/^[^\s]+\s/, '') }}
-                                </div>
-                                <div class="ml-2 mt-1 space-y-1">
-                                    <button
-                                        v-for="child in section.children"
-                                        :key="child.id"
-                                        @click="activeSection = child.id; scrollToTop()"
-                                        :class="[
-                                            'w-full text-left px-3 py-1.5 rounded text-xs transition-colors',
-                                            activeSection === child.id
-                                                ? 'bg-primary/20 text-primary font-medium'
-                                                : 'text-muted-foreground hover:bg-muted/50'
-                                        ]"
-                                    >
-                                        {{ child.title }}
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-                    </nav>
-                </div>
-            </aside>
-
-            <!-- Основной контент -->
-            <main class="flex-1 min-w-0">
-                <div class="bg-card rounded-lg border border-border p-8">
-                    <div v-html="currentContent" class="prose prose-sm max-w-none dark:prose-invert documentation-content"></div>
-                </div>
-            </main>
-        </div>
-    </div>
-</template>
-
-<script>
-export default {
-    name: 'Documentation',
-    data() {
-        return {
-            activeSection: 'overview',
-            sections: [
-                { id: 'overview', title: '📖 Обзор системы' },
-                { id: 'getting-started', title: '🚀 Быстрый старт' },
-                {
-                    id: 'admin-panel',
-                    title: '👨‍💼 Админ-панель',
-                    children: [
-                        { id: 'admin-dashboard', title: 'Главная' },
-                        { id: 'admin-catalog', title: 'Каталог' },
-                        { id: 'admin-orders', title: 'Заказы' },
-                        { id: 'admin-feedback', title: 'Обратная связь' },
-                        { id: 'admin-media', title: 'Медиа-библиотека' },
-                        { id: 'admin-users', title: 'Пользователи и роли' },
-                        { id: 'admin-bot-users', title: 'Пользователи бота и роли' },
-                        { id: 'admin-settings', title: 'Настройки' },
-                        { id: 'admin-other', title: 'Прочее' },
-                    ]
-                },
-                {
-                    id: 'api',
-                    title: '🔌 API',
-                    children: [
-                        { id: 'api-auth', title: 'Авторизация' },
-                        { id: 'api-catalog', title: 'Каталог' },
-                        { id: 'api-orders', title: 'Заказы' },
-                        { id: 'api-payments', title: 'Платежи' },
-                        { id: 'api-media', title: 'Медиа' },
-                        { id: 'api-other', title: 'Прочее' },
-                    ]
-                },
-                { id: 'deployment', title: '📦 Деплой' },
-                { id: 'image-optimization', title: '🖼️ Оптимизация изображений' },
-            ],
-            documentation: {
-                overview: this.getOverviewContent(),
-                'getting-started': this.getGettingStartedContent(),
-                'admin-dashboard': this.getAdminDashboardContent(),
-                'admin-catalog': this.getAdminCatalogContent(),
-                'admin-orders': this.getAdminOrdersContent(),
-                'admin-feedback': this.getAdminFeedbackContent(),
-                'admin-media': this.getAdminMediaContent(),
-                'admin-users': this.getAdminUsersContent(),
-                'admin-bot-users': this.getAdminBotUsersContent(),
-                'admin-settings': this.getAdminSettingsContent(),
-                'admin-other': this.getAdminOtherContent(),
-                'api-auth': this.getApiAuthContent(),
-                'api-catalog': this.getApiCatalogContent(),
-                'api-orders': this.getApiOrdersContent(),
-                'api-payments': this.getApiPaymentsContent(),
-                'api-media': this.getApiMediaContent(),
-                'api-other': this.getApiOtherContent(),
-                'deployment': this.getDeploymentContent(),
-                'image-optimization': this.getImageOptimizationContent(),
-            },
-        };
-    },
-    computed: {
-        currentContent() {
-            return this.documentation[this.activeSection] || '<p>Раздел в разработке</p>';
-        },
-    },
-    methods: {
-        scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        },
-        getOverviewContent() {
-            return `
+import{_ as g,c as o,o as l,a as e,F as n,q as c,p,t as a}from"./admin-D3hIHzsb.js";const m={name:"Documentation",data(){return{activeSection:"overview",sections:[{id:"overview",title:"📖 Обзор системы"},{id:"getting-started",title:"🚀 Быстрый старт"},{id:"admin-panel",title:"👨‍💼 Админ-панель",children:[{id:"admin-dashboard",title:"Главная"},{id:"admin-catalog",title:"Каталог"},{id:"admin-orders",title:"Заказы"},{id:"admin-feedback",title:"Обратная связь"},{id:"admin-media",title:"Медиа-библиотека"},{id:"admin-users",title:"Пользователи и роли"},{id:"admin-bot-users",title:"Пользователи бота и роли"},{id:"admin-settings",title:"Настройки"},{id:"admin-other",title:"Прочее"}]},{id:"api",title:"🔌 API",children:[{id:"api-auth",title:"Авторизация"},{id:"api-catalog",title:"Каталог"},{id:"api-orders",title:"Заказы"},{id:"api-payments",title:"Платежи"},{id:"api-media",title:"Медиа"},{id:"api-other",title:"Прочее"}]},{id:"deployment",title:"📦 Деплой"},{id:"image-optimization",title:"🖼️ Оптимизация изображений"}],documentation:{overview:this.getOverviewContent(),"getting-started":this.getGettingStartedContent(),"admin-dashboard":this.getAdminDashboardContent(),"admin-catalog":this.getAdminCatalogContent(),"admin-orders":this.getAdminOrdersContent(),"admin-feedback":this.getAdminFeedbackContent(),"admin-media":this.getAdminMediaContent(),"admin-users":this.getAdminUsersContent(),"admin-bot-users":this.getAdminBotUsersContent(),"admin-settings":this.getAdminSettingsContent(),"admin-other":this.getAdminOtherContent(),"api-auth":this.getApiAuthContent(),"api-catalog":this.getApiCatalogContent(),"api-orders":this.getApiOrdersContent(),"api-payments":this.getApiPaymentsContent(),"api-media":this.getApiMediaContent(),"api-other":this.getApiOtherContent(),deployment:this.getDeploymentContent(),"image-optimization":this.getImageOptimizationContent()}}},computed:{currentContent(){return this.documentation[this.activeSection]||"<p>Раздел в разработке</p>"}},methods:{scrollToTop(){window.scrollTo({top:0,behavior:"smooth"})},getOverviewContent(){return`
                 <h2>Обзор системы</h2>
                 <p>Backend система для Telegram Mini App приложений на базе Laravel 11 с полнофункциональной админ-панелью на Vue 3.</p>
 
@@ -167,10 +35,7 @@ export default {
                     <li><strong>manager</strong> - Доступ к Каталогу, Заказам, Обратной связи, Медиа, Уведомлениям, Поддержке, Подписке, Документации</li>
                     <li><strong>user</strong> - Доступ только к Документации</li>
                 </ul>
-            `;
-        },
-        getGettingStartedContent() {
-            return `
+            `},getGettingStartedContent(){return`
                 <h2>Быстрый старт</h2>
 
                 <h3>Требования</h3>
@@ -217,10 +82,7 @@ php artisan db:seed</code></pre>
                 <p>После установки создайте первого администратора через команду:</p>
                 <pre><code>php artisan tinker
 User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => Hash::make('password')]);</code></pre>
-            `;
-        },
-        getAdminDashboardContent() {
-            return `
+            `},getAdminDashboardContent(){return`
                 <h2>Главная (Dashboard)</h2>
                 <p>Главная страница админ-панели доступна по адресу <code>/admin</code>.</p>
 
@@ -233,10 +95,7 @@ User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => H
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminCatalogContent() {
-            return `
+            `},getAdminCatalogContent(){return`
                 <h2>Каталог</h2>
                 <p>Управление каталогом товаров включает работу с категориями и товарами.</p>
 
@@ -317,10 +176,7 @@ User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => H
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminOrdersContent() {
-            return `
+            `},getAdminOrdersContent(){return`
                 <h2>Заказы</h2>
                 <p>Система управления заказами включает заказы, доставки и платежи.</p>
 
@@ -392,10 +248,7 @@ User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => H
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminFeedbackContent() {
-            return `
+            `},getAdminFeedbackContent(){return`
                 <h2>Обратная связь</h2>
                 <p>Система обратной связи включает возвраты, претензии и отзывы.</p>
 
@@ -453,10 +306,7 @@ User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => H
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminMediaContent() {
-            return `
+            `},getAdminMediaContent(){return`
                 <h2>Медиа-библиотека</h2>
                 <p>Доступ: <code>/admin/media</code></p>
                 <p>Централизованная система управления всеми медиа-файлами проекта.</p>
@@ -522,10 +372,7 @@ folder_id: 1 (опционально)</code></pre>
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminUsersContent() {
-            return `
+            `},getAdminUsersContent(){return`
                 <h2>Пользователи и роли</h2>
 
                 <h3>Пользователи</h3>
@@ -578,10 +425,7 @@ folder_id: 1 (опционально)</code></pre>
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют только пользователи с ролью: <strong>admin</strong></p>
-            `;
-        },
-        getAdminBotUsersContent() {
-            return `
+            `},getAdminBotUsersContent(){return`
                 <h2>Пользователи бота и система ролей</h2>
                 <p>Система управления пользователями Telegram бота с поддержкой ролей и заявок на получение ролей.</p>
 
@@ -638,10 +482,7 @@ folder_id: 1 (опционально)</code></pre>
 
                 <h3>Права доступа</h3>
                 <p>Доступ к разделам "Пользователи бота" и "Заявки на роли" имеют пользователи с ролями: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getAdminSettingsContent() {
-            return `
+            `},getAdminSettingsContent(){return`
                 <h2>Настройки</h2>
 
                 <h3>Общие настройки</h3>
@@ -708,10 +549,7 @@ folder_id: 1 (опционально)</code></pre>
 
                 <h3>Права доступа</h3>
                 <p>Доступ имеют только пользователи с ролью: <strong>admin</strong></p>
-            `;
-        },
-        getAdminOtherContent() {
-            return `
+            `},getAdminOtherContent(){return`
                 <h2>Прочие разделы</h2>
 
                 <h3>Уведомления</h3>
@@ -748,10 +586,7 @@ SUBSCRIPTION_API_TOKEN=your_token</code></pre>
                     <li>Интеграция с внешними системами через webhooks</li>
                 </ul>
                 <p>Доступ: <strong>admin</strong>, <strong>manager</strong></p>
-            `;
-        },
-        getApiAuthContent() {
-            return `
+            `},getApiAuthContent(){return`
                 <h2>API: Авторизация</h2>
                 <p>Все защищенные endpoints требуют Bearer токен в заголовке <code>Authorization</code>.</p>
 
@@ -787,10 +622,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
                     <li><code>POST /api/auth/forgot-password</code> - Запрос на восстановление пароля</li>
                     <li><code>POST /api/auth/reset-password</code> - Сброс пароля</li>
                 </ul>
-            `;
-        },
-        getApiCatalogContent() {
-            return `
+            `},getApiCatalogContent(){return`
                 <h2>API: Каталог</h2>
 
                 <h3>Категории</h3>
@@ -846,10 +678,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
         }
     }
 }</code></pre>
-            `;
-        },
-        getApiOrdersContent() {
-            return `
+            `},getApiOrdersContent(){return`
                 <h2>API: Заказы</h2>
 
                 <h3>Заказы</h3>
@@ -887,10 +716,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
     ],
     "total_amount": 1100.00
 }</code></pre>
-            `;
-        },
-        getApiPaymentsContent() {
-            return `
+            `},getApiPaymentsContent(){return`
                 <h2>API: Платежи</h2>
 
                 <h3>Платежи</h3>
@@ -923,10 +749,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
     "payment_id": "2d7c6f3b-000f-5000-9000-1b6b8e3f5e7a",
     "confirmation_url": "https://yoomoney.ru/checkout/payments/v2/contract?orderId=..."
 }</code></pre>
-            `;
-        },
-        getApiMediaContent() {
-            return `
+            `},getApiMediaContent(){return`
                 <h2>API: Медиа-библиотека</h2>
                 <p>Полное описание API для работы с медиа-файлами см. в разделе "Админ-панель → Медиа-библиотека".</p>
 
@@ -948,10 +771,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
                     <li><code>search</code> - Поиск по имени</li>
                     <li><code>per_page</code> - Количество на странице (0 = все)</li>
                 </ul>
-            `;
-        },
-        getApiOtherContent() {
-            return `
+            `},getApiOtherContent(){return`
                 <h2>API: Прочие endpoints</h2>
 
                 <h3>Возвраты, претензии, отзывы</h3>
@@ -978,10 +798,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
                     <li><code>POST /api/integration/status</code> - Изменить статус от внешней системы</li>
                     <li><code>POST /api/webhook/github</code> - Webhook от GitHub для деплоя</li>
                 </ul>
-            `;
-        },
-        getDeploymentContent() {
-            return `
+            `},getDeploymentContent(){return`
                 <h2>Автоматический деплой</h2>
                 <p>Система поддерживает автоматическое развертывание кода на сервере через несколько методов.</p>
 
@@ -1034,10 +851,7 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
                 <pre><code>POST /api/deploy
 Authorization: Bearer {DEPLOY_TOKEN}
 Content-Type: application/json</code></pre>
-            `;
-        },
-        getImageOptimizationContent() {
-            return `
+            `},getImageOptimizationContent(){return`
                 <h2>Оптимизация изображений</h2>
                 <p>Система автоматически оптимизирует все загружаемые изображения для ускорения загрузки сайта.</p>
 
@@ -1127,124 +941,4 @@ Content-Type: application/json</code></pre>
         }
     }
 }</code></pre>
-            `;
-        },
-    },
-};
-</script>
-
-<style scoped>
-.documentation-page {
-    min-height: 100vh;
-}
-
-.prose {
-    color: inherit;
-}
-
-.prose h2 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    font-size: 1.75rem;
-    font-weight: 700;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid rgba(var(--border-rgb), 0.5);
-}
-
-.prose h2:first-child {
-    margin-top: 0;
-}
-
-.prose h3 {
-    margin-top: 1.75rem;
-    margin-bottom: 0.75rem;
-    font-size: 1.35rem;
-    font-weight: 600;
-}
-
-.prose h4 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 1.15rem;
-    font-weight: 600;
-}
-
-.prose ul, .prose ol {
-    margin: 1rem 0;
-    padding-left: 1.75rem;
-}
-
-.prose li {
-    margin: 0.5rem 0;
-    line-height: 1.6;
-}
-
-.prose code {
-    background-color: rgba(0, 0, 0, 0.08);
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-family: 'Courier New', 'Consolas', monospace;
-    font-size: 0.875em;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.dark .prose code {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.prose pre {
-    background-color: rgba(0, 0, 0, 0.05);
-    padding: 1rem;
-    border-radius: 0.5rem;
-    overflow-x: auto;
-    margin: 1rem 0;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.dark .prose pre {
-    background-color: rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-.prose pre code {
-    background: none;
-    padding: 0;
-    border: none;
-    font-size: 0.875rem;
-    line-height: 1.5;
-}
-
-.prose a {
-    color: rgb(var(--primary-rgb));
-    text-decoration: underline;
-}
-
-.prose a:hover {
-    text-decoration: none;
-}
-
-.prose p {
-    margin: 1rem 0;
-    line-height: 1.6;
-}
-
-.prose strong {
-    font-weight: 600;
-}
-
-/* Стилизация для бокового меню */
-aside nav button {
-    transition: all 0.2s ease;
-}
-
-aside nav button:hover {
-    transform: translateX(2px);
-}
-
-/* Скролл для бокового меню */
-aside > div {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(var(--muted-rgb), 0.5) transparent;
-}
-</style>
+            `}}},u={class:"documentation-page"},h={class:"flex gap-6"},v={class:"w-64 flex-shrink-0"},_={class:"bg-card rounded-lg border border-border p-4 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto"},x={class:"space-y-1"},T=["onClick"],b={key:1},y={class:"px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"},P={class:"ml-2 mt-1 space-y-1"},S=["onClick"],E={class:"flex-1 min-w-0"},O={class:"bg-card rounded-lg border border-border p-8"},w=["innerHTML"];function A(f,s,k,C,t,r){return l(),o("div",u,[s[0]||(s[0]=e("div",{class:"mb-6"},[e("h1",{class:"text-2xl font-bold text-foreground"},"Документация"),e("p",{class:"text-muted-foreground mt-1"},"Полная техническая документация системы управления")],-1)),e("div",h,[e("aside",v,[e("div",_,[e("nav",x,[(l(!0),o(n,null,c(t.sections,i=>(l(),o(n,{key:i.id},[!i.children||i.children.length===0?(l(),o("button",{key:0,onClick:d=>{t.activeSection=i.id,r.scrollToTop()},class:p(["w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors",t.activeSection===i.id?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-muted hover:text-foreground"])},a(i.title),11,T)):(l(),o("div",b,[e("div",y,a(i.title.replace(/^[^\s]+\s/,"")),1),e("div",P,[(l(!0),o(n,null,c(i.children,d=>(l(),o("button",{key:d.id,onClick:I=>{t.activeSection=d.id,r.scrollToTop()},class:p(["w-full text-left px-3 py-1.5 rounded text-xs transition-colors",t.activeSection===d.id?"bg-primary/20 text-primary font-medium":"text-muted-foreground hover:bg-muted/50"])},a(d.title),11,S))),128))])]))],64))),128))])])]),e("main",E,[e("div",O,[e("div",{innerHTML:r.currentContent,class:"prose prose-sm max-w-none dark:prose-invert documentation-content"},null,8,w)])])])])}const G=g(m,[["render",A],["__scopeId","data-v-dd4b0463"]]);export{G as default};

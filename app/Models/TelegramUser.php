@@ -39,6 +39,13 @@ class TelegramUser extends Model
      * 
      * @var array<string>
      */
+    /**
+     * Роли пользователей
+     */
+    const ROLE_USER = 'user';
+    const ROLE_COURIER = 'courier';
+    const ROLE_ADMIN = 'admin';
+
     protected $fillable = [
         'bot_id',
         'telegram_id',
@@ -48,6 +55,7 @@ class TelegramUser extends Model
         'language_code',
         'is_premium',
         'is_blocked',
+        'role',
         'last_interaction_at',
         'orders_count',
         'total_spent',
@@ -91,6 +99,16 @@ class TelegramUser extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'telegram_id', 'telegram_id');
+    }
+
+    /**
+     * Связь с заявками на роли
+     * 
+     * @return HasMany
+     */
+    public function roleRequests(): HasMany
+    {
+        return $this->hasMany(TelegramUserRoleRequest::class, 'telegram_user_id', 'id');
     }
 
     /**
@@ -167,5 +185,47 @@ class TelegramUser extends Model
     public function updateInteraction(): bool
     {
         return $this->update(['last_interaction_at' => now()]);
+    }
+
+    /**
+     * Scope для фильтрации по роли
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $role
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeRole($query, string $role)
+    {
+        return $query->where('role', $role);
+    }
+
+    /**
+     * Проверить, является ли пользователь администратором
+     * 
+     * @return bool
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Проверить, является ли пользователь курьером
+     * 
+     * @return bool
+     */
+    public function isCourier(): bool
+    {
+        return $this->role === self::ROLE_COURIER;
+    }
+
+    /**
+     * Проверить, является ли пользователь обычным пользователем
+     * 
+     * @return bool
+     */
+    public function isUser(): bool
+    {
+        return $this->role === self::ROLE_USER;
     }
 }

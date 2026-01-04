@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\v1\ReviewController;
 use App\Http\Controllers\Api\v1\TelegramController;
 use App\Http\Controllers\Api\v1\TelegramUserController;
 use App\Http\Controllers\Api\v1\BroadcastController;
+use App\Http\Controllers\Api\v1\TelegramUserRoleRequestController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -166,9 +167,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('telegram-users/{id}/sync', [TelegramUserController::class, 'sync']);
         Route::get('telegram-users/{id}/statistics', [TelegramUserController::class, 'statistics']);
         
-        // Broadcasts
-        Route::post('broadcasts/send', [BroadcastController::class, 'send']);
-        Route::post('broadcasts/preview', [BroadcastController::class, 'preview']);
+                // Broadcasts
+                Route::post('broadcasts/send', [BroadcastController::class, 'send']);
+                Route::post('broadcasts/preview', [BroadcastController::class, 'preview']);
+
+                // Telegram User Role Requests
+                Route::get('telegram-user-role-requests', [TelegramUserRoleRequestController::class, 'index']);
+                Route::get('telegram-user-role-requests/statistics', [TelegramUserRoleRequestController::class, 'statistics']);
+                Route::get('telegram-user-role-requests/{id}', [TelegramUserRoleRequestController::class, 'show']);
+                Route::post('telegram-user-role-requests/{id}/approve', [TelegramUserRoleRequestController::class, 'approve']);
+                Route::post('telegram-user-role-requests/{id}/reject', [TelegramUserRoleRequestController::class, 'reject']);
         
         // Admin only routes (Roles and Users management)
         Route::middleware('admin')->group(function () {

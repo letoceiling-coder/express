@@ -288,6 +288,13 @@ const routes = [
                 component: () => import('./pages/admin/Broadcasts.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Рассылки' },
             },
+            // Role Requests
+            {
+                path: 'role-requests',
+                name: 'admin.role-requests',
+                component: () => import('./pages/admin/RoleRequests.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Заявки на роли' },
+            },
             // Categories
             {
                 path: 'categories',

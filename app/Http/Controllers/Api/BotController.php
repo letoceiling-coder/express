@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bot;
+use App\Models\TelegramUserRoleRequest;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -399,6 +400,16 @@ class BotController extends Controller
                             'mini_app_url' => $miniAppUrl,
                         ]);
                     }
+                    
+                    // Обработка команды /apply_courier
+                    if ($text === '/apply_courier' || str_starts_with($text, '/apply_courier')) {
+                        $this->handleRoleRequest($bot, $chatId, $from, 'courier');
+                    }
+                    
+                    // Обработка команды /apply_admin
+                    if ($text === '/apply_admin' || str_starts_with($text, '/apply_admin')) {
+                        $this->handleRoleRequest($bot, $chatId, $from, 'admin');
+                    }
                 }
             }
             
@@ -528,6 +539,70 @@ class BotController extends Controller
                 'success' => false,
                 'message' => 'Ошибка при регистрации webhook: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Обработка заявки на роль (курьер или администратор)
+     */
+    private function handleRoleRequest(Bot $bot, int $chatId, array $from, string $requestedRole): void
+    {
+        try {
+            // Синхронизируем пользователя
+            $telegramUser = $this->telegramUserService->syncUser($bot->id, $from);
+            
+            // Проверяем, не подал ли пользователь уже активную заявку
+            $existingRequest = TelegramUserRoleRequest::where('telegram_user_id', $telegramUser->id)
+                ->where('requested_role', $requestedRole)
+                ->where('status', TelegramUserRoleRequest::STATUS_PENDING)
+                ->first();
+            
+            if ($existingRequest) {
+                $message = $requestedRole === 'courier' 
+                    ? '⏳ Вы уже подали заявку на роль курьера. Ожидайте рассмотрения.'
+                    : '⏳ Вы уже подали заявку на роль администратора. Ожидайте рассмотрения.';
+                $this->telegramService->sendMessage($bot->token, $chatId, $message);
+                return;
+            }
+            
+            // Проверяем, не имеет ли пользователь уже эту роль
+            if ($telegramUser->role === $requestedRole) {
+                $message = $requestedRole === 'courier'
+                    ? '✅ Вы уже являетесь курьером.'
+                    : '✅ Вы уже являетесь администратором.';
+                $this->telegramService->sendMessage($bot->token, $chatId, $message);
+                return;
+            }
+            
+            // Создаем заявку
+            TelegramUserRoleRequest::create([
+                'telegram_user_id' => $telegramUser->id,
+                'requested_role' => $requestedRole,
+                'status' => TelegramUserRoleRequest::STATUS_PENDING,
+            ]);
+            
+            $roleName = $requestedRole === 'courier' ? 'курьера' : 'администратора';
+            $message = "✅ Заявка на роль {$roleName} успешно подана! Администратор рассмотрит вашу заявку в ближайшее время.";
+            $this->telegramService->sendMessage($bot->token, $chatId, $message);
+            
+            \Illuminate\Support\Facades\Log::info('Role request created', [
+                'telegram_user_id' => $telegramUser->id,
+                'requested_role' => $requestedRole,
+                'bot_id' => $bot->id,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling role request: ' . $e->getMessage(), [
+                'bot_id' => $bot->id,
+                'chat_id' => $chatId,
+                'requested_role' => $requestedRole,
+                'error' => $e->getMessage(),
+            ]);
+            
+            $this->telegramService->sendMessage(
+                $bot->token, 
+                $chatId, 
+                '❌ Произошла ошибка при обработке заявки. Попробуйте позже.'
+            );
         }
     }
 }
