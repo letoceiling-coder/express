@@ -145,6 +145,66 @@ class Media extends Model
         
         return '/' . ltrim($path, '/');
     }
+    
+    /**
+     * Получить URL WebP версии изображения
+     * 
+     * @return string|null
+     */
+    public function getWebpUrlAttribute(): ?string
+    {
+        if ($this->type !== 'photo') {
+            return null;
+        }
+        
+        $metadata = $this->metadata ? json_decode($this->metadata, true) : [];
+        $webpPath = $metadata['webp_path'] ?? null;
+        
+        return $webpPath ? '/' . ltrim($webpPath, '/') : null;
+    }
+    
+    /**
+     * Получить URL варианта изображения
+     * 
+     * @param string $variant Название варианта (thumbnail, medium, large)
+     * @param bool $preferWebp Предпочитать WebP формат
+     * @return array|null Массив с путями ['webp' => ..., 'jpeg' => ...]
+     */
+    public function getVariantUrl(string $variant, bool $preferWebp = true): ?array
+    {
+        if ($this->type !== 'photo') {
+            return null;
+        }
+        
+        $metadata = $this->metadata ? json_decode($this->metadata, true) : [];
+        $variants = $metadata['variants'] ?? [];
+        
+        if (!isset($variants[$variant])) {
+            return null;
+        }
+        
+        $variantData = $variants[$variant];
+        
+        return [
+            'webp' => $variantData['webp'] ? '/' . ltrim($variantData['webp'], '/') : null,
+            'jpeg' => $variantData['jpeg'] ? '/' . ltrim($variantData['jpeg'], '/') : null,
+            'width' => $variantData['width'] ?? null,
+            'height' => $variantData['height'] ?? null,
+        ];
+    }
+    
+    /**
+     * Получить оптимальный вариант для viewport ширины
+     * 
+     * @param int $viewportWidth Ширина viewport
+     * @param bool $preferWebp Предпочитать WebP
+     * @return array|null
+     */
+    public function getOptimalVariant(int $viewportWidth = 800, bool $preferWebp = true): ?array
+    {
+        $variantName = \App\Services\ImageService::getOptimalVariant($viewportWidth);
+        return $this->getVariantUrl($variantName, $preferWebp);
+    }
 
     /**
      * Получить полный путь к файлу на сервере

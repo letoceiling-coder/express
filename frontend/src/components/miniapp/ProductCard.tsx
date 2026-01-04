@@ -3,6 +3,7 @@ import { Product } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 interface ProductCardProps {
   product: Product;
@@ -42,10 +43,13 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
       >
         {/* Product Image */}
         <div className="h-[88px] w-[88px] flex-shrink-0 overflow-hidden rounded-xl bg-muted">
-          <img
+          <OptimizedImage
             src={product.imageUrl}
+            webpSrc={product.webpUrl}
+            variants={product.imageVariants}
             alt={product.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full rounded-xl"
+            size="thumbnail"
             loading="lazy"
           />
         </div>
@@ -112,15 +116,15 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
     >
       {/* Product Image - Square 1:1 with fixed dimensions */}
       <div className="relative w-full bg-muted overflow-hidden flex-shrink-0" style={{ aspectRatio: '1 / 1' }}>
-        <img
+        <OptimizedImage
           src={product.imageUrl || '/placeholder-image.jpg'}
+          webpSrc={product.webpUrl}
+          variants={product.imageVariants}
           alt={product.name}
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full"
+          size="medium"
           loading="lazy"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = '/placeholder-image.jpg';
-          }}
+          placeholder="/placeholder-image.jpg"
         />
       </div>
 

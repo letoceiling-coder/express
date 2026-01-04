@@ -6,6 +6,7 @@ import { productsAPI, categoriesAPI } from '@/api';
 import { toast } from 'sonner';
 import { hapticFeedback } from '@/lib/telegram';
 import { Product, Category } from '@/types';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 export function ProductDetailPage() {
   const { productId } = useParams();
@@ -126,10 +127,14 @@ export function ProductDetailPage() {
 
       {/* Product Image - Square cover */}
       <div className="aspect-square w-full bg-muted">
-        <img
+        <OptimizedImage
           src={product.imageUrl}
+          webpSrc={product.webpUrl}
+          variants={product.imageVariants}
           alt={product.name}
-          className="h-full w-full object-cover"
+          className="h-full w-full"
+          size="large"
+          loading="eager"
         />
       </div>
 

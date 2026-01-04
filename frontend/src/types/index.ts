@@ -13,6 +13,12 @@ export interface Product {
   price: number;
   categoryId: string;
   imageUrl: string;
+  webpUrl?: string;
+  imageVariants?: {
+    thumbnail?: { webp?: string; jpeg?: string };
+    medium?: { webp?: string; jpeg?: string };
+    large?: { webp?: string; jpeg?: string };
+  };
   isWeightProduct: boolean;
   createdAt: Date;
   updatedAt: Date;

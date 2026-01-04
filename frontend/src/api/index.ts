@@ -105,6 +105,8 @@ export const productsAPI = {
       price: Number(product.price),
       categoryId: product.category_id ? String(product.category_id) : '',
       imageUrl: product.image?.url || '',
+      webpUrl: product.image?.webp_url || undefined,
+      imageVariants: product.image?.variants || undefined,
       isWeightProduct: product.is_weight_product || false,
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
@@ -118,17 +120,19 @@ export const productsAPI = {
       
       if (!product) return null;
       
-      return {
-        id: String(product.id),
-        name: product.name,
-        description: product.description || '',
-        price: Number(product.price),
-        categoryId: product.category_id ? String(product.category_id) : '',
-        imageUrl: product.image?.url || '',
-        isWeightProduct: product.is_weight_product || false,
-        createdAt: new Date(product.created_at),
-        updatedAt: new Date(product.updated_at),
-      };
+          return {
+            id: String(product.id),
+            name: product.name,
+            description: product.description || '',
+            price: Number(product.price),
+            categoryId: product.category_id ? String(product.category_id) : '',
+            imageUrl: product.image?.url || '',
+            webpUrl: product.image?.webp_url || undefined,
+            imageVariants: product.image?.variants || undefined,
+            isWeightProduct: product.is_weight_product || false,
+            createdAt: new Date(product.created_at),
+            updatedAt: new Date(product.updated_at),
+          };
     } catch (error) {
       return null;
     }

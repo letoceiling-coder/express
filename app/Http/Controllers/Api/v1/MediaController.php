@@ -7,6 +7,7 @@ use App\Http\Requests\StoreMediaRequest;
 use App\Http\Resources\MediaResource;
 use App\Models\Media;
 use App\Models\Folder;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -281,23 +282,61 @@ class MediaController extends Controller
                 mkdir($fullPath, 0755, true);
             }
 
-            // Сохраняем файл
-            $file->move($fullPath, $fileName);
+            // Сохраняем файл временно
+            $tempPath = $file->getRealPath();
             $relativePath = $uploadPath . '/' . $fileName;
 
-            // Получаем размеры изображения
+            // Получаем размеры изображения и обрабатываем если это фото
             $width = null;
             $height = null;
+            $imageVariants = null;
+            
             if ($type === 'photo') {
-                $imagePath = public_path($relativePath);
-                $imageInfo = @getimagesize($imagePath);
+                // Используем ImageService для обработки
+                $imageService = app(ImageService::class);
+                $baseName = pathinfo($fileName, PATHINFO_FILENAME);
+                
+                // Сохраняем оригинал сначала
+                $file->move($fullPath, $fileName);
+                $originalFullPath = public_path($relativePath);
+                
+                // Обрабатываем изображение (конвертация в WebP, создание вариантов)
+                $imageVariants = $imageService->processImage(
+                    $originalFullPath,
+                    $extension,
+                    $uploadPath,
+                    $baseName
+                );
+                
+                // Получаем размеры из обработанного изображения
+                $imageInfo = @getimagesize($originalFullPath);
                 if ($imageInfo !== false) {
                     $width = $imageInfo[0];
                     $height = $imageInfo[1];
                 }
+                
+                // Используем WebP версию как основную для отображения
+                $displayPath = $imageVariants['webp'] ?? $relativePath;
+            } else {
+                // Для не-изображений просто сохраняем
+                $file->move($fullPath, $fileName);
             }
 
             // Сохраняем в БД
+            $metadata = [
+                'path' => $relativePath,
+                'mime_type' => $mimeType,
+            ];
+            
+            // Добавляем информацию о вариантах если есть
+            if ($imageVariants) {
+                $metadata['webp_path'] = $imageVariants['webp'];
+                $metadata['variants'] = $imageVariants['variants'];
+                if (isset($imageVariants['error'])) {
+                    $metadata['processing_error'] = $imageVariants['error'];
+                }
+            }
+            
             $media = Media::create([
                 'name' => $fileName,
                 'original_name' => $originalName,
@@ -310,10 +349,7 @@ class MediaController extends Controller
                 'folder_id' => $folderId,
                 'user_id' => auth()->check() ? auth()->id() : null,
                 'temporary' => false,
-                'metadata' => json_encode([
-                    'path' => $relativePath,
-                    'mime_type' => $mimeType
-                ])
+                'metadata' => json_encode($metadata)
             ]);
 
             return response()->json([
