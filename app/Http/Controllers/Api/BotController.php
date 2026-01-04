@@ -333,20 +333,53 @@ class BotController extends Controller
                         'chat_id' => $chatId,
                     ]);
                     
+                    // Получаем URL для miniApp (из настроек бота или конфига)
+                    $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
+                    
+                    // Формируем клавиатуру с кнопкой для запуска miniApp
+                    $keyboard = [
+                        'inline_keyboard' => [
+                            [
+                                [
+                                    'text' => '🚀 Открыть приложение',
+                                    'web_app' => [
+                                        'url' => $miniAppUrl
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ];
+                    
                     // Отправляем приветственное сообщение
                     if ($bot->welcome_message) {
                         $this->telegramService->sendMessage(
                             $bot->token,
                             $chatId,
-                            $bot->welcome_message
+                            $bot->welcome_message,
+                            [
+                                'reply_markup' => json_encode($keyboard)
+                            ]
                         );
-                        \Illuminate\Support\Facades\Log::info('✅ Welcome message sent', [
+                        \Illuminate\Support\Facades\Log::info('✅ Welcome message sent with miniApp button', [
                             'bot_id' => $bot->id,
                             'chat_id' => $chatId,
+                            'mini_app_url' => $miniAppUrl,
                         ]);
                     } else {
-                        \Illuminate\Support\Facades\Log::info('ℹ️ No welcome message configured', [
+                        // Если нет приветственного сообщения, отправляем стандартное с кнопкой
+                        $defaultMessage = '👋 Добро пожаловать! Нажмите на кнопку ниже, чтобы открыть приложение.';
+                        $this->telegramService->sendMessage(
+                            $bot->token,
+                            $chatId,
+                            $defaultMessage,
+                            [
+                                'reply_markup' => json_encode($keyboard)
+                            ]
+                        );
+                        \Illuminate\Support\Facades\Log::info('✅ Default welcome message sent with miniApp button', [
                             'bot_id' => $bot->id,
+                            'chat_id' => $chatId,
+                            'mini_app_url' => $miniAppUrl,
                         ]);
                     }
                 }
