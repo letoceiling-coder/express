@@ -32,9 +32,30 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
 // Categories API
 export const categoriesAPI = {
   async getAll(): Promise<Category[]> {
-    const response = await apiRequest('/categories');
-    // Гарантируем, что categories всегда массив
-    const categories = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    const params = new URLSearchParams();
+    params.append('per_page', '0'); // Отключаем пагинацию для получения всех категорий
+    
+    const response = await apiRequest(`/categories?${params.toString()}`);
+    
+    // Обрабатываем разные форматы ответа: массив, объект с data (пагинация или нет)
+    let categories: any[] = [];
+    
+    if (Array.isArray(response.data)) {
+      // Если response.data - это уже массив
+      categories = response.data;
+    } else if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+      // Если это объект пагинации с полем data
+      categories = response.data.data;
+    } else if (Array.isArray(response)) {
+      // Если response сам по себе массив (нестандартный формат)
+      categories = response;
+    }
+    
+    // Дополнительная проверка: если categories все еще не массив, возвращаем пустой массив
+    if (!Array.isArray(categories)) {
+      console.warn('Categories API returned non-array data:', response);
+      categories = [];
+    }
     
     return categories.map((cat: any) => ({
       id: String(cat.id),
