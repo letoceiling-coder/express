@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
 use App\Http\Controllers\Api\v1\ReviewController;
 use App\Http\Controllers\Api\v1\TelegramController;
+use App\Http\Controllers\Api\v1\TelegramUserController;
+use App\Http\Controllers\Api\v1\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
 
