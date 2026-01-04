@@ -8,6 +8,7 @@ import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order } from '@/types';
 import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2 } from 'lucide-react';
 import { openTelegramLink } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
+import { OptimizedImage } from '@/components/OptimizedImage';
 
 export function OrderDetailPage() {
   const { orderId } = useParams();
