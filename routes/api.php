@@ -32,6 +32,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
 
+// Публичные роуты для miniApp (GET запросы к категориям и продуктам)
+Route::prefix('v1')->group(function () {
+    Route::get('categories', [CategoryController::class, 'index'])->name('categories.index.public');
+    Route::get('categories/{id}', [CategoryController::class, 'show'])->name('categories.show.public');
+    Route::get('products', [ProductController::class, 'index'])->name('products.index.public');
+    Route::get('products/{id}', [ProductController::class, 'show'])->name('products.show.public');
+});
+
 // Защищённые роуты
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -61,11 +69,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('media/trash/empty', [MediaController::class, 'emptyTrash'])->name('media.trash.empty');
         Route::apiResource('media', MediaController::class);
         
-        // Categories
-        Route::apiResource('categories', CategoryController::class);
+        // Categories (POST, PUT, DELETE - GET обрабатывается публичными роутами)
+        Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::patch('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
         
-        // Products
-        Route::apiResource('products', ProductController::class);
+        // Products (POST, PUT, DELETE - GET обрабатывается публичными роутами)
+        Route::post('products', [ProductController::class, 'store'])->name('products.store');
+        Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::patch('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
         
         // Product History
         Route::get('products/{id}/history', [ProductHistoryController::class, 'index'])
