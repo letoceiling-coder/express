@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\Order;
-use App\Services\Telegram\TelegramMiniAppService;
 use App\Services\Telegram\TelegramUserService;
+use App\Services\Order\OrderStatusService;
+use App\Services\Order\OrderNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,15 +15,18 @@ use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
-    protected TelegramMiniAppService $telegramMiniAppService;
     protected TelegramUserService $telegramUserService;
+    protected OrderStatusService $orderStatusService;
+    protected OrderNotificationService $orderNotificationService;
 
     public function __construct(
-        TelegramMiniAppService $telegramMiniAppService,
-        TelegramUserService $telegramUserService
+        TelegramUserService $telegramUserService,
+        OrderStatusService $orderStatusService,
+        OrderNotificationService $orderNotificationService
     ) {
-        $this->telegramMiniAppService = $telegramMiniAppService;
         $this->telegramUserService = $telegramUserService;
+        $this->orderStatusService = $orderStatusService;
+        $this->orderNotificationService = $orderNotificationService;
     }
     /**
      * Создать новый заказ
@@ -138,15 +142,36 @@ class OrderController extends Controller
                 }
             }
 
-            // Отправляем уведомление о новом заказе
+            // Отправляем уведомление администратору о новом заказе
             try {
-                $this->telegramMiniAppService->notifyNewOrder($order, $order->bot_id);
+                $notified = $this->orderNotificationService->notifyAdminNewOrder($order);
+                
+                if ($notified) {
+                    // После успешной отправки уведомления автоматически меняем статус на accepted
+                    $this->orderStatusService->changeStatus($order, Order::STATUS_ACCEPTED, [
+                        'role' => 'admin',
+                        'comment' => 'Заказ создан, уведомление администратору отправлено',
+                    ]);
+                    
+                    Log::info('Order created and admin notified, status changed to accepted', [
+                        'order_id' => $order->id,
+                        'order_order_id' => $order->order_id,
+                    ]);
+                } else {
+                    Log::warning('Order created but admin notification failed', [
+                        'order_id' => $order->id,
+                        'order_order_id' => $order->order_id,
+                    ]);
+                }
             } catch (\Exception $e) {
-                Log::warning('Не удалось отправить уведомление о новом заказе: ' . $e->getMessage());
+                Log::error('Error notifying admin about new order: ' . $e->getMessage(), [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             return response()->json([
-                'data' => $order,
+                'data' => $order->fresh(['items.product', 'manager', 'bot']),
                 'message' => 'Заказ успешно создан',
             ], 201);
         } catch (\Exception $e) {
@@ -238,6 +263,45 @@ class OrderController extends Controller
 
         return response()->json([
             'data' => $order,
+        ]);
+    }
+
+    /**
+     * Получить историю статусов заказа
+     * 
+     * @param int $id
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function statusHistory($id, Request $request)
+    {
+        $order = Order::findOrFail($id);
+
+        $history = $this->orderStatusService->getStatusHistory($order);
+
+        // Фильтрация по роли (если передана)
+        if ($request->has('role') && $request->get('role')) {
+            $history = $history->where('role', $request->get('role'));
+        }
+
+        // Фильтрация по статусу (если передан)
+        if ($request->has('status') && $request->get('status')) {
+            $history = $history->where('status', $request->get('status'));
+        }
+
+        // Поиск по комментариям (если передан)
+        if ($request->has('search') && $request->get('search')) {
+            $search = $request->get('search');
+            $history = $history->filter(function ($item) use ($search) {
+                return stripos($item->comment ?? '', $search) !== false;
+            });
+        }
+
+        // Сортировка (хронологический порядок - от старых к новым для timeline)
+        $history = $history->sortBy('created_at')->values();
+
+        return response()->json([
+            'data' => $history,
         ]);
     }
 

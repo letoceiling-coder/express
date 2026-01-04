@@ -45,6 +45,7 @@ class TelegramUser extends Model
     const ROLE_USER = 'user';
     const ROLE_COURIER = 'courier';
     const ROLE_ADMIN = 'admin';
+    const ROLE_KITCHEN = 'kitchen';
 
     protected $fillable = [
         'bot_id',

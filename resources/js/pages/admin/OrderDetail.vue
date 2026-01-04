@@ -227,6 +227,11 @@
                         Платежей нет
                     </div>
                 </div>
+
+                <!-- История статусов -->
+                <div class="bg-card rounded-lg border border-border p-6">
+                    <OrderStatusHistory :order-id="order.id" />
+                </div>
             </div>
         </div>
     </div>
@@ -234,9 +239,13 @@
 
 <script>
 import { ordersAPI, deliveriesAPI, paymentsAPI } from '../../utils/api.js';
+import OrderStatusHistory from '../../components/admin/OrderStatusHistory.vue';
 
 export default {
     name: 'OrderDetail',
+    components: {
+        OrderStatusHistory,
+    },
     data() {
         return {
             order: null,

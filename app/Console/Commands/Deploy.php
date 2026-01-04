@@ -14,7 +14,7 @@ class Deploy extends Command
      *
      * @var string
      */
-    protected $signature = 'deploy 
+    protected $signature = 'deploy
                             {--message= : Кастомное сообщение для коммита}
                             {--skip-build : Пропустить npm run build}
                             {--dry-run : Показать что будет сделано без выполнения}
@@ -57,26 +57,6 @@ class Deploy extends Command
             // Шаг 2: Проверка git статуса
             $hasChanges = $this->checkGitStatus($dryRun);
 
-            // Шаг 3: Проверка remote репозитория
-            $this->ensureGitRemote($dryRun);
-
-            // Шаг 3.5: Проверка актуальности коммитов
-            $this->checkCommitsUpToDate($dryRun);
-
-            // Шаг 4: Добавление изменений в git
-            // Важно: всегда добавляем файлы сборки после сборки, даже если git status не показывает изменений
-            // Это гарантирует, что новые файлы сборки будут включены в коммит
-            if (!$this->option('skip-build') || $hasChanges) {
-                $this->addChangesToGit($dryRun);
-                
-                // Проверяем статус после добавления файлов (файлы сборки могли измениться)
-                if (!$dryRun) {
-                    $statusAfterAdd = Process::run('git status --porcelain');
-                    $hasChangesAfterAdd = !empty(trim($statusAfterAdd->output()));
-                    $hasChanges = $hasChanges || $hasChangesAfterAdd;
-                }
-            }
-            
             if (!$hasChanges && !$dryRun) {
                 $this->warn('⚠️  Нет изменений для коммита.');
                 // В неинтерактивном режиме автоматически продолжаем
@@ -90,10 +70,19 @@ class Deploy extends Command
                 }
             }
 
-            // Шаг 5: Создание коммита (если есть изменения)
+            // Шаг 3: Проверка remote репозитория
+            $this->ensureGitRemote($dryRun);
+
+            // Шаг 3.5: Проверка актуальности коммитов
+            $this->checkCommitsUpToDate($dryRun);
+
+            // Шаг 4: Добавление изменений в git
             if ($hasChanges) {
+                $this->addChangesToGit($dryRun);
+
+                // Шаг 5: Создание коммита
                 $commitMessage = $this->createCommit($dryRun);
-                
+
                 // Шаг 6: Отправка в репозиторий
                 $this->pushToRepository($dryRun);
             }
@@ -125,7 +114,7 @@ class Deploy extends Command
     protected function buildFrontend(bool $dryRun): void
     {
         $this->info('📦 Шаг 1: Сборка фронтенда...');
-        
+
         if ($dryRun) {
             $this->line('  [DRY-RUN] Выполнение: npm run build:all');
             return;
@@ -167,14 +156,14 @@ class Deploy extends Command
     protected function checkGitStatus(bool $dryRun): bool
     {
         $this->info('📋 Шаг 2: Проверка статуса git...');
-        
+
         if ($dryRun) {
             $this->line('  [DRY-RUN] Выполнение: git status');
             return true;
         }
 
         $process = Process::run('git status --porcelain');
-        
+
         if (!$process->successful()) {
             throw new \Exception("Ошибка проверки git статуса:\n" . $process->errorOutput());
         }
@@ -185,18 +174,18 @@ class Deploy extends Command
         if ($hasChanges) {
             $this->line('  📝 Найдены изменения:');
             $this->line($output);
-            
+
             // Проверяем на большие файлы
             $files = explode("\n", $output);
             $largeFiles = [];
             foreach ($files as $file) {
                 $file = trim($file);
                 if (empty($file)) continue;
-                
+
                 // Извлекаем имя файла (убираем статус M, A, ?? и т.д.)
                 $fileName = preg_replace('/^[MADRC\?\s!]+/', '', $file);
                 $fileName = trim($fileName);
-                
+
                 // Проверяем расширения больших файлов
                 if (preg_match('/\.(rar|zip|7z|tar\.gz|tar)$/i', $fileName)) {
                     $largeFiles[] = $fileName;
@@ -209,7 +198,7 @@ class Deploy extends Command
                     }
                 }
             }
-            
+
             if (!empty($largeFiles)) {
                 $this->newLine();
                 $this->warn('  ⚠️  Обнаружены большие файлы:');
@@ -240,40 +229,40 @@ class Deploy extends Command
     protected function ensureGitRemote(bool $dryRun): void
     {
         $this->info('🔗 Шаг 3: Проверка git remote...');
-        
+
         if ($dryRun) {
             $this->line('  [DRY-RUN] Выполнение: git remote -v');
             return;
         }
 
         $process = Process::run('git remote -v');
-        
+
         if (!$process->successful()) {
             throw new \Exception("Ошибка проверки git remote:\n" . $process->errorOutput());
         }
 
         $output = trim($process->output());
-        
+
         // Проверяем, существует ли origin с правильным URL
         if (empty($output)) {
             $this->line('  ➕ Добавление origin remote...');
             $process = Process::run("git remote add origin {$this->gitRepository}");
-            
+
             if (!$process->successful()) {
                 throw new \Exception("Ошибка добавления remote:\n" . $process->errorOutput());
             }
-            
+
             $this->info('  ✅ Remote origin добавлен');
         } else {
             // Проверяем, правильный ли URL у origin
             if (!str_contains($output, $this->gitRepository)) {
                 $this->line('  🔄 Обновление origin remote...');
                 $process = Process::run("git remote set-url origin {$this->gitRepository}");
-                
+
                 if (!$process->successful()) {
                     throw new \Exception("Ошибка обновления remote:\n" . $process->errorOutput());
                 }
-                
+
                 $this->info('  ✅ Remote origin обновлен');
             } else {
                 $this->line('  ✅ Remote origin настроен правильно');
@@ -289,7 +278,7 @@ class Deploy extends Command
     protected function checkCommitsUpToDate(bool $dryRun): void
     {
         $this->info('🔍 Шаг 3.5: Проверка актуальности коммитов...');
-        
+
         if ($dryRun) {
             $this->line('  [DRY-RUN] Выполнение: проверка коммитов');
             return;
@@ -299,57 +288,57 @@ class Deploy extends Command
             // Получаем текущую ветку
             $branchProcess = Process::run('git rev-parse --abbrev-ref HEAD');
             $currentBranch = trim($branchProcess->output()) ?: 'main';
-            
+
             // Получаем локальный коммит
             $localCommitProcess = Process::run('git rev-parse HEAD');
             $localCommit = trim($localCommitProcess->output());
-            
+
             if (empty($localCommit)) {
                 $this->warn('  ⚠️  Не удалось определить локальный коммит');
                 $this->newLine();
                 return;
             }
-            
+
             // Обновляем информацию о remote (fetch)
             $this->line('  📥 Обновление информации о remote...');
             $fetchProcess = Process::run("git fetch origin {$currentBranch} 2>&1");
-            
+
             if (!$fetchProcess->successful()) {
                 $this->warn('  ⚠️  Не удалось обновить информацию о remote (возможно, ветка еще не существует на remote)');
                 $this->newLine();
                 return;
             }
-            
+
             // Получаем удаленный коммит
             $remoteCommitProcess = Process::run("git rev-parse origin/{$currentBranch} 2>&1");
             $remoteCommit = trim($remoteCommitProcess->output());
-            
+
             if (empty($remoteCommit)) {
                 $this->line('  ℹ️  Удаленная ветка не найдена (первый деплой?)');
                 $this->newLine();
                 return;
             }
-            
+
             // Сравниваем коммиты
             $localShort = substr($localCommit, 0, 7);
             $remoteShort = substr($remoteCommit, 0, 7);
-            
+
             $this->line("  📍 Локальный коммит:  {$localShort}");
             $this->line("  📍 Удаленный коммит: {$remoteShort}");
-            
+
             if ($localCommit === $remoteCommit) {
                 $this->newLine();
                 $this->warn('  ⚠️  Локальный и удаленный коммиты совпадают!');
                 $this->warn('  ⚠️  На сервере уже установлена эта версия.');
-                
+
                 // Проверяем, есть ли локальные изменения
                 $statusProcess = Process::run('git status --porcelain');
                 $hasLocalChanges = !empty(trim($statusProcess->output()));
-                
+
                 if (!$hasLocalChanges) {
                     $this->warn('  ⚠️  Нет локальных изменений для отправки.');
                     $this->newLine();
-                    
+
                     if (php_sapi_name() === 'cli' && !$this->option('no-interaction')) {
                         if (!$this->confirm('  Продолжить деплой? (сервер уже на этой версии)', false)) {
                             $this->info('  Деплой отменен.');
@@ -365,13 +354,13 @@ class Deploy extends Command
                 // Проверяем, отстает ли локальная ветка
                 $behindProcess = Process::run("git rev-list --count HEAD..origin/{$currentBranch}");
                 $behindCount = (int) trim($behindProcess->output());
-                
+
                 if ($behindCount > 0) {
                     $this->newLine();
                     $this->warn("  ⚠️  Локальная ветка отстает от удаленной на {$behindCount} коммит(ов)!");
                     $this->warn('  ⚠️  Рекомендуется выполнить: git pull перед деплоем');
                     $this->newLine();
-                    
+
                     if (php_sapi_name() === 'cli' && !$this->option('no-interaction')) {
                         if (!$this->confirm('  Продолжить деплой? (может привести к конфликтам)', false)) {
                             $this->info('  Деплой отменен.');
@@ -384,20 +373,20 @@ class Deploy extends Command
                     // Локальная ветка впереди
                     $aheadProcess = Process::run("git rev-list --count origin/{$currentBranch}..HEAD");
                     $aheadCount = (int) trim($aheadProcess->output());
-                    
+
                     if ($aheadCount > 0) {
                         $this->line("  ✅ Локальная ветка впереди на {$aheadCount} коммит(ов)");
                     }
                 }
             }
-            
+
             $this->newLine();
         } catch (\Exception $e) {
             // Если ошибка не критична (например, отмена пользователем), пробрасываем дальше
             if (str_contains($e->getMessage(), 'отменен')) {
                 throw $e;
             }
-            
+
             // Для других ошибок просто предупреждаем и продолжаем
             $this->warn('  ⚠️  Не удалось проверить коммиты: ' . $e->getMessage());
             $this->line('  ℹ️  Продолжаем деплой...');
@@ -411,7 +400,7 @@ class Deploy extends Command
     protected function addChangesToGit(bool $dryRun): void
     {
         $this->info('➕ Шаг 4: Добавление изменений в git...');
-        
+
         if ($dryRun) {
             $this->line('  [DRY-RUN] Выполнение: git add .');
             return;
@@ -438,7 +427,7 @@ class Deploy extends Command
 
         // Затем добавляем все остальные изменения
         $process = Process::run('git add .');
-        
+
         if (!$process->successful()) {
             throw new \Exception("Ошибка добавления файлов в git:\n" . $process->errorOutput());
         }
@@ -453,10 +442,10 @@ class Deploy extends Command
     protected function createCommit(bool $dryRun): string
     {
         $this->info('💾 Шаг 5: Создание коммита...');
-        
+
         $customMessage = $this->option('message');
         $commitMessage = $customMessage ?: 'Deploy: ' . now()->format('Y-m-d H:i:s');
-        
+
         if ($dryRun) {
             $this->line("  [DRY-RUN] Выполнение: git commit -m \"{$commitMessage}\"");
             return $commitMessage;
@@ -485,18 +474,18 @@ class Deploy extends Command
     protected function pushToRepository(bool $dryRun): void
     {
         $this->info('📤 Шаг 6: Отправка в репозиторий...');
-        
+
         // Определяем текущую ветку
         $branchProcess = Process::run('git rev-parse --abbrev-ref HEAD');
         $branch = trim($branchProcess->output()) ?: 'main';
-        
+
         $forcePush = $this->option('force');
-        
+
         if ($forcePush) {
             $this->warn('  ⚠️  ВНИМАНИЕ: Используется принудительная отправка (--force)');
             $this->warn('  ⚠️  Это перезапишет удаленную ветку и может удалить коммиты!');
         }
-        
+
         if ($dryRun) {
             $pushCommand = $forcePush ? "git push --force origin {$branch}" : "git push origin {$branch}";
             $this->line("  [DRY-RUN] Выполнение: {$pushCommand}");
@@ -510,14 +499,14 @@ class Deploy extends Command
 
         if (!$process->successful()) {
             $errorOutput = $process->errorOutput();
-            
+
             // Проверяем, нужно ли установить upstream
             if (str_contains($errorOutput, 'no upstream branch')) {
                 $this->line("  🔄 Установка upstream для ветки {$branch}...");
                 $upstreamCommand = $forcePush ? "git push --force -u origin {$branch}" : "git push -u origin {$branch}";
                 $process = Process::timeout(300)
                     ->run($upstreamCommand);
-                
+
                 if (!$process->successful()) {
                     throw new \Exception("Ошибка отправки в репозиторий:\n" . $process->errorOutput());
                 }
@@ -530,7 +519,7 @@ class Deploy extends Command
                         "Рекомендуется добавить их в .gitignore."
                     );
                 }
-                
+
                 // Если обычный push не прошел из-за non-fast-forward, предлагаем force
                 if (str_contains($errorOutput, 'non-fast-forward') && !$forcePush) {
                     throw new \Exception(
@@ -540,7 +529,7 @@ class Deploy extends Command
                         "⚠️  ВНИМАНИЕ: --force перезапишет удаленную ветку!"
                     );
                 }
-                
+
                 throw new \Exception("Ошибка отправки в репозиторий:\n" . $errorOutput);
             }
         }
@@ -555,7 +544,7 @@ class Deploy extends Command
     protected function sendDeployRequest(): void
     {
         $this->info('🌐 Шаг 7: Отправка запроса на сервер...');
-        
+
         $serverUrl = env('DEPLOY_SERVER_URL');
         $deployToken = env('DEPLOY_TOKEN');
 
@@ -579,14 +568,14 @@ class Deploy extends Command
 
         // Формируем правильный URL
         $deployUrl = rtrim($serverUrl, '/');
-        
+
         // Убираем /api/deploy если он уже есть в URL
         if (str_contains($deployUrl, '/api/deploy')) {
             $pos = strpos($deployUrl, '/api/deploy');
             $deployUrl = substr($deployUrl, 0, $pos);
             $deployUrl = rtrim($deployUrl, '/');
         }
-        
+
         // Добавляем /api/deploy
         $deployUrl .= '/api/deploy';
 
@@ -613,14 +602,14 @@ class Deploy extends Command
                 $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
                 $curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
             }
-            
+
             // Пробуем разные версии TLS
             $curlOptions[CURLOPT_SSLVERSION] = CURL_SSLVERSION_TLSv1_2;
-            
+
             // Увеличиваем таймауты
             $curlOptions[CURLOPT_CONNECTTIMEOUT] = 30;
             $curlOptions[CURLOPT_TIMEOUT] = 300;
-            
+
             // Разрешаем редиректы
             $curlOptions[CURLOPT_FOLLOWLOCATION] = true;
             $curlOptions[CURLOPT_MAXREDIRS] = 5;
@@ -644,25 +633,25 @@ class Deploy extends Command
             // Проверяем статус ответа
             if ($response->successful()) {
                 $data = $response->json();
-                
+
                 $this->newLine();
                 $this->info('  ✅ Сервер ответил успешно:');
-                
+
                 if (isset($data['data'])) {
                     $dataArray = $data['data'];
-                    
+
                     if (isset($dataArray['php_path'])) {
                         $this->line("     PHP: {$dataArray['php_path']} (v{$dataArray['php_version']})");
                     }
-                    
+
                     if (isset($dataArray['git_pull'])) {
                         $this->line("     Git Pull: {$dataArray['git_pull']}");
                     }
-                    
+
                     if (isset($dataArray['composer_install'])) {
                         $this->line("     Composer: {$dataArray['composer_install']}");
                     }
-                    
+
                     if (isset($dataArray['migrations'])) {
                         $migrations = $dataArray['migrations'];
                         if (is_array($migrations) && isset($migrations['status'])) {
@@ -673,7 +662,7 @@ class Deploy extends Command
                             }
                         }
                     }
-                    
+
                     if (isset($dataArray['seeders'])) {
                         $seeders = $dataArray['seeders'];
                         if (is_array($seeders) && isset($seeders['status'])) {
@@ -688,11 +677,11 @@ class Deploy extends Command
                             }
                         }
                     }
-                    
+
                     if (isset($dataArray['duration_seconds'])) {
                         $this->line("     Время выполнения: {$dataArray['duration_seconds']}с");
                     }
-                    
+
                     if (isset($dataArray['deployed_at'])) {
                         $this->line("     Дата: {$dataArray['deployed_at']}");
                     }
@@ -702,19 +691,19 @@ class Deploy extends Command
             } else {
                 $errorData = $response->json();
                 throw new \Exception(
-                    "Ошибка деплоя на сервере (HTTP {$response->status()}): " . 
+                    "Ошибка деплоя на сервере (HTTP {$response->status()}): " .
                     ($errorData['message'] ?? $response->body())
                 );
             }
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             $errorMessage = $e->getMessage();
-            
+
             // Детальная диагностика ошибки
             $this->newLine();
             $this->error('❌ Ошибка подключения к серверу');
             $this->line("  📡 URL: {$deployUrl}");
             $this->line("  🔍 Ошибка: {$errorMessage}");
-            
+
             // Проверяем тип ошибки и даем рекомендации
             if (str_contains($errorMessage, 'Connection was reset') || str_contains($errorMessage, 'cURL error 35')) {
                 $this->newLine();
@@ -741,17 +730,17 @@ class Deploy extends Command
                 $this->line('     Попробуйте использовать флаг --insecure (уже использован)');
                 $this->line('     Или проверьте валидность SSL сертификата на сервере');
             }
-            
+
             throw new \Exception("Не удалось подключиться к серверу: {$errorMessage}");
         } catch (\Exception $e) {
             $this->newLine();
             $this->error('❌ Ошибка отправки запроса');
             $this->line("  🔍 Детали: " . $e->getMessage());
-            
+
             if ($this->option('verbose')) {
                 $this->line("  📋 Trace: " . $e->getTraceAsString());
             }
-            
+
             throw new \Exception("Ошибка отправки запроса: " . $e->getMessage());
         }
 

@@ -91,8 +91,11 @@ class Order extends Model
      */
     const STATUS_NEW = 'new';
     const STATUS_ACCEPTED = 'accepted';
+    const STATUS_SENT_TO_KITCHEN = 'sent_to_kitchen';
+    const STATUS_KITCHEN_ACCEPTED = 'kitchen_accepted';
     const STATUS_PREPARING = 'preparing';
     const STATUS_READY_FOR_DELIVERY = 'ready_for_delivery';
+    const STATUS_COURIER_ASSIGNED = 'courier_assigned';
     const STATUS_IN_TRANSIT = 'in_transit';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
@@ -133,6 +136,16 @@ class Order extends Model
     public function bot(): BelongsTo
     {
         return $this->belongsTo(Bot::class, 'bot_id', 'id');
+    }
+
+    /**
+     * Связь с историей статусов
+     * 
+     * @return HasMany
+     */
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class, 'order_id', 'id');
     }
 
     /**

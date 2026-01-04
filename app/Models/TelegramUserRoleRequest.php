@@ -36,6 +36,7 @@ class TelegramUserRoleRequest extends Model
      */
     const ROLE_COURIER = 'courier';
     const ROLE_ADMIN = 'admin';
+    const ROLE_KITCHEN = 'kitchen';
 
     /**
      * Атрибуты, которые можно массово присваивать

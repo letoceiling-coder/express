@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bot;
+use App\Models\Order;
+use App\Models\TelegramUser;
 use App\Models\TelegramUserRoleRequest;
 use App\Services\TelegramService;
+use App\Services\Order\OrderStatusService;
+use App\Services\Order\OrderNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -14,13 +18,19 @@ class BotController extends Controller
 {
     protected TelegramService $telegramService;
     protected \App\Services\Telegram\TelegramUserService $telegramUserService;
+    protected OrderStatusService $orderStatusService;
+    protected OrderNotificationService $orderNotificationService;
 
     public function __construct(
         TelegramService $telegramService,
-        \App\Services\Telegram\TelegramUserService $telegramUserService
+        \App\Services\Telegram\TelegramUserService $telegramUserService,
+        OrderStatusService $orderStatusService,
+        OrderNotificationService $orderNotificationService
     ) {
         $this->telegramService = $telegramService;
         $this->telegramUserService = $telegramUserService;
+        $this->orderStatusService = $orderStatusService;
+        $this->orderNotificationService = $orderNotificationService;
     }
 
     /**
@@ -411,6 +421,16 @@ class BotController extends Controller
                 if ($text === '/apply_admin' || str_starts_with($text, '/apply_admin')) {
                     $this->handleRoleRequest($bot, $chatId, $from, 'admin');
                 }
+                
+                // Обработка команды /apply_kitchen
+                if ($text === '/apply_kitchen' || str_starts_with($text, '/apply_kitchen')) {
+                    $this->handleRoleRequest($bot, $chatId, $from, 'kitchen');
+                }
+            }
+
+            // Обработка callback_query
+            if (isset($update['callback_query'])) {
+                $this->handleCallbackQuery($update['callback_query'], $bot);
             }
             
             return response()->json(['ok' => true], 200);
@@ -558,18 +578,26 @@ class BotController extends Controller
                 ->first();
             
             if ($existingRequest) {
-                $message = $requestedRole === 'courier' 
-                    ? '⏳ Вы уже подали заявку на роль курьера. Ожидайте рассмотрения.'
-                    : '⏳ Вы уже подали заявку на роль администратора. Ожидайте рассмотрения.';
+                $roleName = match($requestedRole) {
+                    'courier' => 'курьера',
+                    'admin' => 'администратора',
+                    'kitchen' => 'кухни',
+                    default => $requestedRole,
+                };
+                $message = "⏳ Вы уже подали заявку на роль {$roleName}. Ожидайте рассмотрения.";
                 $this->telegramService->sendMessage($bot->token, $chatId, $message);
                 return;
             }
             
             // Проверяем, не имеет ли пользователь уже эту роль
             if ($telegramUser->role === $requestedRole) {
-                $message = $requestedRole === 'courier'
-                    ? '✅ Вы уже являетесь курьером.'
-                    : '✅ Вы уже являетесь администратором.';
+                $roleName = match($requestedRole) {
+                    'courier' => 'курьером',
+                    'admin' => 'администратором',
+                    'kitchen' => 'кухней',
+                    default => $requestedRole,
+                };
+                $message = "✅ Вы уже являетесь {$roleName}.";
                 $this->telegramService->sendMessage($bot->token, $chatId, $message);
                 return;
             }
@@ -581,7 +609,12 @@ class BotController extends Controller
                 'status' => TelegramUserRoleRequest::STATUS_PENDING,
             ]);
             
-            $roleName = $requestedRole === 'courier' ? 'курьера' : 'администратора';
+            $roleName = match($requestedRole) {
+                'courier' => 'курьера',
+                'admin' => 'администратора',
+                'kitchen' => 'кухни',
+                default => $requestedRole,
+            };
             $message = "✅ Заявка на роль {$roleName} успешно подана! Администратор рассмотрит вашу заявку в ближайшее время.";
             $this->telegramService->sendMessage($bot->token, $chatId, $message);
             
@@ -603,6 +636,626 @@ class BotController extends Controller
                 $chatId, 
                 '❌ Произошла ошибка при обработке заявки. Попробуйте позже.'
             );
+        }
+    }
+
+    /**
+     * Обработка callback_query от Telegram
+     *
+     * @param array $callbackQuery
+     * @param Bot $bot
+     * @return void
+     */
+    private function handleCallbackQuery(array $callbackQuery, Bot $bot): void
+    {
+        try {
+            $callbackQueryId = $callbackQuery['id'] ?? null;
+            $from = $callbackQuery['from'] ?? null;
+            $data = $callbackQuery['data'] ?? null;
+
+            if (!$callbackQueryId || !$data) {
+                \Illuminate\Support\Facades\Log::warning('Invalid callback_query', [
+                    'bot_id' => $bot->id,
+                    'callback_query' => $callbackQuery,
+                ]);
+                return;
+            }
+
+            // Синхронизируем пользователя
+            if ($from) {
+                try {
+                    $this->telegramUserService->syncUser($bot->id, $from);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Error syncing telegram user in callback', [
+                        'bot_id' => $bot->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Парсим callback_data
+            $parts = explode(':', $data);
+            $action = $parts[0] ?? null;
+            $orderId = $parts[1] ?? null;
+            $param = $parts[2] ?? null;
+
+            \Illuminate\Support\Facades\Log::info('Callback query received', [
+                'bot_id' => $bot->id,
+                'action' => $action,
+                'order_id' => $orderId,
+                'param' => $param,
+                'from_id' => $from['id'] ?? null,
+            ]);
+
+            // Отвечаем на callback (убираем индикатор загрузки)
+            $this->telegramService->answerCallbackQuery($bot->token, $callbackQueryId);
+
+            // Обрабатываем действие
+            switch ($action) {
+                case 'order_action':
+                    $this->handleOrderAction($bot, $orderId, $param, $from);
+                    break;
+
+                case 'order_kitchen_accept':
+                    $this->handleKitchenAccept($bot, $orderId, $from);
+                    break;
+
+                case 'order_kitchen_ready':
+                    $this->handleKitchenReady($bot, $orderId, $from);
+                    break;
+
+                case 'order_courier_assign':
+                    $this->handleCourierAssign($bot, $orderId, $param, $from);
+                    break;
+
+                case 'order_courier_picked':
+                    $this->handleCourierPicked($bot, $orderId, $from);
+                    break;
+
+                case 'order_courier_delivered':
+                    $this->handleCourierDelivered($bot, $orderId, $from);
+                    break;
+
+                case 'order_payment':
+                    $this->handleOrderPayment($bot, $orderId, $param, $from);
+                    break;
+
+                case 'order_cancel_request':
+                    $this->handleOrderCancelRequest($bot, $orderId, $from);
+                    break;
+
+                default:
+                    \Illuminate\Support\Facades\Log::warning('Unknown callback action', [
+                        'action' => $action,
+                        'data' => $data,
+                    ]);
+                    break;
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling callback query: ' . $e->getMessage(), [
+                'bot_id' => $bot->id,
+                'callback_query' => $callbackQuery,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Обработка действий администратора с заказом
+     */
+    private function handleOrderAction(Bot $bot, string $orderId, string $action, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_ADMIN) {
+                return;
+            }
+
+            switch ($action) {
+                case 'send_to_kitchen':
+                    $this->handleSendToKitchen($bot, $order, $telegramUser);
+                    break;
+                case 'call_courier':
+                    $this->handleCallCourier($bot, $order, $telegramUser);
+                    break;
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling order action: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка отправки заказа на кухню
+     */
+    private function handleSendToKitchen(Bot $bot, Order $order, TelegramUser $adminUser): void
+    {
+        try {
+            $this->orderStatusService->changeStatus($order, Order::STATUS_SENT_TO_KITCHEN, [
+                'role' => 'admin',
+                'changed_by_telegram_user_id' => $adminUser->id,
+            ]);
+
+            $this->orderNotificationService->notifyKitchenOrderSent($order);
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_SENT_TO_KITCHEN, []);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_SENT_TO_KITCHEN);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending order to kitchen: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка вызова курьера - отправка списка курьеров
+     */
+    private function handleCallCourier(Bot $bot, Order $order, TelegramUser $adminUser): void
+    {
+        try {
+            $couriers = TelegramUser::where('bot_id', $bot->id)
+                ->where('role', TelegramUser::ROLE_COURIER)
+                ->where('is_blocked', false)
+                ->get();
+
+            if ($couriers->isEmpty()) {
+                $this->telegramService->sendMessage($bot->token, $adminUser->telegram_id, '❌ Нет доступных курьеров');
+                return;
+            }
+
+            $keyboard = ['inline_keyboard' => []];
+            foreach ($couriers as $courier) {
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => $courier->full_name ?? "Курьер #{$courier->id}",
+                    'callback_data' => "order_courier_assign:{$order->id}:{$courier->id}"
+                ]];
+            }
+
+            $message = "🚚 Выберите курьера для заказа #{$order->order_id}";
+            $this->telegramService->sendMessage($bot->token, $adminUser->telegram_id, $message, [
+                'reply_markup' => json_encode($keyboard)
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error calling courier: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка принятия заказа кухней
+     */
+    private function handleKitchenAccept(Bot $bot, string $orderId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order || $order->status !== Order::STATUS_SENT_TO_KITCHEN) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_KITCHEN) {
+                return;
+            }
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_KITCHEN_ACCEPTED, [
+                'role' => 'kitchen',
+                'changed_by_telegram_user_id' => $telegramUser->id,
+            ]);
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_PREPARING, [
+                'role' => 'kitchen',
+                'changed_by_telegram_user_id' => $telegramUser->id,
+            ]);
+
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_KITCHEN_ACCEPTED, []);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_KITCHEN_ACCEPTED);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling kitchen accept: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка готовности заказа на кухне
+     */
+    private function handleKitchenReady(Bot $bot, string $orderId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order || $order->status !== Order::STATUS_PREPARING) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_KITCHEN) {
+                return;
+            }
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_READY_FOR_DELIVERY, [
+                'role' => 'kitchen',
+                'changed_by_telegram_user_id' => $telegramUser->id,
+            ]);
+
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_READY_FOR_DELIVERY, []);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_READY_FOR_DELIVERY);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling kitchen ready: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка назначения курьера
+     */
+    private function handleCourierAssign(Bot $bot, string $orderId, string $courierId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            $courier = TelegramUser::find($courierId);
+
+            if (!$order || !$courier || $courier->role !== TelegramUser::ROLE_COURIER) {
+                return;
+            }
+
+            // Сохраняем ID курьера в notes заказа (временно, пока нет поля courier_id)
+            // Можно добавить отдельное поле courier_id через миграцию
+            $notes = $order->notes ?? '';
+            $notesData = [];
+            if ($notes) {
+                $notesData = json_decode($notes, true) ?? [];
+            }
+            $notesData['courier_id'] = $courier->id;
+            $order->update(['notes' => json_encode($notesData)]);
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_COURIER_ASSIGNED, [
+                'role' => 'admin',
+                'changed_by_telegram_user_id' => TelegramUser::where('bot_id', $bot->id)
+                    ->where('telegram_id', $from['id'] ?? null)->first()->id ?? null,
+                'metadata' => ['courier_id' => $courier->id],
+            ]);
+
+            $this->orderNotificationService->notifyCourierOrderReady($order, $courier);
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_COURIER_ASSIGNED, [
+                'message' => "Курьер {$courier->full_name} назначен на заказ #{$order->order_id}",
+            ]);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_COURIER_ASSIGNED);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error assigning courier: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка "Забрал заказ" от курьера
+     */
+    private function handleCourierPicked(Bot $bot, string $orderId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order || $order->status !== Order::STATUS_COURIER_ASSIGNED) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_COURIER) {
+                return;
+            }
+
+            // Проверяем, что курьер назначен на этот заказ
+            $notesData = [];
+            if ($order->notes) {
+                $notesData = json_decode($order->notes, true) ?? [];
+            }
+            if (($notesData['courier_id'] ?? null) != $telegramUser->id) {
+                return;
+            }
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_IN_TRANSIT, [
+                'role' => 'courier',
+                'changed_by_telegram_user_id' => $telegramUser->id,
+            ]);
+
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_IN_TRANSIT, [
+                'message' => "Курьер {$telegramUser->full_name} забрал заказ #{$order->order_id}",
+            ]);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_IN_TRANSIT);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling courier picked: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка доставки заказа курьером
+     */
+    private function handleCourierDelivered(Bot $bot, string $orderId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order || $order->status !== Order::STATUS_IN_TRANSIT) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_COURIER) {
+                return;
+            }
+
+            // Если оплата не получена, отправляем кнопки для обработки оплаты
+            if ($order->payment_status === Order::PAYMENT_STATUS_PENDING) {
+                $keyboard = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '✅ Оплата получена', 'callback_data' => "order_payment:{$order->id}:received"],
+                            ['text' => '❌ Оплата не получена', 'callback_data' => "order_payment:{$order->id}:not_received"],
+                        ]
+                    ]
+                ];
+
+                $this->telegramService->sendMessage($bot->token, $telegramUser->telegram_id,
+                    "💳 Заказ #{$order->order_id} доставлен. Статус оплаты?",
+                    ['reply_markup' => json_encode($keyboard)]
+                );
+                return;
+            }
+
+            // Если оплата уже получена, сразу меняем статус на delivered
+            $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                'role' => 'courier',
+                'changed_by_telegram_user_id' => $telegramUser->id,
+            ]);
+
+            $order->update(['payment_status' => Order::PAYMENT_STATUS_SUCCEEDED]);
+
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_DELIVERED, [
+                'message' => "Заказ #{$order->order_id} доставлен курьером {$telegramUser->full_name}",
+            ]);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_DELIVERED);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling courier delivered: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка оплаты курьером
+     */
+    private function handleOrderPayment(Bot $bot, string $orderId, string $status, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order) {
+                return;
+            }
+
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_COURIER) {
+                return;
+            }
+
+            if ($status === 'received') {
+                $order->update(['payment_status' => Order::PAYMENT_STATUS_SUCCEEDED]);
+                $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                    'role' => 'courier',
+                    'changed_by_telegram_user_id' => $telegramUser->id,
+                    'comment' => 'Оплата получена',
+                ]);
+            } else {
+                $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                    'role' => 'courier',
+                    'changed_by_telegram_user_id' => $telegramUser->id,
+                    'comment' => 'Оплата не получена',
+                ]);
+            }
+
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_DELIVERED, [
+                'message' => "Заказ #{$order->order_id} доставлен. Оплата: " . ($status === 'received' ? 'получена' : 'не получена'),
+            ]);
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_DELIVERED);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling order payment: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Обработка запроса на отмену заказа
+     */
+    private function handleOrderCancelRequest(Bot $bot, string $orderId, array $from): void
+    {
+        try {
+            $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
+            if (!$order) {
+                return;
+            }
+
+            // Проверяем, что пользователь является владельцем заказа
+            if ($order->telegram_id != ($from['id'] ?? null)) {
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $from['id'] ?? 0,
+                    '❌ Вы не можете отменить этот заказ'
+                );
+                return;
+            }
+
+            // Проверяем, что заказ может быть отменен
+            if (in_array($order->status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $from['id'] ?? 0,
+                    '❌ Этот заказ уже доставлен или отменен'
+                );
+                return;
+            }
+
+            // Сохраняем временное состояние в cache для ожидания причины
+            $cacheKey = "cancel_order:{$bot->id}:{$from['id']}";
+            \Illuminate\Support\Facades\Cache::put($cacheKey, [
+                'order_id' => $order->id,
+                'expires_at' => now()->addMinutes(10)->timestamp,
+            ], now()->addMinutes(10));
+
+            // Отправляем запрос на ввод причины
+            $message = "❓ Укажите причину отмены заказа #{$order->order_id}:\n\n" .
+                      "Напишите текст сообщения с причиной отмены.";
+            
+            $this->telegramService->sendMessage($bot->token, $from['id'] ?? 0, $message);
+
+            \Illuminate\Support\Facades\Log::info('Order cancel request received, waiting for reason', [
+                'order_id' => $order->id,
+                'telegram_id' => $from['id'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling order cancel request: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Обработка текстового сообщения с причиной отмены
+     *
+     * @param Bot $bot
+     * @param int $chatId
+     * @param string $text
+     * @param array $from
+     * @return void
+     */
+    private function handleCancelOrderReason(Bot $bot, int $chatId, string $text, array $from): void
+    {
+        try {
+            // Проверяем временное состояние
+            $cacheKey = "cancel_order:{$bot->id}:{$from['id']}";
+            $cacheData = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+            if (!$cacheData) {
+                return; // Нет активного запроса на отмену
+            }
+
+            $order = Order::find($cacheData['order_id']);
+            if (!$order || $order->bot_id != $bot->id) {
+                \Illuminate\Support\Facades\Cache::forget($cacheKey);
+                return;
+            }
+
+            // Проверяем, что пользователь является владельцем заказа
+            if ($order->telegram_id != $from['id']) {
+                \Illuminate\Support\Facades\Cache::forget($cacheKey);
+                return;
+            }
+
+            // Проверяем, что заказ еще может быть отменен
+            if (in_array($order->status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {
+                \Illuminate\Support\Facades\Cache::forget($cacheKey);
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $chatId,
+                    '❌ Этот заказ уже доставлен или отменен'
+                );
+                return;
+            }
+
+            // Удаляем временное состояние
+            \Illuminate\Support\Facades\Cache::forget($cacheKey);
+
+            // Сохраняем предыдущий статус ПЕРЕД отменой
+            $previousStatus = $order->status;
+
+            // Изменяем статус заказа на cancelled
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'])
+                ->first();
+
+            $this->orderStatusService->changeStatus($order, Order::STATUS_CANCELLED, [
+                'role' => 'user',
+                'changed_by_telegram_user_id' => $telegramUser->id ?? null,
+                'comment' => "Причина отмены: {$text}",
+            ]);
+
+            // Обновляем заказ из БД для получения нового статуса
+            $order->refresh();
+
+            // Уведомляем администратора
+            $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_CANCELLED, [
+                'message' => "Заказ #{$order->order_id} отменен клиентом",
+                'cancel_reason' => $text,
+            ]);
+
+            // Уведомляем кухню, если заказ был на кухне
+            if (in_array($previousStatus, [
+                Order::STATUS_SENT_TO_KITCHEN,
+                Order::STATUS_KITCHEN_ACCEPTED,
+                Order::STATUS_PREPARING,
+                Order::STATUS_READY_FOR_DELIVERY
+            ])) {
+                $kitchenUsers = TelegramUser::where('bot_id', $bot->id)
+                    ->where('role', TelegramUser::ROLE_KITCHEN)
+                    ->where('is_blocked', false)
+                    ->get();
+
+                foreach ($kitchenUsers as $kitchenUser) {
+                    $this->telegramService->sendMessage(
+                        $bot->token,
+                        $kitchenUser->telegram_id,
+                        "❌ Заказ #{$order->order_id} отменен клиентом"
+                    );
+                }
+            }
+
+            // Уведомляем курьера, если заказ был у курьера
+            if (in_array($previousStatus, [
+                Order::STATUS_COURIER_ASSIGNED,
+                Order::STATUS_IN_TRANSIT
+            ])) {
+                $notesData = [];
+                if ($order->notes) {
+                    $notesData = json_decode($order->notes, true) ?? [];
+                }
+                $courierId = $notesData['courier_id'] ?? null;
+                if ($courierId) {
+                    $courier = TelegramUser::find($courierId);
+                    if ($courier) {
+                        $this->telegramService->sendMessage(
+                            $bot->token,
+                            $courier->telegram_id,
+                            "❌ Заказ #{$order->order_id} отменен клиентом"
+                        );
+                    }
+                }
+            }
+
+            // Уведомляем клиента
+            $this->telegramService->sendMessage(
+                $bot->token,
+                $chatId,
+                "✅ Ваш заказ #{$order->order_id} отменен"
+            );
+
+            \Illuminate\Support\Facades\Log::info('Order cancelled by client', [
+                'order_id' => $order->id,
+                'telegram_id' => $from['id'],
+                'reason' => $text,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling cancel order reason: ' . $e->getMessage(), [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

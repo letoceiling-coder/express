@@ -94,6 +94,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('orders', OrderController::class);
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
+        Route::get('orders/{id}/status-history', [OrderController::class, 'statusHistory'])
+            ->name('orders.status-history');
         
         // Deliveries
         Route::apiResource('deliveries', DeliveryController::class);

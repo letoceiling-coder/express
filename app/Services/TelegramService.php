@@ -637,5 +637,60 @@ class TelegramService
             ];
         }
     }
+
+    /**
+     * Ответить на callback query (убрать индикатор загрузки)
+     *
+     * @param string $token
+     * @param string $callbackQueryId
+     * @param string|null $text Текст для отображения пользователю
+     * @param bool $showAlert Показывать ли alert вместо toast
+     * @return array
+     */
+    public function answerCallbackQuery(string $token, string $callbackQueryId, ?string $text = null, bool $showAlert = false): array
+    {
+        try {
+            $params = [
+                'callback_query_id' => $callbackQueryId,
+            ];
+
+            if ($text !== null) {
+                $params['text'] = $text;
+            }
+
+            if ($showAlert) {
+                $params['show_alert'] = true;
+            }
+
+            $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/answerCallbackQuery', $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if ($data['ok'] ?? false) {
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'message' => $data['description'] ?? 'Не удалось ответить на callback query',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Ошибка подключения к Telegram API',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Telegram answerCallbackQuery error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Ошибка: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
 
