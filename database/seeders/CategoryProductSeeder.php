@@ -279,12 +279,12 @@ class CategoryProductSeeder extends Seeder
                 $height = $imageInfo[1];
             }
 
-            // Создаем запись в базе данных
+            // Создаем запись в базе данных сначала
             $media = Media::create([
                 'name' => $fileName,
                 'original_name' => $fileName,
                 'extension' => $extension,
-                'disk' => 'local',
+                'disk' => $storagePath, // Исправлено: используем правильный путь
                 'width' => $width,
                 'height' => $height,
                 'type' => 'photo',
@@ -298,6 +298,39 @@ class CategoryProductSeeder extends Seeder
                     'source_url' => $url,
                 ]),
             ]);
+
+            // Обрабатываем изображение через ImageService для создания WebP и вариантов
+            try {
+                $imageService = app(ImageService::class);
+                $baseName = pathinfo($fileName, PATHINFO_FILENAME);
+                
+                $imageVariants = $imageService->processImage(
+                    $fullFilePath,
+                    $extension,
+                    $storagePath,
+                    $baseName
+                );
+                
+                // Обновляем metadata с информацией о вариантах
+                $metadata = [
+                    'path' => $fullPath,
+                    'mime_type' => $contentType,
+                    'source_url' => $url,
+                    'webp_path' => $imageVariants['webp'] ?? null,
+                    'variants' => $imageVariants['variants'] ?? [],
+                ];
+                
+                if (isset($imageVariants['error'])) {
+                    $metadata['processing_error'] = $imageVariants['error'];
+                    $this->command->warn("  ⚠ Image processing error: {$imageVariants['error']}");
+                }
+                
+                $media->update(['metadata' => json_encode($metadata)]);
+            } catch (\Exception $e) {
+                // Логируем ошибку, но не прерываем процесс
+                Log::warning("Failed to process image for Media ID {$media->id}: " . $e->getMessage());
+                $this->command->warn("  ⚠ Failed to process image (will use original): " . $e->getMessage());
+            }
 
             return $media;
         } catch (\Exception $e) {
