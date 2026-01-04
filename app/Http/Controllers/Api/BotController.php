@@ -400,16 +400,16 @@ class BotController extends Controller
                             'mini_app_url' => $miniAppUrl,
                         ]);
                     }
-                    
-                    // Обработка команды /apply_courier
-                    if ($text === '/apply_courier' || str_starts_with($text, '/apply_courier')) {
-                        $this->handleRoleRequest($bot, $chatId, $from, 'courier');
-                    }
-                    
-                    // Обработка команды /apply_admin
-                    if ($text === '/apply_admin' || str_starts_with($text, '/apply_admin')) {
-                        $this->handleRoleRequest($bot, $chatId, $from, 'admin');
-                    }
+                }
+                
+                // Обработка команды /apply_courier
+                if ($text === '/apply_courier' || str_starts_with($text, '/apply_courier')) {
+                    $this->handleRoleRequest($bot, $chatId, $from, 'courier');
+                }
+                
+                // Обработка команды /apply_admin
+                if ($text === '/apply_admin' || str_starts_with($text, '/apply_admin')) {
+                    $this->handleRoleRequest($bot, $chatId, $from, 'admin');
                 }
             }
             
