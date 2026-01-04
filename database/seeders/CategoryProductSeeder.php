@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Folder;
 use App\Models\Media;
 use App\Models\Product;
+use App\Services\ImageService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
