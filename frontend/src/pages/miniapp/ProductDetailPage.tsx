@@ -164,11 +164,11 @@ export function ProductDetailPage() {
       </div>
 
       {/* Bottom Bar - Sticky */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background p-4 safe-area-bottom">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background p-3 sm:p-4 safe-area-bottom">
         {quantityInCart > 0 ? (
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">В корзине</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={handleDecrement}
                 className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
@@ -189,23 +189,23 @@ export function ProductDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Quantity controls */}
-            <div className="flex items-center border border-border rounded-lg">
+            <div className="flex items-center border border-border rounded-lg flex-shrink-0">
               <button
                 onClick={handleDecrement}
                 disabled={localQuantity <= 1}
-                className="flex h-11 w-11 items-center justify-center rounded-l-lg text-foreground touch-feedback disabled:opacity-40"
+                className="flex h-11 w-10 sm:w-11 items-center justify-center rounded-l-lg text-foreground touch-feedback disabled:opacity-40"
                 aria-label="Уменьшить"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-10 text-center text-base font-semibold text-foreground">
+              <span className="w-8 sm:w-10 text-center text-sm sm:text-base font-semibold text-foreground">
                 {localQuantity}
               </span>
               <button
                 onClick={handleIncrement}
-                className="flex h-11 w-11 items-center justify-center rounded-r-lg text-foreground touch-feedback"
+                className="flex h-11 w-10 sm:w-11 items-center justify-center rounded-r-lg text-foreground touch-feedback"
                 aria-label="Увеличить"
               >
                 <Plus className="h-4 w-4" />
@@ -215,9 +215,10 @@ export function ProductDetailPage() {
             {/* Add to cart button */}
             <button
               onClick={handleAddToCart}
-              className="flex-1 h-11 rounded-lg bg-primary font-semibold text-primary-foreground touch-feedback hover:opacity-90 transition-opacity"
+              className="flex-1 h-11 rounded-lg bg-primary text-xs sm:text-sm font-semibold text-primary-foreground touch-feedback hover:opacity-90 transition-opacity whitespace-nowrap px-2 sm:px-4"
             >
-              Добавить в корзину
+              <span className="hidden sm:inline">Добавить в корзину</span>
+              <span className="sm:hidden">Добавить</span>
             </button>
           </div>
         )}
