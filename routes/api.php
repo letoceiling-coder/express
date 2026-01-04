@@ -74,13 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
         // Categories (POST, PUT, DELETE - GET обрабатывается публичными роутами)
         Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
-        Route::patch('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::patch('categories/{category}', [CategoryController::class, 'update']);
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
         
         // Products (POST, PUT, DELETE - GET обрабатывается публичными роутами)
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
-        Route::patch('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::patch('products/{product}', [ProductController::class, 'update']);
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
         
         // Product History
