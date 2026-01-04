@@ -10,6 +10,21 @@ class TelegramService
     protected string $apiBaseUrl = 'https://api.telegram.org/bot';
 
     /**
+     * Фильтрует parse_mode, оставляя только поддерживаемые Telegram API значения
+     * Telegram API поддерживает только: HTML, MarkdownV2
+     */
+    protected function filterParseMode(array $options): array
+    {
+        if (isset($options['parse_mode'])) {
+            // Telegram API поддерживает только HTML и MarkdownV2
+            if (!in_array($options['parse_mode'], ['HTML', 'MarkdownV2'], true)) {
+                unset($options['parse_mode']);
+            }
+        }
+        return $options;
+    }
+
+    /**
      * Получить информацию о боте
      */
     public function getBotInfo(string $token): array
