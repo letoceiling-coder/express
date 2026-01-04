@@ -7,71 +7,150 @@ import { toast } from 'sonner';
 import { Loader2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
+import { ordersAPI } from '@/api';
 
-const timeSlots = [
-  '10:00-11:00',
-  '11:00-12:00',
-  '12:00-13:00',
-  '13:00-14:00',
-  '14:00-15:00',
-  '15:00-16:00',
-  '16:00-17:00',
-  '17:00-18:00',
-  '18:00-19:00',
-  '19:00-20:00',
-  '20:00-21:00',
-];
+// Функция форматирования телефона с маской
+const formatPhone = (value: string): string => {
+  // Удаляем все нецифровые символы
+  const digits = value.replace(/\D/g, '');
+  
+  // Если начинается с 8, заменяем на 7
+  const normalizedDigits = digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+  
+  // Ограничиваем до 11 цифр (7 + 10)
+  const limited = normalizedDigits.slice(0, 11);
+  
+  // Форматируем: +7 (XXX) XXX-XX-XX
+  if (limited.length === 0) return '';
+  if (limited.length <= 1) return `+${limited}`;
+  if (limited.length <= 4) return `+${limited.slice(0, 1)} (${limited.slice(1)}`;
+  if (limited.length <= 7) return `+${limited.slice(0, 1)} (${limited.slice(1, 4)}) ${limited.slice(4)}`;
+  if (limited.length <= 9) return `+${limited.slice(0, 1)} (${limited.slice(1, 4)}) ${limited.slice(4, 7)}-${limited.slice(7)}`;
+  return `+${limited.slice(0, 1)} (${limited.slice(1, 4)}) ${limited.slice(4, 7)}-${limited.slice(7, 9)}-${limited.slice(9, 11)}`;
+};
+
+// Функция получения только цифр из телефона
+const getPhoneDigits = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  return digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+};
+
+// Генерация временных слотов с фильтрацией прошедшего времени
+const generateTimeSlots = (): string[] => {
+  const slots = [
+    '10:00-11:00',
+    '11:00-12:00',
+    '12:00-13:00',
+    '13:00-14:00',
+    '14:00-15:00',
+    '15:00-16:00',
+    '16:00-17:00',
+    '17:00-18:00',
+    '18:00-19:00',
+    '19:00-20:00',
+    '20:00-21:00',
+  ];
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  // Фильтруем слоты: исключаем прошедшие и текущий час (запас 1 час)
+  return slots.filter((slot) => {
+    const [startTime] = slot.split('-');
+    const [hour] = startTime.split(':').map(Number);
+    
+    // Исключаем слоты, которые уже прошли
+    if (hour < currentHour) return false;
+    
+    // Исключаем текущий час (запас 1 час)
+    if (hour === currentHour) return false;
+    
+    return true;
+  });
+};
 
 type Step = 1 | 2 | 3;
+type DeliveryType = 'courier' | 'pickup';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { items, getTotalAmount, clearCart } = useCartStore();
-  const { createOrder } = useOrders();
+  const { createOrder, loadOrders } = useOrders();
   const totalAmount = getTotalAmount();
 
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPastOrders, setIsLoadingPastOrders] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
     address: '',
     deliveryTime: '',
+    deliveryType: 'courier' as DeliveryType,
     comment: '',
   });
+  
+  const [availableTimeSlots] = useState(() => generateTimeSlots());
 
-  // Pre-fill from Telegram user
+  // Загрузка прошлых заказов и автозаполнение данных
   useEffect(() => {
-    const user = getTelegramUser();
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        name: user.first_name + (user.last_name ? ` ${user.last_name}` : ''),
-      }));
-    }
+    const loadPastOrders = async () => {
+      const user = getTelegramUser();
+      if (!user?.id) return;
+
+      setIsLoadingPastOrders(true);
+      try {
+        const orders = await ordersAPI.getByTelegramId(user.id);
+        
+        // Берем последний заказ для автозаполнения
+        if (orders.length > 0) {
+          const lastOrder = orders[0]; // Предполагаем, что заказы отсортированы по дате (новые первыми)
+          
+          setFormData(prev => ({
+            ...prev,
+            phone: lastOrder.phone ? formatPhone(lastOrder.phone) : prev.phone,
+            address: lastOrder.deliveryAddress || prev.address,
+            name: lastOrder.name || prev.name || '', // Имя берем из заказа
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load past orders:', error);
+        // Не показываем ошибку пользователю, так как это не критично
+      } finally {
+        setIsLoadingPastOrders(false);
+      }
+    };
+
+    loadPastOrders();
   }, []);
+
+  // Имя заполняется только из прошлых заказов, не из Telegram
 
   if (items.length === 0) {
     navigate('/cart');
     return null;
   }
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
   const validateStep = (currentStep: Step): boolean => {
     if (currentStep === 1) {
-      if (!formData.phone.trim()) {
-        toast.error('Введите номер телефона');
+      const phoneDigits = getPhoneDigits(formData.phone);
+      if (phoneDigits.length < 11) {
+        toast.error('Введите корректный номер телефона');
         return false;
       }
     }
     if (currentStep === 2) {
-      if (!formData.address.trim()) {
+      if (formData.deliveryType === 'courier' && !formData.address.trim()) {
         toast.error('Введите адрес доставки');
         return false;
       }
-      if (!formData.deliveryTime) {
-        toast.error('Выберите время доставки');
-        return false;
-      }
+      // Время доставки теперь необязательное
     }
     return true;
   };
@@ -95,11 +174,14 @@ export function CheckoutPage() {
     hapticFeedback('medium');
     
     try {
-      // Create order with real data
-      const order = await createOrder({
-        phone: formData.phone,
-        deliveryAddress: formData.address,
-        deliveryTime: formData.deliveryTime,
+      // Подготовка данных заказа
+      const phoneDigits = getPhoneDigits(formData.phone);
+      const orderData = {
+        phone: phoneDigits,
+        name: formData.name || undefined,
+        deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : formData.address,
+        deliveryTime: formData.deliveryTime || undefined,
+        deliveryType: formData.deliveryType,
         comment: formData.comment || undefined,
         items: items.map(item => ({
           productId: item.product.id,
@@ -109,7 +191,10 @@ export function CheckoutPage() {
           unitPrice: item.product.price,
         })),
         totalAmount,
-      });
+      };
+
+      // Create order with real data
+      const order = await createOrder(orderData);
 
       clearCart();
       hapticFeedback('success');
@@ -174,7 +259,8 @@ export function CheckoutPage() {
                 type="tel"
                 placeholder="+7 (___) ___-__-__"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={handlePhoneChange}
+                maxLength={18}
                 className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
@@ -201,20 +287,36 @@ export function CheckoutPage() {
 
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">
-                Адрес доставки *
+                Тип доставки *
               </label>
-              <input
-                type="text"
-                placeholder="г. Екатеринбург, ул., д., кв."
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <select
+                value={formData.deliveryType}
+                onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value as DeliveryType })}
+                className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="courier">Курьер</option>
+                <option value="pickup">Самовывоз</option>
+              </select>
             </div>
+
+            {formData.deliveryType === 'courier' && (
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">
+                  Адрес доставки *
+                </label>
+                <input
+                  type="text"
+                  placeholder="г. Екатеринбург, ул., д., кв."
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            )}
 
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">
-                Время доставки *
+                Время доставки (опционально)
               </label>
               <select
                 value={formData.deliveryTime}
@@ -222,10 +324,19 @@ export function CheckoutPage() {
                 className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Выберите время</option>
-                {timeSlots.map((slot) => (
-                  <option key={slot} value={slot}>{slot}</option>
-                ))}
+                {availableTimeSlots.length > 0 ? (
+                  availableTimeSlots.map((slot) => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>Нет доступных временных слотов на сегодня</option>
+                )}
               </select>
+              {availableTimeSlots.length === 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Все временные слоты на сегодня заняты. Выберите время или оставьте поле пустым.
+                </p>
+              )}
             </div>
 
             <div>
@@ -270,13 +381,23 @@ export function CheckoutPage() {
               <h3 className="mb-3 font-semibold text-foreground">Детали доставки</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Адрес</span>
-                  <span className="text-foreground text-right max-w-[200px]">{formData.address}</span>
+                  <span className="text-muted-foreground">Тип доставки</span>
+                  <span className="text-foreground">
+                    {formData.deliveryType === 'courier' ? 'Курьер' : 'Самовывоз'}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Время</span>
-                  <span className="text-foreground">{formData.deliveryTime}</span>
-                </div>
+                {formData.deliveryType === 'courier' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Адрес</span>
+                    <span className="text-foreground text-right max-w-[200px]">{formData.address}</span>
+                  </div>
+                )}
+                {formData.deliveryTime && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Время</span>
+                    <span className="text-foreground">{formData.deliveryTime}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Телефон</span>
                   <span className="text-foreground">{formData.phone}</span>

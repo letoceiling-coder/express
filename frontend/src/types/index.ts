@@ -58,6 +58,7 @@ export interface Order {
   telegramId: number;
   status: OrderStatus;
   phone: string;
+  name?: string;
   deliveryAddress: string;
   deliveryTime: string; // "15:00-16:00" or datetime
   comment?: string;
@@ -73,7 +74,8 @@ export interface Order {
 export interface CreateOrderPayload {
   phone: string;
   deliveryAddress: string;
-  deliveryTime: string;
+  deliveryTime?: string;
+  deliveryType?: 'courier' | 'pickup';
   comment?: string;
   items: {
     productId: string;

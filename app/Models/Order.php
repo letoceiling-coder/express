@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $telegram_id
  * @property string $status
  * @property string $phone
+ * @property string|null $name
  * @property string $delivery_address
  * @property string $delivery_type
  * @property string $delivery_time
@@ -51,6 +52,7 @@ class Order extends Model
         'telegram_id',
         'status',
         'phone',
+        'name',
         'delivery_address',
         'delivery_type',
         'delivery_time',
