@@ -111,6 +111,8 @@ class Media extends Model
      */
     protected $appends = [
         'url',
+        'webp_url',
+        'variants',
     ];
 
     /**
@@ -161,6 +163,39 @@ class Media extends Model
         $webpPath = $metadata['webp_path'] ?? null;
         
         return $webpPath ? '/' . ltrim($webpPath, '/') : null;
+    }
+    
+    /**
+     * Получить варианты изображений в формате для фронтенда
+     * 
+     * @return array|null
+     */
+    public function getVariantsAttribute(): ?array
+    {
+        if ($this->type !== 'photo') {
+            return null;
+        }
+        
+        $metadata = $this->metadata ? json_decode($this->metadata, true) : [];
+        $variants = $metadata['variants'] ?? [];
+        
+        if (empty($variants)) {
+            return null;
+        }
+        
+        // Преобразуем варианты в формат для фронтенда
+        $result = [];
+        foreach (['thumbnail', 'medium', 'large'] as $size) {
+            if (isset($variants[$size])) {
+                $variant = $variants[$size];
+                $result[$size] = [
+                    'webp' => isset($variant['webp']) ? '/' . ltrim($variant['webp'], '/') : null,
+                    'jpeg' => isset($variant['jpeg']) ? '/' . ltrim($variant['jpeg'], '/') : null,
+                ];
+            }
+        }
+        
+        return !empty($result) ? $result : null;
     }
     
     /**
