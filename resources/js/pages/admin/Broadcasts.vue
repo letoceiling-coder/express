@@ -767,23 +767,41 @@ export default {
             }
         },
         buildContent() {
+            // Функция для преобразования относительного URL в абсолютный
+            const getAbsoluteUrl = (url) => {
+                if (!url) return '';
+                // Если это telegram_file_id, возвращаем как есть
+                if (url.startsWith('BQACAgIAA') || url.match(/^[A-Za-z0-9_-]+$/)) {
+                    return url;
+                }
+                // Если URL уже абсолютный, возвращаем как есть
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    return url;
+                }
+                // Преобразуем относительный URL в абсолютный
+                if (url.startsWith('/')) {
+                    return window.location.origin + url;
+                }
+                return url;
+            };
+            
             // Формируем объект content только с нужными полями для выбранного типа
             const content = {};
             
             if (this.form.type === 'message') {
                 content.text = this.form.content.text || '';
             } else if (this.form.type === 'photo') {
-                content.photo = this.form.content.photo || '';
+                content.photo = getAbsoluteUrl(this.form.content.photo || '');
                 if (this.form.content.caption) {
                     content.caption = this.form.content.caption;
                 }
             } else if (this.form.type === 'video') {
-                content.video = this.form.content.video || '';
+                content.video = getAbsoluteUrl(this.form.content.video || '');
                 if (this.form.content.caption) {
                     content.caption = this.form.content.caption;
                 }
             } else if (this.form.type === 'document') {
-                content.document = this.form.content.document || '';
+                content.document = getAbsoluteUrl(this.form.content.document || '');
                 if (this.form.content.caption) {
                     content.caption = this.form.content.caption;
                 }
