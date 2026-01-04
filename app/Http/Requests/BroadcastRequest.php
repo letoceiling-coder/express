@@ -21,25 +21,45 @@ class BroadcastRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $type = $this->input('type');
+        
+        $rules = [
             'bot_id' => 'required|exists:bots,id',
             'telegram_user_ids' => 'nullable|array',
             'telegram_user_ids.*' => 'integer',
             'type' => 'required|in:message,photo,video,document,media_group',
             'content' => 'required|array',
-            'content.text' => 'required_if:type,message|string',
-            'content.photo' => 'required_if:type,photo|string',
-            'content.video' => 'required_if:type,video|string',
-            'content.document' => 'required_if:type,document|string',
-            'content.caption' => 'nullable|string',
-            'content.media' => 'required_if:type,media_group|array',
-            'content.media.*.type' => 'required_with:content.media|in:photo,video',
-            'content.media.*.media' => 'required_with:content.media|string',
-            'content.media.*.caption' => 'nullable|string',
             'options' => 'nullable|array',
             'options.parse_mode' => 'nullable|in:HTML,Markdown,MarkdownV2',
             'options.disable_notification' => 'nullable|boolean',
         ];
+        
+        // Добавляем правила в зависимости от типа
+        switch ($type) {
+            case 'message':
+                $rules['content.text'] = 'required|string';
+                break;
+            case 'photo':
+                $rules['content.photo'] = 'required|string';
+                $rules['content.caption'] = 'nullable|string';
+                break;
+            case 'video':
+                $rules['content.video'] = 'required|string';
+                $rules['content.caption'] = 'nullable|string';
+                break;
+            case 'document':
+                $rules['content.document'] = 'required|string';
+                $rules['content.caption'] = 'nullable|string';
+                break;
+            case 'media_group':
+                $rules['content.media'] = 'required|array|min:1|max:10';
+                $rules['content.media.*.type'] = 'required|in:photo,video';
+                $rules['content.media.*.media'] = 'required|string';
+                $rules['content.media.*.caption'] = 'nullable|string';
+                break;
+        }
+        
+        return $rules;
     }
 
     /**
@@ -55,11 +75,13 @@ class BroadcastRequest extends FormRequest
             'type.required' => 'Тип контента обязателен',
             'type.in' => 'Тип контента должен быть: message, photo, video, document или media_group',
             'content.required' => 'Содержимое обязательно',
-            'content.text.required_if' => 'Текст сообщения обязателен для типа message',
-            'content.photo.required_if' => 'Фото обязательно для типа photo',
-            'content.video.required_if' => 'Видео обязательно для типа video',
-            'content.document.required_if' => 'Документ обязателен для типа document',
-            'content.media.required_if' => 'Медиа группа обязательна для типа media_group',
+            'content.text.required' => 'Текст сообщения обязателен для типа message',
+            'content.photo.required' => 'Фото обязательно для типа photo',
+            'content.video.required' => 'Видео обязательно для типа video',
+            'content.document.required' => 'Документ обязателен для типа document',
+            'content.media.required' => 'Медиа группа обязательна для типа media_group',
+            'content.media.min' => 'В галерее должно быть хотя бы одно медиа',
+            'content.media.max' => 'В галерее может быть не более 10 медиа',
         ];
     }
 }
