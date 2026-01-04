@@ -171,8 +171,8 @@ project/
 
 1. **Клонируйте репозиторий:**
 ```bash
-git clone https://github.com/letoceiling-coder/aip.git
-cd aip
+git clone https://github.com/letoceiling-coder/express.git
+cd express
 ```
 
 **💡 Установка конкретной версии:**
@@ -180,7 +180,7 @@ cd aip
 
 ```bash
 # Клонировать сразу версию 1.0.0
-git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/express.git
 
 # Или в существующем репозитории
 git fetch --tags

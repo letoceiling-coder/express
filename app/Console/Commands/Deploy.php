@@ -34,7 +34,7 @@ class Deploy extends Command
      *
      * @var string
      */
-    protected $gitRepository = 'https://github.com/letoceiling-coder/aip.git';
+    protected $gitRepository = 'https://github.com/letoceiling-coder/express.git';
 
     /**
      * Execute the console command.

@@ -309,7 +309,7 @@ git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/express
    
    **Установка:**
    ```bash
-   git clone --branch vX.Y.Z --depth 1 https://github.com/letoceiling-coder/aip.git
+   git clone --branch vX.Y.Z --depth 1 https://github.com/letoceiling-coder/express.git
    ```
    ```
 
@@ -357,7 +357,7 @@ git clone --branch v1.0.0 --depth 1 https://github.com/letoceiling-coder/express
    
    **Установка:**
    ```bash
-   git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/aip.git
+   git clone --branch v1.1.0 --depth 1 https://github.com/letoceiling-coder/express.git
    ```
    ```
 
