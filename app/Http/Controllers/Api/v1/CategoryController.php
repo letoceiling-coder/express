@@ -43,7 +43,7 @@ class CategoryController extends Controller
         $query->orderBy($sortBy, $sortOrder);
 
         // Пагинация
-        $perPage = $request->get('per_page', 15);
+        $perPage = (int) $request->get('per_page', 15);
         if ($perPage > 0) {
             $categories = $query->paginate($perPage);
         } else {
