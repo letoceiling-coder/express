@@ -111,7 +111,7 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
       onClick={onClick}
     >
       {/* Product Image - Square 1:1 with fixed dimensions */}
-      <div className="relative w-full bg-muted overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
+      <div className="relative w-full bg-muted overflow-hidden flex-shrink-0" style={{ aspectRatio: '1 / 1' }}>
         <img
           src={product.imageUrl || '/placeholder-image.jpg'}
           alt={product.name}
@@ -125,16 +125,16 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
       </div>
 
       {/* Product Info */}
-      <div className="flex flex-1 flex-col p-3 min-h-[140px]">
-        <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground mb-1 min-h-[2.5rem]">
+      <div className="flex flex-1 flex-col p-2.5 min-w-0">
+        <h3 className="line-clamp-2 text-xs font-semibold leading-tight text-foreground mb-1 min-h-[2.25rem]">
           {product.name}
         </h3>
-        <p className="line-clamp-1 text-xs text-muted-foreground mb-3 flex-shrink-0">
+        <p className="line-clamp-1 text-[10px] text-muted-foreground mb-2 flex-shrink-0">
           {product.description}
         </p>
         
-        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-          <span className="text-base font-bold text-primary whitespace-nowrap">
+        <div className="mt-auto pt-1.5 flex items-center justify-between gap-1.5 min-w-0">
+          <span className="text-sm font-bold text-primary truncate">
             {product.price.toLocaleString('ru-RU')} ₽
           </span>
           
@@ -142,28 +142,28 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
             <div className="flex items-center gap-0.5 flex-shrink-0">
               <button
                 onClick={handleDecrement}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
                 aria-label="Уменьшить"
               >
-                <Minus className="h-4 w-4" />
+                <Minus className="h-3.5 w-3.5" />
               </button>
-              <span className="w-6 text-center text-sm font-semibold">{quantity}</span>
+              <span className="w-5 text-center text-xs font-semibold">{quantity}</span>
               <button
                 onClick={handleIncrement}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
                 aria-label="Увеличить"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : (
             <button
               onClick={handleAddToCart}
-              className="flex h-9 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity whitespace-nowrap flex-shrink-0"
+              className="flex h-8 items-center justify-center gap-0.5 rounded-lg bg-primary px-2 text-xs font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity flex-shrink-0"
               aria-label="Добавить в корзину"
             >
-              <Plus className="h-4 w-4" />
-              <span>Добавить</span>
+              <Plus className="h-3 w-3" />
+              <span className="hidden xs:inline">Добавить</span>
             </button>
           )}
         </div>

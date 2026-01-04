@@ -82,10 +82,10 @@ export function CatalogPage() {
         />
       </div>
 
-      <div className="px-4 pt-4">
+      <div className="px-2 sm:px-4 pt-4">
         {activeCategory ? (
           // Grid layout when category is selected
-          <div className="grid grid-cols-2 gap-3 auto-rows-fr">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 auto-rows-fr">
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -100,18 +100,18 @@ export function CatalogPage() {
           groupedProducts &&
           Object.entries(groupedProducts).map(([categoryId, catProducts]) => (
             <div key={categoryId} className="mb-6">
-              <div className="flex items-center justify-between py-3">
-                <h2 className="text-lg font-bold text-foreground">
+              <div className="flex items-center justify-between py-3 px-2">
+                <h2 className="text-base sm:text-lg font-bold text-foreground">
                   {getCategoryName(categoryId)}
                 </h2>
                 <button
                   onClick={() => setActiveCategory(categoryId)}
-                  className="text-sm font-medium text-primary touch-feedback"
+                  className="text-xs sm:text-sm font-medium text-primary touch-feedback"
                 >
                   Показать все
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3 auto-rows-fr">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 auto-rows-fr">
                 {catProducts.slice(0, 4).map((product) => (
                   <ProductCard
                     key={product.id}
