@@ -85,7 +85,7 @@ export function CatalogPage() {
       <div className="px-4 pt-4">
         {activeCategory ? (
           // Grid layout when category is selected
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 auto-rows-fr">
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -111,7 +111,7 @@ export function CatalogPage() {
                   Показать все
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 auto-rows-fr">
                 {catProducts.slice(0, 4).map((product) => (
                   <ProductCard
                     key={product.id}

@@ -107,35 +107,39 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
   // Grid variant (2-column card)
   return (
     <div
-      className="flex flex-col cursor-pointer rounded-xl bg-card border border-border card-shadow overflow-hidden touch-feedback animate-fade-in"
+      className="flex flex-col cursor-pointer rounded-xl bg-card border border-border card-shadow overflow-hidden touch-feedback animate-fade-in h-full"
       onClick={onClick}
     >
-      {/* Product Image - Square 1:1 */}
-      <div className="relative aspect-square w-full bg-muted">
+      {/* Product Image - Square 1:1 with fixed dimensions */}
+      <div className="relative w-full bg-muted overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
         <img
-          src={product.imageUrl}
+          src={product.imageUrl || '/placeholder-image.jpg'}
           alt={product.name}
-          className="h-full w-full object-cover"
+          className="w-full h-full object-cover object-center"
           loading="lazy"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder-image.jpg';
+          }}
         />
       </div>
 
       {/* Product Info */}
-      <div className="flex flex-1 flex-col p-3">
-        <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground min-h-[2.5rem]">
+      <div className="flex flex-1 flex-col p-3 min-h-[140px]">
+        <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground mb-1 min-h-[2.5rem]">
           {product.name}
         </h3>
-        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+        <p className="line-clamp-1 text-xs text-muted-foreground mb-3 flex-shrink-0">
           {product.description}
         </p>
         
-        <div className="mt-auto pt-3 flex items-center justify-between">
-          <span className="text-base font-bold text-primary">
+        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+          <span className="text-base font-bold text-primary whitespace-nowrap">
             {product.price.toLocaleString('ru-RU')} ₽
           </span>
           
           {quantity > 0 ? (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 flex-shrink-0">
               <button
                 onClick={handleDecrement}
                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
@@ -155,7 +159,7 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
           ) : (
             <button
               onClick={handleAddToCart}
-              className="flex h-9 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity"
+              className="flex h-9 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity whitespace-nowrap flex-shrink-0"
               aria-label="Добавить в корзину"
             >
               <Plus className="h-4 w-4" />
