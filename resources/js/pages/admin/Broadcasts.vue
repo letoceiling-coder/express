@@ -269,9 +269,9 @@
                                 v-model="form.options.parse_mode"
                                 class="w-full h-10 px-3 rounded-lg border border-input bg-background"
                             >
-                                <option :value="null">Без форматирования</option>
-                                <option value="HTML">HTML</option>
-                                <option value="MarkdownV2">MarkdownV2</option>
+                <option value="HTML">HTML</option>
+                <option value="MarkdownV2">MarkdownV2</option>
+                <option :value="null">Без форматирования</option>
                             </select>
                         </div>
                         <label class="flex items-center gap-2">
@@ -467,7 +467,7 @@ export default {
                     media: [],
                 },
                 options: {
-                    parse_mode: null,
+                    parse_mode: 'HTML',
                     disable_notification: false,
                 },
             },
@@ -763,7 +763,7 @@ export default {
                     media: [],
                 },
                 options: {
-                    parse_mode: null,
+                    parse_mode: 'HTML',
                     disable_notification: false,
                 },
             };

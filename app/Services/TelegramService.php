@@ -16,8 +16,14 @@ class TelegramService
     protected function filterParseMode(array $options): array
     {
         if (isset($options['parse_mode'])) {
+            $parseMode = $options['parse_mode'];
             // Telegram API поддерживает только HTML и MarkdownV2
-            if (!in_array($options['parse_mode'], ['HTML', 'MarkdownV2'], true)) {
+            // Также игнорируем пустые строки, null и другие невалидные значения
+            if (empty($parseMode) || !in_array($parseMode, ['HTML', 'MarkdownV2'], true)) {
+                Log::warning('⚠️ Invalid parse_mode filtered out', [
+                    'parse_mode' => $parseMode,
+                    'options' => $options,
+                ]);
                 unset($options['parse_mode']);
             }
         }
@@ -240,6 +246,10 @@ class TelegramService
                 'chat_id' => $chatId,
                 'text_length' => strlen($text),
                 'has_options' => !empty($options),
+                'parse_mode_before_filter' => $options['parse_mode'] ?? null,
+                'parse_mode_after_filter' => $filteredOptions['parse_mode'] ?? null,
+                'all_options_before' => $options,
+                'all_options_after' => $filteredOptions,
             ]);
 
             $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/sendMessage', $params);
