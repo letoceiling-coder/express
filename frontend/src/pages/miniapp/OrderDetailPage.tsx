@@ -159,10 +159,12 @@ export function OrderDetailPage() {
             >
               {item.productImage ? (
                 <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-                  <img
+                  <OptimizedImage
                     src={item.productImage}
                     alt={item.productName}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full rounded-lg"
+                    size="thumbnail"
+                    loading="lazy"
                   />
                 </div>
               ) : (

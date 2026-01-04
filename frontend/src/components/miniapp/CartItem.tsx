@@ -13,10 +13,14 @@ export function CartItem({ item }: CartItemProps) {
     <div className="flex gap-3 rounded-lg border border-border bg-card p-3 card-shadow animate-fade-in">
       {/* Product Image */}
       <div className="h-[60px] w-[60px] flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-        <img
+        <OptimizedImage
           src={item.product.imageUrl}
+          webpSrc={item.product.webpUrl}
+          variants={item.product.imageVariants}
           alt={item.product.name}
-          className="h-full w-full object-cover"
+          className="h-full w-full rounded-lg"
+          size="thumbnail"
+          loading="lazy"
         />
       </div>
 
