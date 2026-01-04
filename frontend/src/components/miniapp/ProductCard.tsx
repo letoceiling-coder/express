@@ -159,11 +159,11 @@ export function ProductCard({ product, onClick, variant = 'grid' }: ProductCardP
           ) : (
             <button
               onClick={handleAddToCart}
-              className="flex h-8 items-center justify-center gap-0.5 rounded-lg bg-primary px-2 text-xs font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity flex-shrink-0"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground touch-feedback hover:opacity-90 transition-opacity flex-shrink-0"
               aria-label="Добавить в корзину"
+              title="Добавить в корзину"
             >
-              <Plus className="h-3 w-3" />
-              <span className="hidden xs:inline">Добавить</span>
+              <Plus className="h-4 w-4" />
             </button>
           )}
         </div>
