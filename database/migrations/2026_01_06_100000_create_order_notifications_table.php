@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Удаляем таблицу, если она существует (на случай неудачной предыдущей миграции)
+        Schema::dropIfExists('order_notifications');
+        
         Schema::create('order_notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
