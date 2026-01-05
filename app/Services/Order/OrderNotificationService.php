@@ -211,8 +211,20 @@ class OrderNotificationService
             // Получаем всех пользователей кухни для данного бота (из кэша)
             $kitchenUsers = $this->getCachedKitchenUsers($bot->id);
 
+            Log::info('Kitchen notification check', [
+                'order_id' => $order->id,
+                'bot_id' => $bot->id,
+                'kitchen_users_count' => $kitchenUsers->count(),
+                'kitchen_user_ids' => $kitchenUsers->pluck('id')->toArray(),
+                'kitchen_telegram_ids' => $kitchenUsers->pluck('telegram_id')->toArray(),
+            ]);
+
             if ($kitchenUsers->isEmpty()) {
-                Log::warning('No kitchen users found', ['order_id' => $order->id]);
+                Log::warning('No kitchen users found', [
+                    'order_id' => $order->id,
+                    'bot_id' => $bot->id,
+                    'all_telegram_users_count' => TelegramUser::where('bot_id', $bot->id)->count(),
+                ]);
                 return false;
             }
 
@@ -230,18 +242,53 @@ class OrderNotificationService
 
             $sent = false;
             foreach ($kitchenUsers as $kitchenUser) {
-                // Используем очередь для отправки
-                SendOrderNotificationJob::dispatch(
-                    $bot->token,
-                    $kitchenUser->telegram_id,
-                    $message,
-                    ['reply_markup' => json_encode($keyboard)],
-                    $order->id,
-                    $kitchenUser->id,
-                    OrderNotification::TYPE_KITCHEN_ORDER,
-                    now()->addMinutes(10) // Уведомления кухни истекают через 10 минут
-                )->onQueue('telegram-notifications');
-                $sent = true;
+                try {
+                    // Отправляем синхронно для гарантии доставки
+                    $result = $this->telegramService->sendMessage(
+                        $bot->token,
+                        $kitchenUser->telegram_id,
+                        $message,
+                        ['reply_markup' => json_encode($keyboard)]
+                    );
+
+                    if ($result['success'] ?? false) {
+                        $messageId = $result['data']['message_id'] ?? null;
+                        
+                        // Сохраняем уведомление в БД
+                        if ($messageId) {
+                            $this->saveNotification(
+                                $order,
+                                $kitchenUser,
+                                $messageId,
+                                $kitchenUser->telegram_id,
+                                OrderNotification::TYPE_KITCHEN_ORDER,
+                                now()->addMinutes(10)
+                            );
+                        }
+
+                        Log::info('Kitchen notification sent successfully', [
+                            'order_id' => $order->id,
+                            'kitchen_user_id' => $kitchenUser->id,
+                            'kitchen_telegram_id' => $kitchenUser->telegram_id,
+                            'message_id' => $messageId,
+                        ]);
+                        $sent = true;
+                    } else {
+                        Log::error('Failed to send kitchen notification', [
+                            'order_id' => $order->id,
+                            'kitchen_user_id' => $kitchenUser->id,
+                            'kitchen_telegram_id' => $kitchenUser->telegram_id,
+                            'error' => $result['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Exception sending kitchen notification', [
+                        'order_id' => $order->id,
+                        'kitchen_user_id' => $kitchenUser->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
             }
 
             return $sent;
@@ -280,12 +327,46 @@ class OrderNotificationService
                 ]
             ];
 
+            Log::info('Sending courier notification', [
+                'order_id' => $order->id,
+                'courier_id' => $courier->id,
+                'courier_telegram_id' => $courier->telegram_id,
+            ]);
+
             $result = $this->telegramService->sendMessage(
                 $bot->token,
                 $courier->telegram_id,
                 $message,
                 ['reply_markup' => json_encode($keyboard)]
             );
+
+            if ($result['success'] ?? false) {
+                $messageId = $result['data']['message_id'] ?? null;
+                
+                // Сохраняем уведомление в БД
+                if ($messageId) {
+                    $this->saveNotification(
+                        $order,
+                        $courier,
+                        $messageId,
+                        $courier->telegram_id,
+                        OrderNotification::TYPE_COURIER_ORDER,
+                        now()->addMinutes(15)
+                    );
+                }
+
+                Log::info('Courier notification sent successfully', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'message_id' => $messageId,
+                ]);
+            } else {
+                Log::error('Failed to send courier notification', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'error' => $result['message'] ?? 'Unknown error',
+                ]);
+            }
 
             return $result['success'] ?? false;
         } catch (\Exception $e) {

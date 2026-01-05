@@ -1169,13 +1169,26 @@ class BotController extends Controller
 
             // Уведомления отправляем после транзакции
             $order->refresh();
-            $this->orderNotificationService->notifyKitchenOrderSent($order);
+            
+            \Illuminate\Support\Facades\Log::info('Sending notifications after order sent to kitchen', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+            ]);
+            
+            $kitchenNotified = $this->orderNotificationService->notifyKitchenOrderSent($order);
+            
+            \Illuminate\Support\Facades\Log::info('Kitchen notification result', [
+                'order_id' => $order->id,
+                'kitchen_notified' => $kitchenNotified,
+            ]);
+            
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_SENT_TO_KITCHEN, []);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_SENT_TO_KITCHEN);
             
             \Illuminate\Support\Facades\Log::info('Order sent to kitchen successfully', [
                 'order_id' => $order->id,
                 'order_status' => $order->status,
+                'kitchen_notified' => $kitchenNotified,
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error sending order to kitchen: ' . $e->getMessage(), [
