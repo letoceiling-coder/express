@@ -101,11 +101,14 @@ export function CheckoutPage() {
 
       setIsLoadingPastOrders(true);
       try {
+        console.log('CheckoutPage - Loading past orders for user:', user.id);
         const orders = await ordersAPI.getByTelegramId(user.id);
+        console.log('CheckoutPage - Loaded orders:', orders);
         
         // Берем последний заказ для автозаполнения
         if (orders.length > 0) {
           const lastOrder = orders[0]; // Предполагаем, что заказы отсортированы по дате (новые первыми)
+          console.log('CheckoutPage - Using last order for autofill:', lastOrder);
           
           setFormData(prev => ({
             ...prev,
@@ -113,9 +116,17 @@ export function CheckoutPage() {
             address: lastOrder.deliveryAddress || prev.address,
             name: lastOrder.name || prev.name || '', // Имя берем из заказа
           }));
+          
+          console.log('CheckoutPage - Form data updated:', {
+            phone: lastOrder.phone ? formatPhone(lastOrder.phone) : 'not set',
+            address: lastOrder.deliveryAddress || 'not set',
+            name: lastOrder.name || 'not set',
+          });
+        } else {
+          console.log('CheckoutPage - No past orders found');
         }
       } catch (error) {
-        console.error('Failed to load past orders:', error);
+        console.error('CheckoutPage - Failed to load past orders:', error);
         // Не показываем ошибку пользователю, так как это не критично
       } finally {
         setIsLoadingPastOrders(false);

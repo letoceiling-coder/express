@@ -206,10 +206,44 @@ export const ordersAPI = {
   },
 
   async getByTelegramId(telegramId: number): Promise<Order[]> {
-    const response = await apiRequest(`/orders?telegram_id=${telegramId}`);
-    const orders = response.data?.data || response.data || [];
-    
-    return orders.map((order: any) => ({
+    try {
+      // Добавляем параметры для сортировки и отключения пагинации
+      const response = await apiRequest(`/orders?telegram_id=${telegramId}&sort_by=created_at&sort_order=desc&per_page=0`);
+      
+      // Обрабатываем разные форматы ответа: пагинация или массив
+      let orders: any[] = [];
+      
+      // Laravel может возвращать:
+      // 1. Пагинированный ответ: { data: { data: [...], current_page: 1, ... } }
+      // 2. Коллекцию без пагинации: { data: [...] }
+      // 3. Прямой массив: [...]
+      
+      if (Array.isArray(response.data)) {
+        // Если response.data - это уже массив
+        orders = response.data;
+      } else if (response.data && typeof response.data === 'object') {
+        // Если это объект с полем data
+        if (Array.isArray(response.data.data)) {
+          orders = response.data.data;
+        } else if (response.data.data && typeof response.data.data === 'object') {
+          // Вложенная структура (пагинация)
+          if (Array.isArray(response.data.data.data)) {
+            orders = response.data.data.data;
+          } else if (response.data.data.items && Array.isArray(response.data.data.items)) {
+            // Альтернативный формат пагинации
+            orders = response.data.data.items;
+          }
+        }
+      }
+      
+      console.log('Orders API - getByTelegramId response:', {
+        telegramId,
+        responseData: response.data,
+        ordersCount: orders.length,
+        firstOrder: orders[0],
+      });
+      
+      return orders.map((order: any) => ({
       id: String(order.id),
       orderId: order.order_id,
       telegramId: order.telegram_id,
@@ -234,6 +268,10 @@ export const ordersAPI = {
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
     }));
+    } catch (error) {
+      console.error('Orders API - getByTelegramId error:', error);
+      throw error;
+    }
   },
 
   async getByOrderId(orderId: string): Promise<Order | null> {

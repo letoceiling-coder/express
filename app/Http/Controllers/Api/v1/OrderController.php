@@ -284,6 +284,14 @@ class OrderController extends Controller
             $orders = $query->get();
         }
 
+        // Логируем результат для отладки
+        Log::info('OrderController::index - Returning orders', [
+            'telegram_id' => $request->get('telegram_id'),
+            'orders_count' => is_countable($orders) ? count($orders) : ($orders->count() ?? 0),
+            'is_paginated' => method_exists($orders, 'items'),
+            'first_order_id' => is_countable($orders) && count($orders) > 0 ? ($orders[0]->id ?? null) : null,
+        ]);
+
         return response()->json([
             'data' => $orders,
         ]);
