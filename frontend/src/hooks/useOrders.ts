@@ -9,29 +9,49 @@ export function useOrders() {
   const [error, setError] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
+    console.log('useOrders - loadOrders called');
+    console.log('useOrders - window.Telegram check:', {
+      exists: !!window.Telegram,
+      hasWebApp: !!window.Telegram?.WebApp,
+      hasInitDataUnsafe: !!window.Telegram?.WebApp?.initDataUnsafe,
+      hasInitData: !!window.Telegram?.WebApp?.initData,
+    });
+    
     // Ждем немного, чтобы Telegram WebApp успел инициализироваться
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     let user = getTelegramUser();
     console.log('useOrders - getTelegramUser result (first try):', user);
     
-    // Если пользователь не найден, пробуем еще раз
+    // Если пользователь не найден, пробуем еще раз с большей задержкой
     if (!user?.id) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      console.warn('useOrders - User not found on first try, waiting...');
+      await new Promise(resolve => setTimeout(resolve, 500));
       user = getTelegramUser();
       console.log('useOrders - getTelegramUser result (second try):', user);
     }
     
+    // Если все еще не найден, пробуем еще раз
+    if (!user?.id) {
+      console.warn('useOrders - User not found on second try, waiting more...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      user = getTelegramUser();
+      console.log('useOrders - getTelegramUser result (third try):', user);
+    }
+    
     const telegramId = user?.id || 0;
-    console.log('useOrders - Loading orders for telegramId:', telegramId);
+    console.log('useOrders - Final telegramId:', telegramId);
     
     if (!telegramId) {
-      console.warn('useOrders - No telegram user ID, returning empty orders');
-      console.warn('useOrders - window.Telegram:', window.Telegram);
-      console.warn('useOrders - window.Telegram?.WebApp:', window.Telegram?.WebApp);
-      console.warn('useOrders - window.Telegram?.WebApp?.initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
-      console.warn('useOrders - window.Telegram?.WebApp?.initData:', window.Telegram?.WebApp?.initData);
+      console.error('useOrders - No telegram user ID after all retries, returning empty orders');
+      console.error('useOrders - Full debug info:', {
+        windowTelegram: window.Telegram,
+        webApp: window.Telegram?.WebApp,
+        initDataUnsafe: window.Telegram?.WebApp?.initDataUnsafe,
+        initData: window.Telegram?.WebApp?.initData,
+      });
       setOrders([]);
+      setError('Не удалось определить пользователя Telegram. Пожалуйста, перезагрузите приложение.');
       return;
     }
     

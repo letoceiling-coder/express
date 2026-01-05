@@ -23,7 +23,16 @@ export function OrdersPage() {
 
   useEffect(() => {
     console.log('OrdersPage - Component mounted, loading orders...');
-    loadOrders();
+    console.log('OrdersPage - window.Telegram:', window.Telegram);
+    console.log('OrdersPage - window.Telegram?.WebApp:', window.Telegram?.WebApp);
+    
+    // Небольшая задержка, чтобы Telegram WebApp успел инициализироваться
+    const timer = setTimeout(() => {
+      console.log('OrdersPage - Calling loadOrders after delay...');
+      loadOrders();
+    }, 300);
+    
+    return () => clearTimeout(timer);
   }, [loadOrders]);
 
   useEffect(() => {

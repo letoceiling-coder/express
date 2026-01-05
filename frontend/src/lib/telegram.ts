@@ -94,31 +94,57 @@ interface TelegramWebApp {
 }
 
 export function initTelegramWebApp(): void {
-  const tg = window.Telegram?.WebApp;
-  
-  if (tg) {
-    // Initialize the app
-    tg.ready();
+  // Ждем, пока Telegram WebApp загрузится
+  const checkTelegram = () => {
+    const tg = window.Telegram?.WebApp;
     
-    // Expand to full height
-    tg.expand();
-    
-    // Set theme colors
-    if (tg.colorScheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (tg) {
+      // Initialize the app
+      tg.ready();
+      
+      // Expand to full height
+      tg.expand();
+      
+      // Set theme colors
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      
+      console.log('Telegram WebApp initialized', {
+        version: tg.version,
+        platform: tg.platform,
+        colorScheme: tg.colorScheme,
+        user: tg.initDataUnsafe?.user,
+        initData: tg.initData ? 'present' : 'missing',
+        initDataUnsafe: tg.initDataUnsafe ? 'present' : 'missing',
+      });
+      
+      return true;
     }
     
-    console.log('Telegram WebApp initialized', {
-      version: tg.version,
-      platform: tg.platform,
-      colorScheme: tg.colorScheme,
-      user: tg.initDataUnsafe?.user,
-    });
-  } else {
-    console.log('Running outside Telegram WebApp');
+    return false;
+  };
+  
+  // Пробуем сразу
+  if (checkTelegram()) {
+    return;
   }
+  
+  // Если не загружен, ждем и пробуем еще раз
+  let attempts = 0;
+  const maxAttempts = 10;
+  const interval = setInterval(() => {
+    attempts++;
+    if (checkTelegram() || attempts >= maxAttempts) {
+      clearInterval(interval);
+      if (attempts >= maxAttempts) {
+        console.warn('Telegram WebApp not found after', maxAttempts, 'attempts');
+        console.warn('window.Telegram:', window.Telegram);
+      }
+    }
+  }, 100);
 }
 
 export function getTelegramUser() {
