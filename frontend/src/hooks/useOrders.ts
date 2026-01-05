@@ -9,11 +9,25 @@ export function useOrders() {
   const [error, setError] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
-    const user = getTelegramUser();
+    // Ждем немного, чтобы Telegram WebApp успел инициализироваться
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    let user = getTelegramUser();
+    console.log('useOrders - getTelegramUser result (first try):', user);
+    
+    // Если пользователь не найден, пробуем еще раз
+    if (!user?.id) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      user = getTelegramUser();
+      console.log('useOrders - getTelegramUser result (second try):', user);
+    }
+    
     const telegramId = user?.id || 0;
+    console.log('useOrders - Loading orders for telegramId:', telegramId);
     
     if (!telegramId) {
-      // No telegram user, return empty orders
+      console.warn('useOrders - No telegram user ID, returning empty orders');
+      console.warn('useOrders - window.Telegram:', window.Telegram);
       setOrders([]);
       return;
     }
@@ -22,11 +36,24 @@ export function useOrders() {
     setError(null);
     
     try {
+      console.log('useOrders - Calling ordersAPI.getByTelegramId with:', telegramId);
       const data = await ordersAPI.getByTelegramId(telegramId);
+      console.log('useOrders - Received orders:', data, 'count:', data.length);
       setOrders(data);
-    } catch (err) {
-      console.error('Failed to load orders:', err);
-      setError('Ошибка загрузки заказов');
+      
+      if (data.length === 0) {
+        console.warn('useOrders - No orders returned for telegramId:', telegramId);
+      }
+    } catch (err: any) {
+      console.error('useOrders - Failed to load orders:', err);
+      console.error('useOrders - Error details:', {
+        message: err?.message,
+        response: err?.response,
+        status: err?.response?.status,
+        data: err?.response?.data,
+      });
+      setError(err?.response?.data?.message || err?.message || 'Ошибка загрузки заказов');
+      setOrders([]); // Очищаем заказы при ошибке
     } finally {
       setLoading(false);
     }

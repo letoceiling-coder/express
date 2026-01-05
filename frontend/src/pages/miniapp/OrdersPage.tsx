@@ -22,8 +22,18 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
 
   useEffect(() => {
+    console.log('OrdersPage - Component mounted, loading orders...');
     loadOrders();
   }, [loadOrders]);
+
+  useEffect(() => {
+    console.log('OrdersPage - Orders state changed:', {
+      ordersCount: orders.length,
+      loading,
+      error,
+      orders: orders,
+    });
+  }, [orders, loading, error]);
 
   const filteredOrders = statusFilter === 'all' 
     ? orders 
@@ -42,7 +52,29 @@ export function OrdersPage() {
     );
   }
 
-  if (orders.length === 0) {
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <MiniAppHeader title="Мои заказы" />
+        <div className="flex flex-col items-center justify-center px-4 py-16">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-destructive/10">
+            <ClipboardList className="h-12 w-12 text-destructive" />
+          </div>
+          <h2 className="mt-6 text-xl font-bold text-foreground">Ошибка загрузки</h2>
+          <p className="mt-2 text-center text-muted-foreground">{error}</p>
+          <button
+            onClick={() => loadOrders()}
+            className="mt-6 rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground touch-feedback"
+          >
+            Попробовать снова
+          </button>
+        </div>
+        <BottomNavigation />
+      </div>
+    );
+  }
+
+  if (orders.length === 0 && !loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
         <MiniAppHeader title="Мои заказы" />

@@ -96,29 +96,60 @@ export function CheckoutPage() {
   // Загрузка прошлых заказов и автозаполнение данных
   useEffect(() => {
     const loadPastOrders = async () => {
-      const user = getTelegramUser();
-      if (!user?.id) return;
+      // Ждем немного, чтобы Telegram WebApp успел инициализироваться
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      let user = getTelegramUser();
+      console.log('CheckoutPage - getTelegramUser result (first try):', user);
+      
+      // Если пользователь не найден, пробуем еще раз через небольшую задержку
+      if (!user?.id) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        user = getTelegramUser();
+        console.log('CheckoutPage - getTelegramUser result (second try):', user);
+      }
+      
+      if (!user?.id) {
+        console.warn('CheckoutPage - No telegram user ID after retries, skipping order load');
+        console.warn('CheckoutPage - window.Telegram:', window.Telegram);
+        return;
+      }
 
       setIsLoadingPastOrders(true);
       try {
         console.log('CheckoutPage - Loading past orders for user:', user.id);
         const orders = await ordersAPI.getByTelegramId(user.id);
-        console.log('CheckoutPage - Loaded orders:', orders);
+        console.log('CheckoutPage - Loaded orders:', orders, 'count:', orders.length);
         
         // Берем последний заказ для автозаполнения
         if (orders.length > 0) {
           const lastOrder = orders[0]; // Предполагаем, что заказы отсортированы по дате (новые первыми)
           console.log('CheckoutPage - Using last order for autofill:', lastOrder);
           
+          // Обрабатываем телефон: если он уже отформатирован, используем как есть, иначе форматируем
+          let phoneValue = prev.phone;
+          if (lastOrder.phone) {
+            // Проверяем, отформатирован ли телефон уже
+            const phoneDigits = getPhoneDigits(lastOrder.phone);
+            if (phoneDigits.length >= 10) {
+              // Форматируем только если есть достаточно цифр
+              phoneValue = formatPhone(lastOrder.phone);
+            } else {
+              // Если формат странный, используем как есть
+              phoneValue = lastOrder.phone;
+            }
+          }
+          
           setFormData(prev => ({
             ...prev,
-            phone: lastOrder.phone ? formatPhone(lastOrder.phone) : prev.phone,
+            phone: phoneValue,
             address: lastOrder.deliveryAddress || prev.address,
             name: lastOrder.name || prev.name || '', // Имя берем из заказа
           }));
           
           console.log('CheckoutPage - Form data updated:', {
-            phone: lastOrder.phone ? formatPhone(lastOrder.phone) : 'not set',
+            originalPhone: lastOrder.phone,
+            formattedPhone: phoneValue,
             address: lastOrder.deliveryAddress || 'not set',
             name: lastOrder.name || 'not set',
           });

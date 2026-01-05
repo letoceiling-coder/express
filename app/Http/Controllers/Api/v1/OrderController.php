@@ -285,15 +285,42 @@ class OrderController extends Controller
         }
 
         // Логируем результат для отладки
+        $ordersCount = is_countable($orders) ? count($orders) : (method_exists($orders, 'count') ? $orders->count() : 0);
+        $firstOrder = null;
+        
+        if ($ordersCount > 0) {
+            if (method_exists($orders, 'items')) {
+                // Пагинированный ответ
+                $firstOrder = $orders->items()[0] ?? null;
+            } else {
+                // Коллекция
+                $firstOrder = $orders[0] ?? $orders->first();
+            }
+        }
+        
+        // Определяем формат ответа для правильной сериализации
+        $responseData = $orders;
+        
+        // Если это коллекция (не пагинация), преобразуем в массив для правильной сериализации
+        if (!method_exists($orders, 'items') && method_exists($orders, 'toArray')) {
+            $responseData = $orders->toArray();
+        }
+        
         Log::info('OrderController::index - Returning orders', [
             'telegram_id' => $request->get('telegram_id'),
-            'orders_count' => is_countable($orders) ? count($orders) : ($orders->count() ?? 0),
+            'orders_count' => $ordersCount,
             'is_paginated' => method_exists($orders, 'items'),
-            'first_order_id' => is_countable($orders) && count($orders) > 0 ? ($orders[0]->id ?? null) : null,
+            'is_collection' => method_exists($orders, 'toArray'),
+            'response_data_type' => gettype($responseData),
+            'first_order_id' => $firstOrder?->id,
+            'first_order_order_id' => $firstOrder?->order_id,
+            'first_order_phone' => $firstOrder?->phone,
+            'first_order_name' => $firstOrder?->name,
+            'first_order_address' => $firstOrder?->delivery_address,
         ]);
 
         return response()->json([
-            'data' => $orders,
+            'data' => $responseData,
         ]);
     }
 

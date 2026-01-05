@@ -16,17 +16,45 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${url}`, {
-    ...options,
-    headers,
-  });
+  const fullUrl = `${API_BASE}${url}`;
+  console.log('apiRequest - Making request:', { url: fullUrl, method: options.method || 'GET', hasToken: !!token });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Ошибка запроса' }));
-    throw new Error(error.message || 'Ошибка запроса');
+  try {
+    const response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+
+    console.log('apiRequest - Response received:', {
+      url: fullUrl,
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Ошибка запроса' }));
+      console.error('apiRequest - Error response:', {
+        url: fullUrl,
+        status: response.status,
+        errorData,
+      });
+      const error = new Error(errorData.message || 'Ошибка запроса');
+      (error as any).response = { status: response.status, data: errorData };
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('apiRequest - Success response:', { url: fullUrl, dataType: typeof data, dataKeys: data && typeof data === 'object' ? Object.keys(data) : null });
+    return data;
+  } catch (error: any) {
+    console.error('apiRequest - Fetch error:', {
+      url: fullUrl,
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
   }
-
-  return response.json();
 };
 
 // Categories API
@@ -207,38 +235,62 @@ export const ordersAPI = {
 
   async getByTelegramId(telegramId: number): Promise<Order[]> {
     try {
+      const url = `/orders?telegram_id=${telegramId}&sort_by=created_at&sort_order=desc&per_page=0`;
+      console.log('Orders API - getByTelegramId request:', { telegramId, url });
+      
       // Добавляем параметры для сортировки и отключения пагинации
-      const response = await apiRequest(`/orders?telegram_id=${telegramId}&sort_by=created_at&sort_order=desc&per_page=0`);
+      const response = await apiRequest(url);
+      
+      console.log('Orders API - getByTelegramId raw response:', response);
       
       // Обрабатываем разные форматы ответа: пагинация или массив
       let orders: any[] = [];
       
       // Laravel может возвращать:
       // 1. Пагинированный ответ: { data: { data: [...], current_page: 1, ... } }
-      // 2. Коллекцию без пагинации: { data: [...] }
+      // 2. Коллекцию без пагинации: { data: [...] } - когда per_page=0
       // 3. Прямой массив: [...]
+      
+      console.log('Orders API - Processing response:', {
+        responseType: typeof response,
+        dataType: typeof response.data,
+        isDataArray: Array.isArray(response.data),
+        dataKeys: response.data && typeof response.data === 'object' ? Object.keys(response.data) : null,
+      });
       
       if (Array.isArray(response.data)) {
         // Если response.data - это уже массив
         orders = response.data;
+        console.log('Orders API - Response is direct array, count:', orders.length);
       } else if (response.data && typeof response.data === 'object') {
         // Если это объект с полем data
         if (Array.isArray(response.data.data)) {
+          // Самый частый случай: { data: [...] }
           orders = response.data.data;
+          console.log('Orders API - Response is object with data array, count:', orders.length);
         } else if (response.data.data && typeof response.data.data === 'object') {
           // Вложенная структура (пагинация)
           if (Array.isArray(response.data.data.data)) {
             orders = response.data.data.data;
+            console.log('Orders API - Response is nested pagination, count:', orders.length);
           } else if (response.data.data.items && Array.isArray(response.data.data.items)) {
             // Альтернативный формат пагинации
             orders = response.data.data.items;
+            console.log('Orders API - Response is pagination with items, count:', orders.length);
+          } else {
+            console.warn('Orders API - Unknown nested structure:', response.data);
+            console.warn('Orders API - response.data.data keys:', Object.keys(response.data.data || {}));
           }
+        } else {
+          console.warn('Orders API - Response.data is not array:', response.data);
+          console.warn('Orders API - response.data type:', typeof response.data);
         }
+      } else {
+        console.warn('Orders API - Unexpected response format:', response);
       }
       
-      console.log('Orders API - getByTelegramId response:', {
+      console.log('Orders API - getByTelegramId final result:', {
         telegramId,
-        responseData: response.data,
         ordersCount: orders.length,
         firstOrder: orders[0],
       });
