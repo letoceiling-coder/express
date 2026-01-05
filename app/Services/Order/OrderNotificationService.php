@@ -2,10 +2,13 @@
 
 namespace App\Services\Order;
 
+use App\Jobs\SendOrderNotificationJob;
 use App\Models\Bot;
 use App\Models\Order;
+use App\Models\OrderNotification;
 use App\Models\TelegramUser;
 use App\Services\TelegramService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -46,55 +49,39 @@ class OrderNotificationService
                 return false;
             }
 
-            $message = $this->formatOrderMessage($order);
+            // Форматируем сообщение для нового заказа
+            $message = $this->formatAdminNewOrderMessage($order);
             
-            // Проверяем наличие пользователей с нужными ролями
-            $hasKitchen = TelegramUser::where('bot_id', $bot->id)
-                ->where('role', TelegramUser::ROLE_KITCHEN)
-                ->where('is_blocked', false)
-                ->exists();
-            
-            $hasCourier = TelegramUser::where('bot_id', $bot->id)
-                ->where('role', TelegramUser::ROLE_COURIER)
-                ->where('is_blocked', false)
-                ->exists();
-            
-            // Формируем клавиатуру только с доступными действиями
-            $keyboard = ['inline_keyboard' => []];
-            $row = [];
-            
-            // Кнопка "Отправить на кухню" только если есть пользователи с ролью кухни
-            if ($hasKitchen && in_array($order->status, [Order::STATUS_NEW, Order::STATUS_ACCEPTED])) {
-                $row[] = [
-                    'text' => '📤 Отправить на кухню',
-                    'callback_data' => "order_action:{$order->id}:send_to_kitchen"
-                ];
-            }
-            
-            // Кнопка "Вызвать курьера" только если есть курьеры и заказ готов к доставке
-            if ($hasCourier && in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_READY_FOR_DELIVERY])) {
-                $row[] = [
-                    'text' => '🚚 Вызвать курьера',
-                    'callback_data' => "order_action:{$order->id}:call_courier"
-                ];
-            }
-            
-            // Добавляем строку только если есть хотя бы одна кнопка
-            if (!empty($row)) {
-                $keyboard['inline_keyboard'][] = $row;
-            }
+            // Формируем клавиатуру с кнопками "Принять" и "Отменить"
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => '✅ Принять',
+                            'callback_data' => "order_admin_action:{$order->id}:accept"
+                        ],
+                        [
+                            'text' => '❌ Отменить',
+                            'callback_data' => "order_admin_action:{$order->id}:cancel"
+                        ]
+                    ]
+                ]
+            ];
 
             $sent = false;
             foreach ($admins as $admin) {
-                $result = $this->telegramService->sendMessage(
+                // Используем очередь для отправки
+                SendOrderNotificationJob::dispatch(
                     $bot->token,
                     $admin->telegram_id,
                     $message,
-                    ['reply_markup' => json_encode($keyboard)]
-                );
-                if ($result['success'] ?? false) {
-                    $sent = true;
-                }
+                    ['reply_markup' => json_encode($keyboard)],
+                    $order->id,
+                    $admin->id,
+                    OrderNotification::TYPE_ADMIN_NEW,
+                    now()->addMinutes(5) // Уведомления администратора истекают через 5 минут
+                )->onQueue('telegram-notifications');
+                $sent = true;
             }
 
             return $sent;
@@ -136,14 +123,18 @@ class OrderNotificationService
 
             $sent = false;
             foreach ($admins as $admin) {
-                $result = $this->telegramService->sendMessage(
+                // Используем очередь для отправки
+                SendOrderNotificationJob::dispatch(
                     $bot->token,
                     $admin->telegram_id,
-                    $message
-                );
-                if ($result['success'] ?? false) {
-                    $sent = true;
-                }
+                    $message,
+                    [],
+                    $order->id,
+                    $admin->id,
+                    OrderNotification::TYPE_ADMIN_STATUS,
+                    null // Уведомления администратора о статусе не истекают
+                )->onQueue('telegram-notifications');
+                $sent = true;
             }
 
             return $sent;
@@ -170,11 +161,8 @@ class OrderNotificationService
                 return false;
             }
 
-            // Получаем всех пользователей кухни для данного бота
-            $kitchenUsers = TelegramUser::where('bot_id', $bot->id)
-                ->where('role', TelegramUser::ROLE_KITCHEN)
-                ->where('is_blocked', false)
-                ->get();
+            // Получаем всех пользователей кухни для данного бота (из кэша)
+            $kitchenUsers = $this->getCachedKitchenUsers($bot->id);
 
             if ($kitchenUsers->isEmpty()) {
                 Log::warning('No kitchen users found', ['order_id' => $order->id]);
@@ -195,15 +183,18 @@ class OrderNotificationService
 
             $sent = false;
             foreach ($kitchenUsers as $kitchenUser) {
-                $result = $this->telegramService->sendMessage(
+                // Используем очередь для отправки
+                SendOrderNotificationJob::dispatch(
                     $bot->token,
                     $kitchenUser->telegram_id,
                     $message,
-                    ['reply_markup' => json_encode($keyboard)]
-                );
-                if ($result['success'] ?? false) {
-                    $sent = true;
-                }
+                    ['reply_markup' => json_encode($keyboard)],
+                    $order->id,
+                    $kitchenUser->id,
+                    OrderNotification::TYPE_KITCHEN_ORDER,
+                    now()->addMinutes(10) // Уведомления кухни истекают через 10 минут
+                )->onQueue('telegram-notifications');
+                $sent = true;
             }
 
             return $sent;
@@ -298,14 +289,27 @@ class OrderNotificationService
                 ]
             ];
 
-            $result = $this->telegramService->sendMessage(
+            // Добавляем кнопку "Оплачен" если оплата не получена
+            if ($order->payment_status === Order::PAYMENT_STATUS_PENDING) {
+                $keyboard['inline_keyboard'][0][] = [
+                    'text' => '💳 Оплачен',
+                    'callback_data' => "order_payment:{$order->id}:received"
+                ];
+            }
+
+            // Используем очередь для отправки
+            SendOrderNotificationJob::dispatch(
                 $bot->token,
                 $courier->telegram_id,
                 $message,
-                ['reply_markup' => json_encode($keyboard)]
-            );
+                ['reply_markup' => json_encode($keyboard)],
+                $order->id,
+                $courier->id,
+                OrderNotification::TYPE_COURIER_ORDER,
+                null // Уведомления курьера в пути не истекают
+            )->onQueue('telegram-notifications');
 
-            return $result['success'] ?? false;
+            return true;
         } catch (\Exception $e) {
             Log::error('Error notifying courier in transit: ' . $e->getMessage(), [
                 'order_id' => $order->id,
@@ -320,9 +324,10 @@ class OrderNotificationService
      *
      * @param Order $order
      * @param string $status
+     * @param array $details Дополнительные детали (например, имя курьера)
      * @return bool
      */
-    public function notifyClientStatusChange(Order $order, string $status): bool
+    public function notifyClientStatusChange(Order $order, string $status, array $details = []): bool
     {
         try {
             $bot = $order->bot;
@@ -330,36 +335,26 @@ class OrderNotificationService
                 return false;
             }
 
-            $message = $this->formatClientStatusMessage($order, $status);
+            $message = $this->formatClientStatusMessage($order, $status, $details);
             
-            // Добавляем кнопку отмены для всех статусов, кроме delivered и cancelled
-            $keyboard = null;
-            if (!in_array($status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {
-                $keyboard = [
-                    'inline_keyboard' => [
+            // Добавляем кнопку отмены только если заказ принят администратором
+            $buttons = [];
+            if ($status === Order::STATUS_ACCEPTED || 
+                (in_array($status, [Order::STATUS_SENT_TO_KITCHEN, Order::STATUS_PREPARING, Order::STATUS_READY_FOR_DELIVERY]) && 
+                 $order->status !== Order::STATUS_DELIVERED && 
+                 $order->status !== Order::STATUS_CANCELLED)) {
+                $buttons = [
+                    [
                         [
-                            [
-                                'text' => '❌ Отменить заказ',
-                                'callback_data' => "order_cancel_request:{$order->id}"
-                            ]
+                            'text' => '❌ Отменить заказ',
+                            'callback_data' => "order_cancel_request:{$order->id}"
                         ]
                     ]
                 ];
             }
 
-            $options = [];
-            if ($keyboard) {
-                $options['reply_markup'] = json_encode($keyboard);
-            }
-
-            $result = $this->telegramService->sendMessage(
-                $bot->token,
-                $order->telegram_id,
-                $message,
-                $options
-            );
-
-            return $result['success'] ?? false;
+            // Используем метод обновления уведомления
+            return $this->updateClientNotification($order, $message, $buttons);
         } catch (\Exception $e) {
             Log::error('Error notifying client: ' . $e->getMessage(), [
                 'order_id' => $order->id,
@@ -370,37 +365,51 @@ class OrderNotificationService
     }
 
     /**
-     * Форматировать сообщение о заказе
+     * Форматировать сообщение о новом заказе для администратора
+     *
+     * @param Order $order
+     * @return string
+     */
+    protected function formatAdminNewOrderMessage(Order $order): string
+    {
+        $order->load('items');
+        
+        $message = "🆕 Новый заказ #{$order->order_id}\n\n";
+        
+        if ($order->name) {
+            $message .= "👤 Клиент: {$order->name}\n";
+        }
+        $message .= "📞 Телефон: {$order->phone}\n";
+        $message .= "📍 Адрес: {$order->delivery_address}\n";
+        if ($order->delivery_time) {
+            $message .= "🕐 Время доставки: {$order->delivery_time}\n";
+        }
+        $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n\n";
+        
+        $message .= "📦 Товары:\n";
+        foreach ($order->items as $item) {
+            $itemTotal = $item->quantity * $item->unit_price;
+            $message .= "• {$item->product_name} × {$item->quantity} = " . number_format($itemTotal, 2, '.', ' ') . " ₽\n";
+        }
+        
+        if ($order->comment) {
+            $message .= "\n💬 Комментарий: {$order->comment}";
+        } else {
+            $message .= "\n💬 Комментарий: Без комментария";
+        }
+
+        return $message;
+    }
+
+    /**
+     * Форматировать сообщение о заказе (общий метод)
      *
      * @param Order $order
      * @return string
      */
     protected function formatOrderMessage(Order $order): string
     {
-        $order->load('items');
-        
-        $message = "🛒 Новый заказ #{$order->order_id}\n\n";
-        $message .= "👤 Телефон: {$order->phone}\n";
-        if ($order->name) {
-            $message .= "📝 Имя: {$order->name}\n";
-        }
-        $message .= "📍 Адрес: {$order->delivery_address}\n";
-        if ($order->delivery_time) {
-            $message .= "⏰ Время: {$order->delivery_time}\n";
-        }
-        $message .= "\n📦 Товары:\n";
-        
-        foreach ($order->items as $item) {
-            $message .= "• {$item->product_name} × {$item->quantity} = " . number_format($item->quantity * $item->unit_price, 2, '.', ' ') . " ₽\n";
-        }
-        
-        $message .= "\n💰 Итого: " . number_format($order->total_amount, 2, '.', ' ') . " ₽";
-        
-        if ($order->comment) {
-            $message .= "\n\n💬 Комментарий: {$order->comment}";
-        }
-
-        return $message;
+        return $this->formatAdminNewOrderMessage($order);
     }
 
     /**
@@ -474,23 +483,336 @@ class OrderNotificationService
      *
      * @param Order $order
      * @param string $status
+     * @param array $details Дополнительные детали (например, имя курьера)
      * @return string
      */
-    protected function formatClientStatusMessage(Order $order, string $status): string
+    protected function formatClientStatusMessage(Order $order, string $status, array $details = []): string
     {
+        $courierName = $details['courier_name'] ?? null;
+        if (!$courierName && $order->courier_id) {
+            $courier = $order->courier;
+            $courierName = $courier->full_name ?? null;
+        }
+
         $statusMessages = [
             Order::STATUS_ACCEPTED => "✅ Ваш заказ #{$order->order_id} принят в обработку",
             Order::STATUS_SENT_TO_KITCHEN => "👨‍🍳 Ваш заказ #{$order->order_id} отправлен на кухню",
             Order::STATUS_KITCHEN_ACCEPTED => "👨‍🍳 Ваш заказ #{$order->order_id} принят на кухне и начал готовиться",
             Order::STATUS_PREPARING => "👨‍🍳 Ваш заказ #{$order->order_id} готовится",
             Order::STATUS_READY_FOR_DELIVERY => "✅ Ваш заказ #{$order->order_id} готов и ожидает курьера",
-            Order::STATUS_COURIER_ASSIGNED => "🚚 Курьер назначен на ваш заказ #{$order->order_id}",
-            Order::STATUS_IN_TRANSIT => "🚚 Курьер забрал ваш заказ #{$order->order_id} и следует по адресу доставки",
+            Order::STATUS_COURIER_ASSIGNED => $courierName 
+                ? "🚚 Курьер {$courierName} назначен на ваш заказ #{$order->order_id}"
+                : "🚚 Курьер назначен на ваш заказ #{$order->order_id}",
+            Order::STATUS_IN_TRANSIT => $courierName
+                ? "🚚 Курьер {$courierName} забрал ваш заказ #{$order->order_id} и следует по адресу доставки"
+                : "🚚 Курьер забрал ваш заказ #{$order->order_id} и следует по адресу доставки",
             Order::STATUS_DELIVERED => "🎉 Ваш заказ #{$order->order_id} доставлен! Спасибо за заказ!",
             Order::STATUS_CANCELLED => "❌ Ваш заказ #{$order->order_id} отменен",
         ];
 
         return $statusMessages[$status] ?? "📋 Статус вашего заказа #{$order->order_id} изменен: {$status}";
+    }
+
+    /**
+     * Сохранить уведомление в БД
+     *
+     * @param Order $order
+     * @param TelegramUser $user
+     * @param int $messageId
+     * @param int $chatId
+     * @param string $type
+     * @param \DateTime|null $expiresAt
+     * @return OrderNotification
+     */
+    public function saveNotification(
+        Order $order,
+        TelegramUser $user,
+        int $messageId,
+        int $chatId,
+        string $type,
+        ?\DateTime $expiresAt = null
+    ): OrderNotification {
+        return OrderNotification::create([
+            'order_id' => $order->id,
+            'telegram_user_id' => $user->id,
+            'message_id' => $messageId,
+            'chat_id' => $chatId,
+            'notification_type' => $type,
+            'status' => OrderNotification::STATUS_ACTIVE,
+            'expires_at' => $expiresAt,
+        ]);
+    }
+
+    /**
+     * Обновить уведомление клиента
+     *
+     * @param Order $order
+     * @param string $newText
+     * @param array $newButtons
+     * @return bool
+     */
+    public function updateClientNotification(Order $order, string $newText, array $newButtons = []): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token || !$order->telegram_id) {
+                return false;
+            }
+
+            // Получаем активное уведомление клиента
+            $notification = $order->getClientNotification();
+
+            if ($notification) {
+                // Пытаемся обновить существующее сообщение
+                $options = [];
+                if (!empty($newButtons)) {
+                    $options['reply_markup'] = json_encode(['inline_keyboard' => $newButtons]);
+                }
+
+                $result = $this->telegramService->editMessageText(
+                    $bot->token,
+                    $notification->chat_id,
+                    $notification->message_id,
+                    $newText,
+                    $options
+                );
+
+                if ($result['success'] ?? false) {
+                    // Обновляем статус уведомления
+                    $notification->markAsUpdated();
+                    Log::info('✅ Client notification updated', [
+                        'order_id' => $order->id,
+                        'message_id' => $notification->message_id,
+                    ]);
+                    return true;
+                }
+
+                // Если ошибка "message not found", создаем новое уведомление
+                if (($result['error_code'] ?? null) === 'MESSAGE_NOT_FOUND') {
+                    Log::warning('⚠️ Message not found, creating new notification', [
+                        'order_id' => $order->id,
+                        'old_message_id' => $notification->message_id,
+                    ]);
+                    
+                    // Помечаем старое уведомление как удаленное
+                    $notification->markAsDeleted();
+                    
+                    // Создаем новое уведомление
+                    return $this->createClientNotification($order, $newText, $newButtons);
+                }
+
+                Log::error('❌ Failed to update client notification', [
+                    'order_id' => $order->id,
+                    'error' => $result['message'] ?? 'Unknown error',
+                ]);
+                return false;
+            }
+
+            // Если уведомление не существует, создаем новое
+            return $this->createClientNotification($order, $newText, $newButtons);
+        } catch (\Exception $e) {
+            Log::error('❌ Exception updating client notification: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Создать новое уведомление клиента
+     *
+     * @param Order $order
+     * @param string $text
+     * @param array $buttons
+     * @return bool
+     */
+    protected function createClientNotification(Order $order, string $text, array $buttons = []): bool
+    {
+        $bot = $order->bot;
+        if (!$bot || !$bot->token || !$order->telegram_id) {
+            return false;
+        }
+
+        $options = [];
+        if (!empty($buttons)) {
+            $options['reply_markup'] = json_encode(['inline_keyboard' => $buttons]);
+        }
+
+        // Для клиента используем синхронную отправку, чтобы сразу получить message_id
+        $result = $this->telegramService->sendMessage(
+            $bot->token,
+            $order->telegram_id,
+            $text,
+            $options
+        );
+
+        if ($result['success'] ?? false) {
+            $messageId = $result['data']['message_id'] ?? null;
+            
+            if ($messageId) {
+                // Получаем или создаем TelegramUser для клиента
+                $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                    ->where('telegram_id', $order->telegram_id)
+                    ->first();
+                
+                if ($telegramUser) {
+                    $this->saveNotification(
+                        $order,
+                        $telegramUser,
+                        $messageId,
+                        $order->telegram_id,
+                        OrderNotification::TYPE_CLIENT_STATUS,
+                        now()->addHours(24)
+                    );
+                }
+            }
+            
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Удалить уведомление
+     *
+     * @param Order $order
+     * @param TelegramUser $user
+     * @param string|null $type
+     * @return bool
+     */
+    public function deleteNotification(Order $order, TelegramUser $user, ?string $type = null): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token) {
+                return false;
+            }
+
+            $query = OrderNotification::where('order_id', $order->id)
+                ->where('telegram_user_id', $user->id)
+                ->where('status', OrderNotification::STATUS_ACTIVE);
+
+            if ($type) {
+                $query->where('notification_type', $type);
+            }
+
+            $notifications = $query->get();
+
+            foreach ($notifications as $notification) {
+                // Пытаемся удалить сообщение в Telegram
+                $this->telegramService->deleteMessage(
+                    $bot->token,
+                    $notification->chat_id,
+                    $notification->message_id
+                );
+
+                // Помечаем как удаленное в БД
+                $notification->markAsDeleted();
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('❌ Error deleting notification: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'telegram_user_id' => $user->id,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Удалить уведомления для заказа (с исключениями)
+     *
+     * @param Order $order
+     * @param string|null $type
+     * @param array $excludeUserIds
+     * @return bool
+     */
+    public function deleteNotificationsForOrder(Order $order, ?string $type = null, array $excludeUserIds = []): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token) {
+                return false;
+            }
+
+            $query = OrderNotification::where('order_id', $order->id)
+                ->where('status', OrderNotification::STATUS_ACTIVE);
+
+            if ($type) {
+                $query->where('notification_type', $type);
+            }
+
+            if (!empty($excludeUserIds)) {
+                $query->whereNotIn('telegram_user_id', $excludeUserIds);
+            }
+
+            $notifications = $query->get();
+
+            // Массовое обновление статуса
+            $query->update(['status' => OrderNotification::STATUS_DELETED]);
+
+            // Удаляем сообщения в Telegram
+            foreach ($notifications as $notification) {
+                $this->telegramService->deleteMessage(
+                    $bot->token,
+                    $notification->chat_id,
+                    $notification->message_id
+                );
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('❌ Error deleting notifications for order: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Получить кэшированный список курьеров
+     *
+     * @param int $botId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getCachedCouriers(int $botId)
+    {
+        return Cache::remember("bot_{$botId}_couriers", now()->addMinutes(10), function () use ($botId) {
+            return TelegramUser::where('bot_id', $botId)
+                ->where('role', TelegramUser::ROLE_COURIER)
+                ->where('is_blocked', false)
+                ->get();
+        });
+    }
+
+    /**
+     * Получить кэшированный список кухни
+     *
+     * @param int $botId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getCachedKitchenUsers(int $botId)
+    {
+        return Cache::remember("bot_{$botId}_kitchen", now()->addMinutes(10), function () use ($botId) {
+            return TelegramUser::where('bot_id', $botId)
+                ->where('role', TelegramUser::ROLE_KITCHEN)
+                ->where('is_blocked', false)
+                ->get();
+        });
+    }
+
+    /**
+     * Инвалидировать кэш пользователей
+     *
+     * @param int $botId
+     * @return void
+     */
+    public function invalidateUserCache(int $botId): void
+    {
+        Cache::forget("bot_{$botId}_couriers");
+        Cache::forget("bot_{$botId}_kitchen");
     }
 }
 

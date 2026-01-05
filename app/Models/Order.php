@@ -71,6 +71,9 @@ class Order extends Model
         'payment_method',
         'manager_id',
         'bot_id',
+        'courier_id',
+        'assigned_to_all_couriers',
+        'version',
     ];
 
     /**
@@ -86,6 +89,9 @@ class Order extends Model
         'discount_amount' => 'decimal:2',
         'manager_id' => 'integer',
         'bot_id' => 'integer',
+        'courier_id' => 'integer',
+        'assigned_to_all_couriers' => 'boolean',
+        'version' => 'integer',
         'delivery_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -152,6 +158,39 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class, 'order_id', 'id');
+    }
+
+    /**
+     * Связь с уведомлениями
+     * 
+     * @return HasMany
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(OrderNotification::class, 'order_id', 'id');
+    }
+
+    /**
+     * Связь с курьером
+     * 
+     * @return BelongsTo
+     */
+    public function courier(): BelongsTo
+    {
+        return $this->belongsTo(TelegramUser::class, 'courier_id', 'id');
+    }
+
+    /**
+     * Получить активное уведомление клиента
+     * 
+     * @return OrderNotification|null
+     */
+    public function getClientNotification(): ?OrderNotification
+    {
+        return $this->notifications()
+            ->where('notification_type', OrderNotification::TYPE_CLIENT_STATUS)
+            ->where('status', OrderNotification::STATUS_ACTIVE)
+            ->first();
     }
 
     /**

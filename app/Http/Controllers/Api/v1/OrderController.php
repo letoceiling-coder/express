@@ -173,19 +173,15 @@ class OrderController extends Controller
             }
 
             // Отправляем уведомление администратору о новом заказе
+            // Статус остается 'new' до принятия администратором
             try {
                 $notified = $this->orderNotificationService->notifyAdminNewOrder($order);
                 
                 if ($notified) {
-                    // После успешной отправки уведомления автоматически меняем статус на accepted
-                    $this->orderStatusService->changeStatus($order, Order::STATUS_ACCEPTED, [
-                        'role' => 'admin',
-                        'comment' => 'Заказ создан, уведомление администратору отправлено',
-                    ]);
-                    
-                    Log::info('Order created and admin notified, status changed to accepted', [
+                    Log::info('Order created and admin notified', [
                         'order_id' => $order->id,
                         'order_order_id' => $order->order_id,
+                        'status' => $order->status, // Должен быть 'new'
                     ]);
                 } else {
                     Log::warning('Order created but admin notification failed', [

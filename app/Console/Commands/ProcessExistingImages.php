@@ -151,3 +151,4 @@ class ProcessExistingImages extends Command
     }
 }
 
+

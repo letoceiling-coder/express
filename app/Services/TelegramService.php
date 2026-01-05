@@ -234,7 +234,7 @@ class TelegramService
      */
     public function sendMessage(string $token, int|string $chatId, string $text, array $options = []): array
     {
-        try {
+        return $this->retryWithBackoff(function () use ($token, $chatId, $text, $options) {
             $filteredOptions = $this->filterParseMode($options);
             
             $params = array_merge([
@@ -248,8 +248,6 @@ class TelegramService
                 'has_options' => !empty($options),
                 'parse_mode_before_filter' => $options['parse_mode'] ?? null,
                 'parse_mode_after_filter' => $filteredOptions['parse_mode'] ?? null,
-                'all_options_before' => $options,
-                'all_options_after' => $filteredOptions,
             ]);
 
             $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/sendMessage', $params);
@@ -268,14 +266,19 @@ class TelegramService
                     ];
                 }
                 
+                $errorCode = $data['error_code'] ?? null;
+                $description = $data['description'] ?? 'Unknown error';
+                
                 Log::error('❌ Telegram API error', [
                     'chat_id' => $chatId,
-                    'description' => $data['description'] ?? 'Unknown error',
+                    'description' => $description,
+                    'error_code' => $errorCode,
                 ]);
                 
                 return [
                     'success' => false,
-                    'message' => $data['description'] ?? 'Не удалось отправить сообщение',
+                    'error_code' => $errorCode,
+                    'message' => $description,
                 ];
             }
             
@@ -284,28 +287,17 @@ class TelegramService
                 'chat_id' => $chatId,
                 'status' => $response->status(),
                 'body' => $errorBody,
-                'url' => $this->apiBaseUrl . $token . '/sendMessage',
             ]);
             
-            // Пытаемся получить более детальную информацию об ошибке
             $errorData = $response->json();
             $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
             
             return [
                 'success' => false,
-                'message' => $errorMessage . ' (HTTP ' . $response->status() . ')',
+                'http_status' => $response->status(),
+                'message' => $errorMessage,
             ];
-        } catch (\Exception $e) {
-            Log::error('❌ Telegram sendMessage error: ' . $e->getMessage(), [
-                'chat_id' => $chatId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return [
-                'success' => false,
-                'message' => 'Ошибка: ' . $e->getMessage(),
-            ];
-        }
+        });
     }
 
     /**
@@ -691,6 +683,286 @@ class TelegramService
                 'message' => 'Ошибка: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Обновить текст сообщения
+     *
+     * @param string $token
+     * @param int|string $chatId
+     * @param int $messageId
+     * @param string $text
+     * @param array $options
+     * @return array
+     */
+    public function editMessageText(string $token, int|string $chatId, int $messageId, string $text, array $options = []): array
+    {
+        return $this->retryWithBackoff(function () use ($token, $chatId, $messageId, $text, $options) {
+            $filteredOptions = $this->filterParseMode($options);
+            
+            $params = array_merge([
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $text,
+            ], $filteredOptions);
+
+            Log::info('📝 Editing message via Telegram API', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text_length' => strlen($text),
+            ]);
+
+            $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/editMessageText', $params);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if ($data['ok'] ?? false) {
+                    Log::info('✅ Message edited successfully', [
+                        'chat_id' => $chatId,
+                        'message_id' => $messageId,
+                    ]);
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+                
+                // Проверка на специфичные ошибки
+                $errorCode = $data['error_code'] ?? null;
+                $description = $data['description'] ?? 'Unknown error';
+                
+                // Ошибка "message not found" или "message to edit not found"
+                if (str_contains(strtolower($description), 'message not found') || 
+                    str_contains(strtolower($description), 'message to edit not found')) {
+                    Log::warning('⚠️ Message not found for editing', [
+                        'chat_id' => $chatId,
+                        'message_id' => $messageId,
+                        'description' => $description,
+                    ]);
+                    return [
+                        'success' => false,
+                        'error_code' => 'MESSAGE_NOT_FOUND',
+                        'message' => $description,
+                    ];
+                }
+                
+                Log::error('❌ Telegram API error editing message', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'description' => $description,
+                    'error_code' => $errorCode,
+                ]);
+                
+                return [
+                    'success' => false,
+                    'error_code' => $errorCode,
+                    'message' => $description,
+                ];
+            }
+            
+            return [
+                'success' => false,
+                'message' => 'Ошибка подключения к Telegram API',
+            ];
+        });
+    }
+
+    /**
+     * Удалить сообщение
+     *
+     * @param string $token
+     * @param int|string $chatId
+     * @param int $messageId
+     * @return array
+     */
+    public function deleteMessage(string $token, int|string $chatId, int $messageId): array
+    {
+        return $this->retryWithBackoff(function () use ($token, $chatId, $messageId) {
+            $params = [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+            ];
+
+            Log::info('🗑️ Deleting message via Telegram API', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+            ]);
+
+            $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/deleteMessage', $params);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if ($data['ok'] ?? false) {
+                    Log::info('✅ Message deleted successfully', [
+                        'chat_id' => $chatId,
+                        'message_id' => $messageId,
+                    ]);
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+                
+                $description = $data['description'] ?? 'Unknown error';
+                
+                // Ошибка "message not found" - не критично, просто логируем
+                if (str_contains(strtolower($description), 'message not found')) {
+                    Log::warning('⚠️ Message not found for deletion', [
+                        'chat_id' => $chatId,
+                        'message_id' => $messageId,
+                    ]);
+                    return [
+                        'success' => true, // Считаем успешным, так как цель достигнута
+                        'message' => 'Message already deleted',
+                    ];
+                }
+                
+                Log::error('❌ Telegram API error deleting message', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'description' => $description,
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => $description,
+                ];
+            }
+            
+            return [
+                'success' => false,
+                'message' => 'Ошибка подключения к Telegram API',
+            ];
+        });
+    }
+
+    /**
+     * Retry logic с экспоненциальной задержкой
+     *
+     * @param callable $callback
+     * @param int $maxAttempts
+     * @return array
+     */
+    protected function retryWithBackoff(callable $callback, int $maxAttempts = 3): array
+    {
+        $attempt = 0;
+        $lastError = null;
+        
+        while ($attempt < $maxAttempts) {
+            $attempt++;
+            
+            try {
+                $result = $callback();
+                
+                // Если успешно, возвращаем результат
+                if (isset($result['success']) && $result['success']) {
+                    return $result;
+                }
+                
+                // Проверяем, нужно ли повторять попытку
+                $errorCode = $result['error_code'] ?? null;
+                $message = $result['message'] ?? '';
+                
+                // Ошибки, которые не требуют повторной попытки
+                $nonRetryableErrors = ['MESSAGE_NOT_FOUND', 'bad_request', 'unauthorized'];
+                if ($errorCode && in_array($errorCode, $nonRetryableErrors)) {
+                    return $result;
+                }
+                
+                // Проверяем на ошибку 429 (Too Many Requests)
+                if (str_contains(strtolower($message), 'too many requests') || 
+                    str_contains(strtolower($message), 'retry after')) {
+                    // Извлекаем retry_after из ответа (если есть)
+                    $retryAfter = $this->extractRetryAfter($message);
+                    
+                    if ($retryAfter > 0 && $attempt < $maxAttempts) {
+                        Log::warning('⚠️ Rate limit hit, waiting before retry', [
+                            'attempt' => $attempt,
+                            'retry_after' => $retryAfter,
+                        ]);
+                        sleep($retryAfter);
+                        continue;
+                    }
+                }
+                
+                // Временные ошибки (500, 502, 503, 504)
+                $temporaryErrors = [500, 502, 503, 504];
+                if (isset($result['http_status']) && in_array($result['http_status'], $temporaryErrors)) {
+                    if ($attempt < $maxAttempts) {
+                        $delay = pow(2, $attempt - 1); // Экспоненциальная задержка: 1, 2, 4 секунды
+                        Log::warning('⚠️ Temporary error, retrying', [
+                            'attempt' => $attempt,
+                            'delay' => $delay,
+                            'http_status' => $result['http_status'],
+                        ]);
+                        sleep($delay);
+                        continue;
+                    }
+                }
+                
+                // Если это последняя попытка или ошибка не временная, возвращаем результат
+                if ($attempt >= $maxAttempts) {
+                    return $result;
+                }
+                
+                // Экспоненциальная задержка для других ошибок
+                $delay = pow(2, $attempt - 1);
+                Log::warning('⚠️ Retrying after error', [
+                    'attempt' => $attempt,
+                    'delay' => $delay,
+                    'error' => $message,
+                ]);
+                sleep($delay);
+                
+            } catch (\Exception $e) {
+                $lastError = $e;
+                
+                if ($attempt < $maxAttempts) {
+                    $delay = pow(2, $attempt - 1);
+                    Log::warning('⚠️ Exception caught, retrying', [
+                        'attempt' => $attempt,
+                        'delay' => $delay,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep($delay);
+                    continue;
+                }
+                
+                Log::error('❌ Max retry attempts reached', [
+                    'attempts' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => 'Ошибка после ' . $attempt . ' попыток: ' . $e->getMessage(),
+                ];
+            }
+        }
+        
+        return [
+            'success' => false,
+            'message' => 'Не удалось выполнить операцию после ' . $maxAttempts . ' попыток',
+        ];
+    }
+
+    /**
+     * Извлечь retry_after из сообщения об ошибке
+     *
+     * @param string $message
+     * @return int
+     */
+    protected function extractRetryAfter(string $message): int
+    {
+        // Пытаемся найти число в сообщении (обычно это секунды)
+        if (preg_match('/retry after (\d+)/i', $message, $matches)) {
+            return (int) $matches[1];
+        }
+        
+        // По умолчанию возвращаем 1 секунду
+        return 1;
     }
 }
 

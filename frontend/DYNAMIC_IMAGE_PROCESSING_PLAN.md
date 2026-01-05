@@ -412,3 +412,4 @@ $schedule->command('images:clean-cache')->daily();
 - [HTTP Caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching)
 - [Cloudflare Image Resizing](https://developers.cloudflare.com/images/image-resizing/)
 
+
