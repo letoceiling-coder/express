@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Bot;
 use App\Models\Order;
+use App\Models\OrderNotification;
 use App\Models\TelegramUser;
 use App\Models\TelegramUserRoleRequest;
 use App\Services\TelegramService;
@@ -1417,9 +1418,21 @@ class BotController extends Controller
                     throw new \Exception('Order not found');
                 }
 
-                // Проверяем статус
-                if ($order->status !== Order::STATUS_PREPARING) {
+                // Проверяем статус - разрешаем для preparing и ready_for_delivery (повторное нажатие)
+                if (!in_array($order->status, [Order::STATUS_PREPARING, Order::STATUS_READY_FOR_DELIVERY])) {
+                    \Illuminate\Support\Facades\Log::warning('Order status not suitable for ready', [
+                        'order_id' => $order->id,
+                        'current_status' => $order->status,
+                    ]);
                     throw new \Exception('Order status not suitable for ready');
+                }
+
+                // Если заказ уже готов, просто обновляем сообщение
+                if ($order->status === Order::STATUS_READY_FOR_DELIVERY) {
+                    \Illuminate\Support\Facades\Log::info('Order already ready for delivery, skipping status change', [
+                        'order_id' => $order->id,
+                    ]);
+                    return;
                 }
 
                 // Изменяем статус заказа

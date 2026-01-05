@@ -27,6 +27,7 @@ class OrderStatusService
         ],
         'courier' => [
             Order::STATUS_COURIER_ASSIGNED => [Order::STATUS_IN_TRANSIT],
+            Order::STATUS_READY_FOR_DELIVERY => [Order::STATUS_IN_TRANSIT],
             Order::STATUS_IN_TRANSIT => [Order::STATUS_DELIVERED],
         ],
         'user' => [
