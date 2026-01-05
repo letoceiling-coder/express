@@ -241,24 +241,49 @@ class OrderController extends Controller
             }
             
             // Логируем запрос с telegram_id для отладки
+            $telegramId = $request->get('telegram_id');
+            // Приводим к integer для корректного сравнения
+            $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
+            
             Log::info('OrderController::index - Public request with telegram_id', [
-                'telegram_id' => $request->get('telegram_id'),
-                'telegram_id_type' => gettype($request->get('telegram_id')),
+                'telegram_id_raw' => $telegramId,
+                'telegram_id_type' => gettype($telegramId),
+                'telegram_id_int' => $telegramIdInt,
             ]);
+            
+            if (!$telegramIdInt) {
+                Log::warning('OrderController::index - Invalid telegram_id format', [
+                    'telegram_id' => $telegramId,
+                ]);
+                return response()->json([
+                    'message' => 'Некорректный формат telegram_id',
+                ], 400);
+            }
+            
             // Для публичных запросов принудительно фильтруем по telegram_id
-            $query->where('telegram_id', $request->get('telegram_id'));
+            // Используем integer для корректного сравнения
+            $query->where('telegram_id', $telegramIdInt);
+            
+            // Дополнительная проверка: логируем SQL запрос для отладки
             Log::info('OrderController::index - Public request filtered by telegram_id', [
-                'telegram_id' => $request->get('telegram_id'),
+                'telegram_id' => $telegramIdInt,
+                'sql_query' => $query->toSql(),
+                'sql_bindings' => $query->getBindings(),
             ]);
         } else {
             // Для авторизованных пользователей (админов) можно использовать все фильтры
             // Фильтрация по telegram_id (опционально)
             if ($request->has('telegram_id')) {
-                $query->where('telegram_id', $request->get('telegram_id'));
+                $telegramId = $request->get('telegram_id');
+                $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
+                if ($telegramIdInt) {
+                    $query->where('telegram_id', $telegramIdInt);
+                }
             }
             Log::info('OrderController::index - Authenticated request (by token or user)', [
                 'user_id' => $request->user()?->id,
                 'has_token' => $hasToken,
+                'telegram_id_filter' => $request->get('telegram_id'),
             ]);
         }
 
@@ -300,6 +325,13 @@ class OrderController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
 
+        // Логируем финальный SQL запрос перед выполнением
+        Log::info('OrderController::index - Final query before execution', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+            'telegram_id_in_bindings' => isset($telegramIdInt) && in_array($telegramIdInt, $query->getBindings(), true),
+        ]);
+        
         // Пагинация
         $perPage = $request->get('per_page', 15);
         if ($perPage > 0) {
@@ -307,9 +339,19 @@ class OrderController extends Controller
         } else {
             $orders = $query->get();
         }
-
+        
         // Логируем результат для отладки
         $ordersCount = is_countable($orders) ? count($orders) : (method_exists($orders, 'count') ? $orders->count() : 0);
+        
+        // Дополнительная проверка: выполняем прямой запрос для отладки
+        if (isset($telegramIdInt)) {
+            $directCount = Order::where('telegram_id', $telegramIdInt)->count();
+            Log::info('OrderController::index - Direct count check', [
+                'telegram_id' => $telegramIdInt,
+                'direct_count' => $directCount,
+                'query_count' => $ordersCount,
+            ]);
+        }
         $firstOrder = null;
         
         if ($ordersCount > 0) {
