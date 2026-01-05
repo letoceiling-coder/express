@@ -264,6 +264,15 @@ export function CheckoutPage() {
       try {
         const methods = await paymentMethodsAPI.getAll();
         setPaymentMethods(methods);
+        
+        // Автоматически выбираем способ оплаты по умолчанию
+        const defaultMethod = methods.find((m: any) => m.isDefault);
+        if (defaultMethod && !formData.paymentMethod) {
+          setFormData(prev => ({
+            ...prev,
+            paymentMethod: defaultMethod,
+          }));
+        }
       } catch (error) {
         console.error('CheckoutPage - Failed to load payment methods:', error);
         toast.error('Не удалось загрузить способы оплаты');

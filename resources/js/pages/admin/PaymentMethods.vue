@@ -71,6 +71,7 @@
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Описание</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Скидка</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Порядок</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground">По умолчанию</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Статус</th>
                         <th class="px-6 py-3 text-right text-sm font-medium text-foreground">Действия</th>
                     </tr>
@@ -103,6 +104,15 @@
                         </td>
                         <td class="px-6 py-4">
                             <span class="text-sm text-foreground">{{ method.sort_order || 0 }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span
+                                v-if="method.is_default"
+                                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            >
+                                Да
+                            </span>
+                            <span v-else class="text-sm text-muted-foreground">—</span>
                         </td>
                         <td class="px-6 py-4">
                             <span

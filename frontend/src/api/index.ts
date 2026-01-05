@@ -469,6 +469,7 @@ export const paymentMethodsAPI = {
         name: method.name,
         description: method.description || undefined,
         isEnabled: method.is_enabled,
+        isDefault: method.is_default || false,
         sortOrder: method.sort_order,
         discountType: method.discount_type,
         discountValue: Number(method.discount_value) || 0,

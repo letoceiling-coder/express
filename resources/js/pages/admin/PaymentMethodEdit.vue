@@ -91,6 +91,18 @@
                             <span class="text-sm font-medium text-foreground">Способ оплаты активен</span>
                         </label>
                     </div>
+
+                    <!-- По умолчанию -->
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input
+                                v-model="form.is_default"
+                                type="checkbox"
+                                class="w-4 h-4 rounded border-input"
+                            />
+                            <span class="text-sm font-medium text-foreground">По умолчанию (будет выбран автоматически)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Настройки скидки -->
@@ -212,6 +224,7 @@ export default {
                 name: '',
                 description: '',
                 is_enabled: true,
+                is_default: false,
                 sort_order: 0,
                 discount_type: 'none',
                 discount_value: null,
@@ -244,6 +257,7 @@ export default {
                     name: this.method.name || '',
                     description: this.method.description || '',
                     is_enabled: this.method.is_enabled !== false,
+                    is_default: this.method.is_default || false,
                     sort_order: this.method.sort_order || 0,
                     discount_type: this.method.discount_type || 'none',
                     discount_value: this.method.discount_value || null,

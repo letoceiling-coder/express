@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $name
  * @property string|null $description
  * @property bool $is_enabled
+ * @property bool $is_default
  * @property int $sort_order
  * @property string $discount_type
  * @property float|null $discount_value
@@ -34,6 +35,7 @@ class PaymentMethod extends Model
         'name',
         'description',
         'is_enabled',
+        'is_default',
         'sort_order',
         'discount_type',
         'discount_value',
@@ -45,6 +47,7 @@ class PaymentMethod extends Model
 
     protected $casts = [
         'is_enabled' => 'boolean',
+        'is_default' => 'boolean',
         'sort_order' => 'integer',
         'discount_value' => 'decimal:2',
         'min_cart_amount' => 'decimal:2',

@@ -127,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('orders.payments');
         
         // Payment Methods (Admin only)
-        Route::apiResource('payment-methods', PaymentMethodController::class);
+        Route::apiResource('payment-methods', PaymentMethodController::class)->except(['index', 'show']);
         
         // Returns
         Route::apiResource('returns', ReturnController::class);

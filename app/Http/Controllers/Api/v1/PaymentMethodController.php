@@ -27,7 +27,10 @@ class PaymentMethodController extends Controller
             $query->where('is_enabled', true);
         }
 
-        $methods = $query->orderBy('sort_order')->orderBy('name')->get();
+        $methods = $query->orderBy('is_default', 'desc') // Дефолтный способ оплаты первым
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         return response()->json([
             'data' => $methods,
@@ -88,6 +91,7 @@ class PaymentMethodController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'is_enabled' => 'boolean',
+            'is_default' => 'boolean',
             'sort_order' => 'integer|min:0',
             'discount_type' => ['required', Rule::in(['none', 'percentage', 'fixed'])],
             'discount_value' => 'nullable|numeric|min:0',
@@ -96,6 +100,11 @@ class PaymentMethodController extends Controller
             'notification_text' => 'nullable|string',
             'settings' => 'nullable|array',
         ]);
+
+        // Если устанавливаем как дефолтный, снимаем флаг с остальных
+        if (!empty($validated['is_default'])) {
+            PaymentMethod::where('is_default', true)->update(['is_default' => false]);
+        }
 
         $method = PaymentMethod::create($validated);
 
@@ -127,6 +136,7 @@ class PaymentMethodController extends Controller
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'is_enabled' => 'boolean',
+            'is_default' => 'boolean',
             'sort_order' => 'integer|min:0',
             'discount_type' => ['sometimes', Rule::in(['none', 'percentage', 'fixed'])],
             'discount_value' => 'nullable|numeric|min:0',
@@ -135,6 +145,13 @@ class PaymentMethodController extends Controller
             'notification_text' => 'nullable|string',
             'settings' => 'nullable|array',
         ]);
+
+        // Если устанавливаем как дефолтный, снимаем флаг с остальных
+        if (isset($validated['is_default']) && $validated['is_default']) {
+            PaymentMethod::where('id', '!=', $method->id)
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
+        }
 
         $method->update($validated);
 
