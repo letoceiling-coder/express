@@ -410,7 +410,7 @@ class OrderNotificationService
                 'inline_keyboard' => [
                     [
                         [
-                            'text' => '✅ Товар доставлен',
+                            'text' => '✅ Доставлен',
                             'callback_data' => "order_courier_delivered:{$order->id}"
                         ]
                     ]
@@ -425,19 +425,45 @@ class OrderNotificationService
                 ];
             }
 
-            // Используем очередь для отправки
-            SendOrderNotificationJob::dispatch(
+            // Отправляем синхронно для немедленной доставки
+            Log::info('Attempting to send courier in transit notification synchronously', [
+                'order_id' => $order->id,
+                'courier_id' => $courier->id,
+                'courier_telegram_id' => $courier->telegram_id,
+            ]);
+
+            $result = $this->telegramService->sendMessage(
                 $bot->token,
                 $courier->telegram_id,
                 $message,
-                ['reply_markup' => json_encode($keyboard)],
-                $order->id,
-                $courier->id,
-                OrderNotification::TYPE_COURIER_ORDER,
-                null // Уведомления курьера в пути не истекают
-            )->onQueue('telegram-notifications');
+                ['reply_markup' => json_encode($keyboard)]
+            );
 
-            return true;
+            if ($result['success'] ?? false) {
+                $this->createNotification(
+                    $order->id,
+                    $courier->id,
+                    $result['data']['message_id'],
+                    $courier->telegram_id,
+                    OrderNotification::TYPE_COURIER_ORDER,
+                    null // Уведомления курьера в пути не истекают
+                );
+                Log::info('✅ Courier in transit notification sent successfully', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'courier_telegram_id' => $courier->telegram_id,
+                    'message_id' => $result['data']['message_id'],
+                ]);
+                return true;
+            } else {
+                Log::error('Failed to send courier in transit notification', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'courier_telegram_id' => $courier->telegram_id,
+                    'error' => $result['message'] ?? 'Unknown error',
+                ]);
+                return false;
+            }
         } catch (\Exception $e) {
             Log::error('Error notifying courier in transit: ' . $e->getMessage(), [
                 'order_id' => $order->id,

@@ -1406,6 +1406,15 @@ class BotController extends Controller
                 return;
             }
 
+            // Проверяем текущий статус заказа перед транзакцией
+            $order = Order::find($orderId);
+            if (!$order) {
+                \Illuminate\Support\Facades\Log::warning('Order not found', ['order_id' => $orderId]);
+                return;
+            }
+
+            $wasAlreadyReady = $order->status === Order::STATUS_READY_FOR_DELIVERY;
+
             // Используем транзакцию для атомарного изменения
             \Illuminate\Support\Facades\DB::transaction(function () use ($bot, $orderId, $telegramUser) {
                 // Блокируем заказ для чтения/изменения
@@ -1427,7 +1436,7 @@ class BotController extends Controller
                     throw new \Exception('Order status not suitable for ready');
                 }
 
-                // Если заказ уже готов, просто обновляем сообщение
+                // Если заказ уже готов, просто выходим из транзакции
                 if ($order->status === Order::STATUS_READY_FOR_DELIVERY) {
                     \Illuminate\Support\Facades\Log::info('Order already ready for delivery, skipping status change', [
                         'order_id' => $order->id,
@@ -1447,6 +1456,43 @@ class BotController extends Controller
             });
 
             $order = Order::find($orderId);
+
+            // Обновляем сообщение кухни, убирая кнопку
+            $kitchenNotification = OrderNotification::where('order_id', $order->id)
+                ->where('telegram_user_id', $telegramUser->id)
+                ->where('notification_type', OrderNotification::TYPE_KITCHEN_ORDER)
+                ->where('status', 'active')
+                ->first();
+
+            if ($kitchenNotification) {
+                $updatedMessage = "🍳 Заказ #{$order->order_id} готов к доставке\n\n";
+                $updatedMessage .= "✅ Статус изменен успешно";
+                
+                try {
+                    $this->telegramService->editMessageText(
+                        $bot->token,
+                        $kitchenNotification->chat_id,
+                        $kitchenNotification->message_id,
+                        $updatedMessage
+                    );
+                    \Illuminate\Support\Facades\Log::info('Kitchen message updated, button removed', [
+                        'order_id' => $order->id,
+                        'kitchen_user_id' => $telegramUser->id,
+                        'message_id' => $kitchenNotification->message_id,
+                    ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to update kitchen message', [
+                        'order_id' => $order->id,
+                        'kitchen_user_id' => $telegramUser->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Если заказ уже был в статусе ready_for_delivery, не отправляем уведомления повторно
+            if ($wasAlreadyReady) {
+                return;
+            }
 
             // Проверяем наличие курьеров
             $hasCourier = $this->orderNotificationService->getCachedCouriers($bot->id)->isNotEmpty();
