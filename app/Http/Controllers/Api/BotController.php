@@ -1669,11 +1669,12 @@ class BotController extends Controller
                     throw new \Exception('Order not found');
                 }
 
-                // Проверяем статус
-                if ($order->status !== Order::STATUS_COURIER_ASSIGNED) {
+                // Проверяем статус - разрешаем для courier_assigned и ready_for_delivery
+                if (!in_array($order->status, [Order::STATUS_COURIER_ASSIGNED, Order::STATUS_READY_FOR_DELIVERY])) {
                     \Illuminate\Support\Facades\Log::warning('Order status not suitable for courier picked', [
                         'order_id' => $order->id,
                         'current_status' => $order->status,
+                        'allowed_statuses' => [Order::STATUS_COURIER_ASSIGNED, Order::STATUS_READY_FOR_DELIVERY],
                     ]);
                     throw new \Exception('Order status not suitable');
                 }
@@ -1688,6 +1689,15 @@ class BotController extends Controller
                     // Назначаем текущего курьера
                     $order->courier_id = $telegramUser->id;
                     $order->assigned_to_all_couriers = false;
+                } elseif (!$order->courier_id) {
+                    // Если курьер не назначен, но заказ в статусе ready_for_delivery, назначаем текущего курьера
+                    // Это может произойти, если кухня отметила заказ готовым до назначения курьера
+                    $order->courier_id = $telegramUser->id;
+                    \Illuminate\Support\Facades\Log::info('Courier assigned during pickup', [
+                        'order_id' => $order->id,
+                        'courier_id' => $telegramUser->id,
+                        'previous_status' => $order->status,
+                    ]);
                 } else {
                     // Проверяем, что курьер назначен на этот заказ
                     if ($order->courier_id !== $telegramUser->id) {
@@ -1696,6 +1706,13 @@ class BotController extends Controller
                 }
 
                 // Изменяем статус заказа
+                \Illuminate\Support\Facades\Log::info('Changing order status to in_transit', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                    'new_status' => Order::STATUS_IN_TRANSIT,
+                    'courier_id' => $telegramUser->id,
+                ]);
+
                 $this->orderStatusService->changeStatus($order, Order::STATUS_IN_TRANSIT, [
                     'role' => 'courier',
                     'changed_by_telegram_user_id' => $telegramUser->id,
@@ -1704,6 +1721,12 @@ class BotController extends Controller
                 // Увеличиваем version
                 $order->increment('version');
                 $order->refresh();
+
+                \Illuminate\Support\Facades\Log::info('Order status changed to in_transit', [
+                    'order_id' => $order->id,
+                    'final_status' => $order->status,
+                    'courier_id' => $telegramUser->id,
+                ]);
             });
 
             $order = Order::find($orderId);
