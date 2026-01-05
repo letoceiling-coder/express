@@ -427,8 +427,60 @@ export const ordersAPI = {
 // Payment Methods API
 export const paymentMethodsAPI = {
   async getAll(): Promise<any[]> {
-    const response = await apiRequest('/payment-methods');
-    return response.data || [];
+    try {
+      const response = await apiRequest('/payment-methods');
+      console.log('PaymentMethods API - getAll raw response:', response);
+      
+      // Обрабатываем разные форматы ответа: массив, объект с data (пагинация или нет)
+      let methods: any[] = [];
+      
+      if (Array.isArray(response.data)) {
+        // Если response.data - это уже массив
+        methods = response.data;
+        console.log('PaymentMethods API - Response is direct array, count:', methods.length);
+      } else if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+        // Если это объект пагинации с полем data
+        methods = response.data.data;
+        console.log('PaymentMethods API - Response is object with data array, count:', methods.length);
+      } else if (Array.isArray(response)) {
+        // Если response сам по себе массив (нестандартный формат)
+        methods = response;
+        console.log('PaymentMethods API - Response is direct array (root), count:', methods.length);
+      } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        // Если response.data - объект, но не массив, возможно это один элемент
+        console.warn('PaymentMethods API - Response.data is object but not array:', response.data);
+        methods = [];
+      }
+      
+      // Дополнительная проверка: если methods все еще не массив, возвращаем пустой массив
+      if (!Array.isArray(methods)) {
+        console.warn('PaymentMethods API returned non-array data:', response);
+        methods = [];
+      }
+      
+      console.log('PaymentMethods API - getAll final result:', {
+        methodsCount: methods.length,
+        firstMethod: methods[0],
+      });
+      
+      return methods.map((method: any) => ({
+        id: String(method.id),
+        code: method.code,
+        name: method.name,
+        description: method.description || undefined,
+        isEnabled: method.is_enabled,
+        sortOrder: method.sort_order,
+        discountType: method.discount_type,
+        discountValue: Number(method.discount_value) || 0,
+        minCartAmount: Number(method.min_cart_amount) || 0,
+        showNotification: method.show_notification,
+        notificationText: method.notification_text || undefined,
+        settings: method.settings || {},
+      }));
+    } catch (error) {
+      console.error('PaymentMethods API - getAll error:', error);
+      return [];
+    }
   },
 
   async getById(id: string | number, cartAmount?: number): Promise<any | null> {
@@ -437,7 +489,38 @@ export const paymentMethodsAPI = {
         ? `/payment-methods/${id}?cart_amount=${cartAmount}`
         : `/payment-methods/${id}`;
       const response = await apiRequest(url);
-      return response.data || null;
+      console.log('PaymentMethods API - getById raw response:', response);
+      
+      // Обрабатываем разные форматы ответа
+      const method = response.data || response;
+      
+      if (!method) {
+        console.warn('PaymentMethods API - getById: method not found');
+        return null;
+      }
+      
+      const result = {
+        id: String(method.id),
+        code: method.code,
+        name: method.name,
+        description: method.description || undefined,
+        isEnabled: method.is_enabled,
+        sortOrder: method.sort_order,
+        discountType: method.discount?.discount_type || method.discount_type,
+        discountValue: Number(method.discount?.discount_value || method.discount_value) || 0,
+        minCartAmount: Number(method.discount?.min_cart_amount || method.min_cart_amount) || 0,
+        showNotification: method.show_notification,
+        notificationText: method.notification || method.notification_text || undefined,
+        settings: method.settings || {},
+        discount: method.discount ? {
+          discount: Number(method.discount.discount || 0),
+          final_amount: Number(method.discount.final_amount || 0),
+          applied: method.discount.applied || false,
+        } : undefined,
+      };
+      
+      console.log('PaymentMethods API - getById final result:', result);
+      return result;
     } catch (error) {
       console.error('Payment Methods API - getById error:', error);
       return null;

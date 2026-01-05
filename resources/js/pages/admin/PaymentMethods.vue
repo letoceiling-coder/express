@@ -201,9 +201,21 @@ export default {
             this.error = null;
             try {
                 const response = await apiGet('/payment-methods');
-                this.methods = response.data || [];
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Ошибка загрузки способов оплаты');
+                }
+                const data = await response.json();
+                // Обрабатываем разные форматы ответа
+                if (Array.isArray(data.data)) {
+                    this.methods = data.data;
+                } else if (Array.isArray(data)) {
+                    this.methods = data;
+                } else {
+                    this.methods = [];
+                }
             } catch (err) {
-                this.error = err.response?.data?.message || 'Ошибка загрузки способов оплаты';
+                this.error = err.message || 'Ошибка загрузки способов оплаты';
                 console.error('Error loading payment methods:', err);
             } finally {
                 this.loading = false;

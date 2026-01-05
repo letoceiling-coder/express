@@ -233,7 +233,12 @@ export default {
             this.error = null;
             try {
                 const response = await apiGet(`/payment-methods/${this.$route.params.id}`);
-                this.method = response.data;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Ошибка загрузки способа оплаты');
+                }
+                const data = await response.json();
+                this.method = data.data || data;
                 this.form = {
                     code: this.method.code || '',
                     name: this.method.name || '',
