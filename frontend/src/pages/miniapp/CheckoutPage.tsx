@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Loader2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
-import { ordersAPI } from '@/api';
+import { ordersAPI, paymentMethodsAPI } from '@/api';
 
 // Функция форматирования телефона с маской
 const formatPhone = (value: string): string => {
@@ -70,7 +70,7 @@ const generateTimeSlots = (): string[] => {
   });
 };
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 type DeliveryType = 'courier' | 'pickup';
 
 export function CheckoutPage() {
@@ -89,9 +89,13 @@ export function CheckoutPage() {
     deliveryTime: '',
     deliveryType: 'courier' as DeliveryType,
     comment: '',
+    paymentMethod: null as any | null,
   });
   
   const [availableTimeSlots] = useState(() => generateTimeSlots());
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
 
   // Загрузка прошлых заказов и автозаполнение данных
   useEffect(() => {
@@ -167,6 +171,46 @@ export function CheckoutPage() {
     loadPastOrders();
   }, []);
 
+  // Загрузка способов оплаты
+  useEffect(() => {
+    const loadPaymentMethods = async () => {
+      setLoadingPaymentMethods(true);
+      try {
+        const methods = await paymentMethodsAPI.getAll();
+        setPaymentMethods(methods);
+      } catch (error) {
+        console.error('CheckoutPage - Failed to load payment methods:', error);
+        toast.error('Не удалось загрузить способы оплаты');
+      } finally {
+        setLoadingPaymentMethods(false);
+      }
+    };
+    loadPaymentMethods();
+  }, []);
+
+  // Расчет скидки при изменении способа оплаты или суммы корзины
+  useEffect(() => {
+    const calculateDiscount = async () => {
+      if (formData.paymentMethod && totalAmount > 0) {
+        try {
+          const methodInfo = await paymentMethodsAPI.getById(formData.paymentMethod.id, totalAmount);
+          if (methodInfo && methodInfo.discount) {
+            setDiscountInfo(methodInfo.discount);
+          } else {
+            setDiscountInfo(null);
+          }
+        } catch (error) {
+          console.error('Failed to calculate discount:', error);
+          setDiscountInfo(null);
+        }
+      } else {
+        setDiscountInfo(null);
+      }
+    };
+    
+    calculateDiscount();
+  }, [formData.paymentMethod, totalAmount]);
+
   // Имя заполняется только из прошлых заказов, не из Telegram
 
   if (items.length === 0) {
@@ -194,12 +238,32 @@ export function CheckoutPage() {
       }
       // Время доставки теперь необязательное
     }
+    if (currentStep === 3) {
+      if (!formData.paymentMethod) {
+        toast.error('Выберите способ оплаты');
+        return false;
+      }
+    }
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (validateStep(step)) {
-      setStep((prev) => Math.min(prev + 1, 3) as Step);
+      // Если переходим на шаг 3 (способ оплаты), загружаем информацию о скидке
+      if (step === 2 && formData.paymentMethod) {
+        try {
+          const methodInfo = await paymentMethodsAPI.getById(formData.paymentMethod.id, totalAmount);
+          if (methodInfo) {
+            setFormData(prev => ({
+              ...prev,
+              paymentMethod: methodInfo,
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to load payment method details:', error);
+        }
+      }
+      setStep((prev) => Math.min(prev + 1, 4) as Step);
     }
   };
 
@@ -218,6 +282,7 @@ export function CheckoutPage() {
     try {
       // Подготовка данных заказа
       const phoneDigits = getPhoneDigits(formData.phone);
+      const finalAmount = discountInfo?.final_amount || totalAmount;
       const orderData = {
         phone: phoneDigits,
         name: formData.name || undefined,
@@ -225,6 +290,7 @@ export function CheckoutPage() {
         deliveryTime: formData.deliveryTime || undefined,
         deliveryType: formData.deliveryType,
         comment: formData.comment || undefined,
+        paymentMethod: formData.paymentMethod?.code || null,
         items: items.map(item => ({
           productId: item.product.id,
           productName: item.product.name,
@@ -232,7 +298,9 @@ export function CheckoutPage() {
           quantity: item.quantity,
           unitPrice: item.product.price,
         })),
-        totalAmount,
+        totalAmount: finalAmount,
+        originalAmount: totalAmount,
+        discount: discountInfo?.discount || 0,
       };
 
       // Create order with real data
@@ -257,7 +325,7 @@ export function CheckoutPage() {
       {/* Progress Steps */}
       <div className="px-4 py-4">
         <div className="flex items-center justify-center gap-2">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div
                 className={cn(
@@ -271,7 +339,7 @@ export function CheckoutPage() {
               >
                 {s < step ? <Check className="h-4 w-4" /> : s}
               </div>
-              {s < 3 && (
+              {s < 4 && (
                 <div
                   className={cn(
                     'h-0.5 w-8 transition-colors',
@@ -283,7 +351,7 @@ export function CheckoutPage() {
           ))}
         </div>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Шаг {step} из 3
+          Шаг {step} из 4
         </p>
       </div>
 
@@ -396,8 +464,101 @@ export function CheckoutPage() {
           </div>
         )}
 
-        {/* Step 3: Confirmation */}
+        {/* Step 3: Payment Method */}
         {step === 3 && (
+          <div className="space-y-4 animate-fade-in">
+            <h2 className="text-xl font-semibold text-foreground">Способ оплаты</h2>
+            
+            {loadingPaymentMethods ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {paymentMethods.map((method) => {
+                  const isSelected = formData.paymentMethod?.id === method.id;
+                  const methodDiscount = method.discount || {};
+                  const hasDiscount = methodDiscount.applied && methodDiscount.discount > 0;
+                  
+                  return (
+                    <div
+                      key={method.id}
+                      onClick={async () => {
+                        hapticFeedback('light');
+                        // Загружаем информацию о скидке при выборе
+                        try {
+                          const methodInfo = await paymentMethodsAPI.getById(method.id, totalAmount);
+                          if (methodInfo) {
+                            setFormData(prev => ({
+                              ...prev,
+                              paymentMethod: methodInfo,
+                            }));
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              paymentMethod: method,
+                            }));
+                          }
+                        } catch (error) {
+                          console.error('Failed to load payment method details:', error);
+                          setFormData(prev => ({
+                            ...prev,
+                            paymentMethod: method,
+                          }));
+                        }
+                      }}
+                      className={cn(
+                        'rounded-xl border-2 p-4 cursor-pointer transition-all touch-feedback',
+                        isSelected
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card hover:border-primary/50'
+                      )}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className={cn(
+                              'h-5 w-5 rounded-full border-2 flex items-center justify-center',
+                              isSelected
+                                ? 'border-primary bg-primary'
+                                : 'border-muted-foreground'
+                            )}>
+                              {isSelected && (
+                                <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-foreground">{method.name}</h3>
+                          </div>
+                          {method.description && (
+                            <p className="mt-1 text-sm text-muted-foreground ml-7">
+                              {method.description}
+                            </p>
+                          )}
+                          {isSelected && formData.paymentMethod?.notification && (
+                            <div className="mt-2 ml-7 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                              <p className="text-sm text-foreground">{formData.paymentMethod.notification}</p>
+                            </div>
+                          )}
+                        </div>
+                        {isSelected && discountInfo && discountInfo.applied && discountInfo.discount > 0 && (
+                          <div className="ml-2 text-right">
+                            <div className="text-xs text-muted-foreground">Скидка</div>
+                            <div className="text-sm font-semibold text-primary">
+                              -{discountInfo.discount.toLocaleString('ru-RU')} ₽
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Confirmation */}
+        {step === 4 && (
           <div className="space-y-4 animate-fade-in">
             <h2 className="text-xl font-semibold text-foreground">Подтверждение заказа</h2>
 

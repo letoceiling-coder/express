@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\v1\FolderController;
 use App\Http\Controllers\Api\v1\MediaController;
 use App\Http\Controllers\Api\v1\OrderController;
 use App\Http\Controllers\Api\v1\PaymentController;
+use App\Http\Controllers\Api\v1\PaymentMethodController;
 use App\Http\Controllers\Api\v1\PaymentSettingsController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
@@ -47,6 +48,10 @@ Route::prefix('v1')->group(function () {
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index.public');
     // POST - создание заказа из MiniApp
     Route::post('orders', [OrderController::class, 'store'])->name('orders.store.public');
+    
+    // Публичные роуты для способов оплаты (только активные)
+    Route::get('payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index.public');
+    Route::get('payment-methods/{id}', [PaymentMethodController::class, 'show'])->name('payment-methods.show.public');
 });
 
 // Защищённые роуты
@@ -120,6 +125,9 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payments.refund');
         Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])
             ->name('orders.payments');
+        
+        // Payment Methods (Admin only)
+        Route::apiResource('payment-methods', PaymentMethodController::class);
         
         // Returns
         Route::apiResource('returns', ReturnController::class);

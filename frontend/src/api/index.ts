@@ -423,3 +423,24 @@ export const ordersAPI = {
     });
   },
 };
+
+// Payment Methods API
+export const paymentMethodsAPI = {
+  async getAll(): Promise<any[]> {
+    const response = await apiRequest('/payment-methods');
+    return response.data || [];
+  },
+
+  async getById(id: string | number, cartAmount?: number): Promise<any | null> {
+    try {
+      const url = cartAmount 
+        ? `/payment-methods/${id}?cart_amount=${cartAmount}`
+        : `/payment-methods/${id}`;
+      const response = await apiRequest(url);
+      return response.data || null;
+    } catch (error) {
+      console.error('Payment Methods API - getById error:', error);
+      return null;
+    }
+  },
+};

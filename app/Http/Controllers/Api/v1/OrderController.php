@@ -45,7 +45,10 @@ class OrderController extends Controller
             'delivery_time' => 'nullable|string|max:255',
             'delivery_type' => 'nullable|string|in:courier,pickup',
             'comment' => 'nullable|string',
+            'payment_method' => 'nullable|string|max:50',
             'total_amount' => 'required|numeric|min:0',
+            'original_amount' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|integer|exists:products,id',
             'items.*.product_name' => 'required|string',
@@ -99,6 +102,9 @@ class OrderController extends Controller
                 'delivery_type' => $request->get('delivery_type', 'courier'), // По умолчанию курьер
                 'comment' => $request->get('comment'),
                 'total_amount' => $request->get('total_amount'),
+                'original_amount' => $request->get('original_amount'),
+                'discount_amount' => $request->get('discount', 0),
+                'payment_method' => $request->get('payment_method'),
                 'status' => Order::STATUS_NEW,
                 'payment_status' => Order::PAYMENT_STATUS_PENDING,
             ]);
