@@ -1324,6 +1324,10 @@ class BotController extends Controller
                     'changed_by_telegram_user_id' => $telegramUser->id,
                 ]);
 
+                // Фиксируем время начала приготовления
+                $order->kitchen_started_at = now();
+                $order->save();
+
                 // Увеличиваем version
                 $order->increment('version');
                 $order->refresh();
@@ -1450,6 +1454,16 @@ class BotController extends Controller
                     'changed_by_telegram_user_id' => $telegramUser->id,
                 ]);
 
+                // Фиксируем время готовности и рассчитываем время приготовления
+                $order->kitchen_ready_at = now();
+                
+                if ($order->kitchen_started_at) {
+                    $preparationTime = $order->kitchen_started_at->diffInMinutes($order->kitchen_ready_at);
+                    $order->preparation_time_minutes = $preparationTime;
+                }
+                
+                $order->save();
+
                 // Увеличиваем version
                 $order->increment('version');
                 $order->refresh();
@@ -1467,6 +1481,14 @@ class BotController extends Controller
             if ($kitchenNotification) {
                 $updatedMessage = "🍳 Заказ #{$order->order_id} готов к доставке\n\n";
                 $updatedMessage .= "✅ Статус изменен успешно";
+                
+                // Добавляем информацию о времени приготовления
+                if ($order->preparation_time_minutes) {
+                    $hours = floor($order->preparation_time_minutes / 60);
+                    $minutes = $order->preparation_time_minutes % 60;
+                    $timeString = $hours > 0 ? "{$hours} ч {$minutes} мин" : "{$minutes} мин";
+                    $updatedMessage .= "\n\n⏱ Время приготовления: {$timeString}";
+                }
                 
                 try {
                     $this->telegramService->editMessageText(
@@ -1497,10 +1519,21 @@ class BotController extends Controller
             // Проверяем наличие курьеров
             $hasCourier = $this->orderNotificationService->getCachedCouriers($bot->id)->isNotEmpty();
 
+            // Сохраняем статистику по блюдам
+            $this->saveKitchenPreparationStatistics($order, $telegramUser);
+
             // Формируем сообщение для администратора с кнопкой "Вызвать курьера"
             $message = "✅ Заказ #{$order->order_id} готов к доставке\n\n";
             $message .= "📍 Адрес: {$order->delivery_address}\n";
             $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽";
+            
+            // Добавляем информацию о времени приготовления
+            if ($order->preparation_time_minutes) {
+                $hours = floor($order->preparation_time_minutes / 60);
+                $minutes = $order->preparation_time_minutes % 60;
+                $timeString = $hours > 0 ? "{$hours} ч {$minutes} мин" : "{$minutes} мин";
+                $message .= "\n⏱ Время приготовления: {$timeString}";
+            }
 
             $keyboard = null;
             if ($hasCourier) {
@@ -2451,6 +2484,56 @@ class BotController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error handling cancel order reason: ' . $e->getMessage(), [
                 'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Сохранить статистику времени приготовления блюд
+     *
+     * @param Order $order
+     * @param TelegramUser $kitchenUser
+     * @return void
+     */
+    private function saveKitchenPreparationStatistics(Order $order, TelegramUser $kitchenUser): void
+    {
+        try {
+            if (!$order->preparation_time_minutes || !$order->kitchen_started_at || !$order->kitchen_ready_at) {
+                \Illuminate\Support\Facades\Log::warning('Cannot save kitchen statistics: missing timing data', [
+                    'order_id' => $order->id,
+                    'has_preparation_time' => !is_null($order->preparation_time_minutes),
+                    'has_started_at' => !is_null($order->kitchen_started_at),
+                    'has_ready_at' => !is_null($order->kitchen_ready_at),
+                ]);
+                return;
+            }
+
+            // Загружаем товары заказа
+            $order->load('items.product');
+
+            foreach ($order->items as $item) {
+                \App\Models\KitchenPreparationStatistic::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product->name ?? $item->product_name ?? 'Неизвестное блюдо',
+                    'quantity' => $item->quantity,
+                    'preparation_time_minutes' => $order->preparation_time_minutes,
+                    'kitchen_user_id' => $kitchenUser->id,
+                    'bot_id' => $order->bot_id,
+                    'prepared_at' => $order->kitchen_ready_at,
+                ]);
+            }
+
+            \Illuminate\Support\Facades\Log::info('Kitchen preparation statistics saved', [
+                'order_id' => $order->id,
+                'items_count' => $order->items->count(),
+                'preparation_time_minutes' => $order->preparation_time_minutes,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error saving kitchen preparation statistics: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }

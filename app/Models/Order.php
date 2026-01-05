@@ -74,6 +74,9 @@ class Order extends Model
         'courier_id',
         'assigned_to_all_couriers',
         'version',
+        'kitchen_started_at',
+        'kitchen_ready_at',
+        'preparation_time_minutes',
     ];
 
     /**
@@ -93,6 +96,9 @@ class Order extends Model
         'assigned_to_all_couriers' => 'boolean',
         'version' => 'integer',
         'delivery_date' => 'date',
+        'kitchen_started_at' => 'datetime',
+        'kitchen_ready_at' => 'datetime',
+        'preparation_time_minutes' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -178,6 +184,14 @@ class Order extends Model
     public function courier(): BelongsTo
     {
         return $this->belongsTo(TelegramUser::class, 'courier_id', 'id');
+    }
+
+    /**
+     * Статистика времени приготовления блюд
+     */
+    public function kitchenPreparationStatistics(): HasMany
+    {
+        return $this->hasMany(KitchenPreparationStatistic::class, 'order_id', 'id');
     }
 
     /**
