@@ -216,11 +216,20 @@ class OrderController extends Controller
         if (!$hasAuth && !$hasToken) {
             // Публичный запрос БЕЗ токена - требуется telegram_id
             if (!$request->has('telegram_id') || !$request->get('telegram_id')) {
-                Log::warning('OrderController::index - Missing telegram_id for public request');
+                Log::warning('OrderController::index - Missing telegram_id for public request', [
+                    'request_params' => $request->all(),
+                    'query_params' => $request->query(),
+                ]);
                 return response()->json([
                     'message' => 'Для получения заказов необходимо указать telegram_id или авторизоваться',
                 ], 400);
             }
+            
+            // Логируем запрос с telegram_id для отладки
+            Log::info('OrderController::index - Public request with telegram_id', [
+                'telegram_id' => $request->get('telegram_id'),
+                'telegram_id_type' => gettype($request->get('telegram_id')),
+            ]);
             // Для публичных запросов принудительно фильтруем по telegram_id
             $query->where('telegram_id', $request->get('telegram_id'));
             Log::info('OrderController::index - Public request filtered by telegram_id', [

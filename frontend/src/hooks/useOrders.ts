@@ -28,6 +28,9 @@ export function useOrders() {
     if (!telegramId) {
       console.warn('useOrders - No telegram user ID, returning empty orders');
       console.warn('useOrders - window.Telegram:', window.Telegram);
+      console.warn('useOrders - window.Telegram?.WebApp:', window.Telegram?.WebApp);
+      console.warn('useOrders - window.Telegram?.WebApp?.initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
+      console.warn('useOrders - window.Telegram?.WebApp?.initData:', window.Telegram?.WebApp?.initData);
       setOrders([]);
       return;
     }

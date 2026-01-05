@@ -122,7 +122,43 @@ export function initTelegramWebApp(): void {
 }
 
 export function getTelegramUser() {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user || null;
+  // Пробуем получить пользователя из разных источников
+  const tg = window.Telegram?.WebApp;
+  
+  if (!tg) {
+    console.warn('getTelegramUser - window.Telegram is not available');
+    return null;
+  }
+  
+  const user = tg.initDataUnsafe?.user;
+  
+  if (user) {
+    console.log('getTelegramUser - User found:', { id: user.id, firstName: user.first_name });
+    return user;
+  }
+  
+  // Пробуем получить из initData напрямую
+  if (tg.initData) {
+    try {
+      const params = new URLSearchParams(tg.initData);
+      const userParam = params.get('user');
+      if (userParam) {
+        const userData = JSON.parse(decodeURIComponent(userParam));
+        console.log('getTelegramUser - User from initData:', userData);
+        return userData;
+      }
+    } catch (e) {
+      console.warn('getTelegramUser - Failed to parse initData:', e);
+    }
+  }
+  
+  console.warn('getTelegramUser - No user data found', {
+    hasWebApp: !!tg,
+    hasInitData: !!tg.initData,
+    hasInitDataUnsafe: !!tg.initDataUnsafe,
+  });
+  
+  return null;
 }
 
 export function getTelegramTheme(): 'light' | 'dark' {
