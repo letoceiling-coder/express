@@ -94,33 +94,43 @@ interface TelegramWebApp {
 }
 
 export function initTelegramWebApp(): void {
-  // Ждем, пока Telegram WebApp загрузится
-  const checkTelegram = () => {
-    const tg = window.Telegram?.WebApp;
+  // Функция инициализации
+  const initialize = (tg: TelegramWebApp) => {
+    // Initialize the app
+    tg.ready();
     
-    if (tg) {
-      // Initialize the app
-      tg.ready();
-      
-      // Expand to full height
-      tg.expand();
-      
-      // Set theme colors
-      if (tg.colorScheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      
-      console.log('Telegram WebApp initialized', {
-        version: tg.version,
-        platform: tg.platform,
-        colorScheme: tg.colorScheme,
-        user: tg.initDataUnsafe?.user,
-        initData: tg.initData ? 'present' : 'missing',
-        initDataUnsafe: tg.initDataUnsafe ? 'present' : 'missing',
-      });
-      
+    // Expand to full height
+    tg.expand();
+    
+    // Set theme colors
+    if (tg.colorScheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    console.log('Telegram WebApp initialized', {
+      version: tg.version,
+      platform: tg.platform,
+      colorScheme: tg.colorScheme,
+      user: tg.initDataUnsafe?.user,
+      userId: tg.initDataUnsafe?.user?.id,
+      initData: tg.initData ? 'present (' + tg.initData.length + ' chars)' : 'missing',
+      initDataUnsafe: tg.initDataUnsafe ? 'present' : 'missing',
+    });
+  };
+  
+  // Проверяем, доступен ли Telegram WebApp
+  const checkTelegram = () => {
+    // Telegram может инжектировать скрипт, поэтому проверяем несколько способов
+    if (window.Telegram?.WebApp) {
+      initialize(window.Telegram.WebApp);
+      return true;
+    }
+    
+    // Также проверяем глобальный объект (если скрипт загружен по-другому)
+    if ((window as any).Telegram?.WebApp) {
+      initialize((window as any).Telegram.WebApp);
       return true;
     }
     
@@ -132,56 +142,95 @@ export function initTelegramWebApp(): void {
     return;
   }
   
-  // Если не загружен, ждем и пробуем еще раз
-  let attempts = 0;
-  const maxAttempts = 10;
-  const interval = setInterval(() => {
-    attempts++;
-    if (checkTelegram() || attempts >= maxAttempts) {
-      clearInterval(interval);
-      if (attempts >= maxAttempts) {
-        console.warn('Telegram WebApp not found after', maxAttempts, 'attempts');
-        console.warn('window.Telegram:', window.Telegram);
+  // Если не загружен, ждем события загрузки DOM
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!checkTelegram()) {
+        // Пробуем через интервал
+        waitForTelegram();
       }
-    }
-  }, 100);
+    });
+  } else {
+    waitForTelegram();
+  }
+  
+  function waitForTelegram() {
+    let attempts = 0;
+    const maxAttempts = 20; // Увеличиваем количество попыток
+    const interval = setInterval(() => {
+      attempts++;
+      if (checkTelegram() || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (attempts >= maxAttempts) {
+          console.warn('Telegram WebApp not found after', maxAttempts, 'attempts');
+          console.warn('window.Telegram:', window.Telegram);
+          console.warn('document.readyState:', document.readyState);
+        }
+      }
+    }, 200); // Увеличиваем интервал до 200мс
+  }
 }
 
 export function getTelegramUser() {
   // Пробуем получить пользователя из разных источников
-  const tg = window.Telegram?.WebApp;
+  let tg = window.Telegram?.WebApp;
+  
+  // Если не найден, пробуем через глобальный объект
+  if (!tg && (window as any).Telegram?.WebApp) {
+    tg = (window as any).Telegram.WebApp;
+  }
   
   if (!tg) {
-    console.warn('getTelegramUser - window.Telegram is not available');
+    console.warn('getTelegramUser - window.Telegram.WebApp is not available');
+    console.warn('getTelegramUser - window.Telegram:', window.Telegram);
+    console.warn('getTelegramUser - (window as any).Telegram:', (window as any).Telegram);
     return null;
   }
+  
+  console.log('getTelegramUser - Telegram WebApp found:', {
+    version: tg.version,
+    platform: tg.platform,
+    hasInitData: !!tg.initData,
+    hasInitDataUnsafe: !!tg.initDataUnsafe,
+  });
   
   const user = tg.initDataUnsafe?.user;
   
   if (user) {
-    console.log('getTelegramUser - User found:', { id: user.id, firstName: user.first_name });
+    console.log('getTelegramUser - User found in initDataUnsafe:', { 
+      id: user.id, 
+      firstName: user.first_name,
+      username: user.username,
+    });
     return user;
   }
   
   // Пробуем получить из initData напрямую
   if (tg.initData) {
     try {
+      console.log('getTelegramUser - Trying to parse initData, length:', tg.initData.length);
       const params = new URLSearchParams(tg.initData);
       const userParam = params.get('user');
       if (userParam) {
         const userData = JSON.parse(decodeURIComponent(userParam));
         console.log('getTelegramUser - User from initData:', userData);
         return userData;
+      } else {
+        console.warn('getTelegramUser - initData exists but user parameter not found');
+        console.warn('getTelegramUser - initData keys:', Array.from(params.keys()));
       }
     } catch (e) {
       console.warn('getTelegramUser - Failed to parse initData:', e);
+      console.warn('getTelegramUser - initData preview:', tg.initData.substring(0, 100));
     }
   }
   
-  console.warn('getTelegramUser - No user data found', {
+  console.error('getTelegramUser - No user data found', {
     hasWebApp: !!tg,
     hasInitData: !!tg.initData,
+    initDataLength: tg.initData?.length || 0,
     hasInitDataUnsafe: !!tg.initDataUnsafe,
+    initDataUnsafeKeys: tg.initDataUnsafe ? Object.keys(tg.initDataUnsafe) : [],
   });
   
   return null;

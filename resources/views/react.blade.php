@@ -95,6 +95,36 @@
             console.error('React приложение не собрано. Выполните: cd frontend && npm run build');
         </script>
     @endif
+    
+    <!-- Telegram WebApp Script - должен загружаться до React приложения -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        // Проверка загрузки Telegram WebApp
+        (function() {
+            function checkTelegram() {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    console.log('Telegram WebApp loaded successfully', {
+                        version: window.Telegram.WebApp.version,
+                        platform: window.Telegram.WebApp.platform,
+                        hasUser: !!window.Telegram.WebApp.initDataUnsafe?.user,
+                        userId: window.Telegram.WebApp.initDataUnsafe?.user?.id,
+                    });
+                } else {
+                    console.warn('Telegram WebApp not loaded yet');
+                }
+            }
+            
+            // Проверяем сразу
+            checkTelegram();
+            
+            // Проверяем после загрузки DOM
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkTelegram);
+            } else {
+                setTimeout(checkTelegram, 100);
+            }
+        })();
+    </script>
 </head>
 
 <body>
