@@ -191,11 +191,24 @@ export function CheckoutPage() {
   // Расчет скидки при изменении способа оплаты или суммы корзины
   useEffect(() => {
     const calculateDiscount = async () => {
-      if (formData.paymentMethod && totalAmount > 0) {
+      if (formData.paymentMethod && formData.paymentMethod.id && totalAmount > 0) {
         try {
           const methodInfo = await paymentMethodsAPI.getById(formData.paymentMethod.id, totalAmount);
-          if (methodInfo && methodInfo.discount) {
-            setDiscountInfo(methodInfo.discount);
+          if (methodInfo) {
+            // Обновляем информацию о способе оплаты с расчетом скидки
+            setFormData(prev => ({
+              ...prev,
+              paymentMethod: {
+                ...prev.paymentMethod,
+                ...methodInfo,
+              },
+            }));
+            
+            if (methodInfo.discount) {
+              setDiscountInfo(methodInfo.discount);
+            } else {
+              setDiscountInfo(null);
+            }
           } else {
             setDiscountInfo(null);
           }
@@ -209,7 +222,7 @@ export function CheckoutPage() {
     };
     
     calculateDiscount();
-  }, [formData.paymentMethod, totalAmount]);
+  }, [formData.paymentMethod?.id, totalAmount]);
 
   // Имя заполняется только из прошлых заказов, не из Telegram
 
@@ -614,13 +627,39 @@ export function CheckoutPage() {
               </div>
             </div>
 
+            {/* Payment Method */}
+            {formData.paymentMethod && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-3 font-semibold text-foreground">Способ оплаты</h3>
+                <div className="text-sm">
+                  <span className="text-foreground">{formData.paymentMethod.name}</span>
+                </div>
+              </div>
+            )}
+
             {/* Total */}
             <div className="rounded-lg bg-secondary p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-foreground">Итого</span>
-                <span className="text-xl font-bold text-primary">
-                  {totalAmount.toLocaleString('ru-RU')} ₽
-                </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Товары</span>
+                  <span className="text-sm text-foreground">
+                    {totalAmount.toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+                {discountInfo && discountInfo.applied && discountInfo.discount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Скидка</span>
+                    <span className="text-sm font-semibold text-primary">
+                      -{discountInfo.discount.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <span className="text-lg font-semibold text-foreground">К оплате</span>
+                  <span className="text-xl font-bold text-primary">
+                    {(discountInfo?.final_amount || totalAmount).toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
               </div>
             </div>
           </div>

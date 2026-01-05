@@ -149,6 +149,12 @@ class AdminMenu
                 'roles' => ['admin'],
                 'children' => [
                     [
+                        'title' => 'Способы оплаты',
+                        'route' => 'admin.payment-methods',
+                        'icon' => 'credit-card',
+                        'roles' => ['admin'],
+                    ],
+                    [
                         'title' => 'Платежи (ЮКасса)',
                         'route' => 'admin.settings.payments.yookassa',
                         'icon' => 'credit-card',

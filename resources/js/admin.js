@@ -390,6 +390,25 @@ const routes = [
                 component: () => import('./pages/admin/PaymentEdit.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать платеж' },
             },
+            // Payment Methods
+            {
+                path: 'payment-methods',
+                name: 'admin.payment-methods',
+                component: () => import('./pages/admin/PaymentMethods.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Способы оплаты' },
+            },
+            {
+                path: 'payment-methods/create',
+                name: 'admin.payment-methods.create',
+                component: () => import('./pages/admin/PaymentMethodCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Создать способ оплаты' },
+            },
+            {
+                path: 'payment-methods/:id/edit',
+                name: 'admin.payment-methods.edit',
+                component: () => import('./pages/admin/PaymentMethodEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Редактировать способ оплаты' },
+            },
             // Returns
             {
                 path: 'returns',
