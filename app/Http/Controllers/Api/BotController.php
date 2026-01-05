@@ -2016,8 +2016,13 @@ class BotController extends Controller
                     throw new \Exception('Order not found');
                 }
 
-                // Проверяем статус
-                if ($order->status !== Order::STATUS_IN_TRANSIT && $order->status !== Order::STATUS_READY_FOR_DELIVERY) {
+                // Проверяем статус - разрешаем для in_transit, ready_for_delivery и delivered
+                // (delivered нужен, так как курьер может подтвердить оплату после доставки)
+                if (!in_array($order->status, [
+                    Order::STATUS_IN_TRANSIT,
+                    Order::STATUS_READY_FOR_DELIVERY,
+                    Order::STATUS_DELIVERED
+                ])) {
                     throw new \Exception('Order status not suitable for payment handling');
                 }
 
