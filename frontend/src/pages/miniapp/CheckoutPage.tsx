@@ -383,6 +383,24 @@ export function CheckoutPage() {
     }
   };
 
+  // Получить текст кнопки оплаты в зависимости от способа оплаты
+  const getPaymentButtonText = (): string => {
+    if (!formData.paymentMethod) {
+      return 'Оформить заказ';
+    }
+    
+    const paymentCode = formData.paymentMethod.code?.toLowerCase();
+    
+    switch (paymentCode) {
+      case 'yookassa':
+        return 'Оплатить через ЮKassa';
+      case 'cash':
+        return 'Оформить заказ';
+      default:
+        return `Оплатить через ${formData.paymentMethod.name}`;
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
     hapticFeedback('medium');
@@ -428,13 +446,40 @@ export function CheckoutPage() {
         discount: discountInfo?.discount || 0,
       };
 
-      // Create order with real data
+      const paymentCode = formData.paymentMethod?.code?.toLowerCase();
+      
+      // Для наличных - просто создаем заказ
+      if (paymentCode === 'cash') {
+        const order = await createOrder(orderData);
+        
+        // Очищаем корзину
+        clearCart();
+        hapticFeedback('success');
+        
+        // Переходим на страницу успеха
+        navigate(`/orders/${order.orderId}?success=true`);
+        toast.success('Заказ успешно оформлен!');
+        return;
+      }
+      
+      // Для ЮКассы и других способов оплаты - создаем заказ
       const order = await createOrder(orderData);
-
+      
+      // Очищаем корзину
       clearCart();
       hapticFeedback('success');
-      toast.success('Заказ успешно оформлен!');
-      navigate(`/order-success/${order.orderId}`);
+      
+      // Для ЮКассы - переходим к оплате (в будущем можно добавить редирект на страницу оплаты)
+      if (paymentCode === 'yookassa') {
+        // TODO: Реализовать редирект на страницу оплаты ЮКассы
+        // Пока просто переходим на страницу заказа
+        navigate(`/orders/${order.orderId}?payment=yookassa`);
+        toast.success('Заказ создан. Переход к оплате...');
+      } else {
+        // Для других способов оплаты - переходим на страницу успеха
+        navigate(`/orders/${order.orderId}?success=true`);
+        toast.success('Заказ успешно оформлен!');
+      }
     } catch (err) {
       hapticFeedback('error');
       toast.error('Ошибка при оформлении заказа');
@@ -888,7 +933,7 @@ export function CheckoutPage() {
                   Обработка...
                 </>
               ) : (
-                'Оплатить через ЮKassa'
+                getPaymentButtonText()
               )}
             </button>
           )}
