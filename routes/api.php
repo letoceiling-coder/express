@@ -41,6 +41,12 @@ Route::prefix('v1')->group(function () {
     Route::get('categories/{id}', [CategoryController::class, 'show'])->name('categories.show.public');
     Route::get('products', [ProductController::class, 'index'])->name('products.index.public');
     Route::get('products/{id}', [ProductController::class, 'show'])->name('products.show.public');
+    
+    // Публичные роуты для заказов из MiniApp
+    // GET - только с фильтром telegram_id (пользователь может получить только свои заказы)
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index.public');
+    // POST - создание заказа из MiniApp
+    Route::post('orders', [OrderController::class, 'store'])->name('orders.store.public');
 });
 
 // Защищённые роуты

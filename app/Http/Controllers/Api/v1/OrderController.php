@@ -195,6 +195,24 @@ class OrderController extends Controller
     {
         $query = Order::query()->with(['items', 'manager', 'bot']);
 
+        // Безопасность: если запрос без авторизации (публичный), обязателен telegram_id
+        // Пользователь может получить только свои заказы
+        if (!$request->user()) {
+            if (!$request->has('telegram_id') || !$request->get('telegram_id')) {
+                return response()->json([
+                    'message' => 'Для получения заказов необходимо указать telegram_id',
+                ], 400);
+            }
+            // Для публичных запросов принудительно фильтруем по telegram_id
+            $query->where('telegram_id', $request->get('telegram_id'));
+        } else {
+            // Для авторизованных пользователей (админов) можно использовать все фильтры
+            // Фильтрация по telegram_id (опционально)
+            if ($request->has('telegram_id')) {
+                $query->where('telegram_id', $request->get('telegram_id'));
+            }
+        }
+
         // Фильтрация по статусу
         if ($request->has('status')) {
             $query->where('status', $request->get('status'));
@@ -203,11 +221,6 @@ class OrderController extends Controller
         // Фильтрация по статусу оплаты
         if ($request->has('payment_status')) {
             $query->where('payment_status', $request->get('payment_status'));
-        }
-
-        // Фильтрация по telegram_id
-        if ($request->has('telegram_id')) {
-            $query->where('telegram_id', $request->get('telegram_id'));
         }
 
         // Фильтрация по менеджеру
