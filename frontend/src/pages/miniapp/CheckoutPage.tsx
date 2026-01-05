@@ -86,13 +86,99 @@ export function CheckoutPage() {
     phone: '',
     name: '',
     address: '',
-    deliveryTime: '',
+    deliveryTime: 'asap', // По умолчанию "как можно скорее"
+    deliveryDate: '',
+    deliveryTimeSlot: '',
     deliveryType: 'courier' as DeliveryType,
     comment: '',
     paymentMethod: null as any | null,
   });
   
-  const [availableTimeSlots] = useState(() => generateTimeSlots());
+  // Генерация доступных дат (сегодня и следующие 7 дней)
+  const getAvailableDates = (): { value: string; label: string }[] => {
+    const dates: { value: string; label: string }[] = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 8; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      const dateStr = date.toISOString().split('T')[0];
+      const dayName = date.toLocaleDateString('ru-RU', { weekday: 'short' });
+      const dayNumber = date.getDate();
+      const monthName = date.toLocaleDateString('ru-RU', { month: 'short' });
+      
+      if (i === 0) {
+        dates.push({ value: dateStr, label: `Сегодня, ${dayNumber} ${monthName}` });
+      } else if (i === 1) {
+        dates.push({ value: dateStr, label: `Завтра, ${dayNumber} ${monthName}` });
+      } else {
+        dates.push({ value: dateStr, label: `${dayName}, ${dayNumber} ${monthName}` });
+      }
+    }
+    
+    return dates;
+  };
+  
+  // Генерация временных слотов для выбранной даты
+  const getTimeSlotsForDate = (selectedDate: string): string[] => {
+    const slots = [
+      '10:00-11:00',
+      '11:00-12:00',
+      '12:00-13:00',
+      '13:00-14:00',
+      '14:00-15:00',
+      '15:00-16:00',
+      '16:00-17:00',
+      '17:00-18:00',
+      '18:00-19:00',
+      '19:00-20:00',
+      '20:00-21:00',
+    ];
+    
+    if (!selectedDate) {
+      return [];
+    }
+    
+    const now = new Date();
+    const selected = new Date(selectedDate + 'T00:00:00'); // Устанавливаем время на начало дня для корректного сравнения
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selected.setHours(0, 0, 0, 0);
+    
+    const isToday = selected.getTime() === today.getTime();
+    const isPast = selected < today;
+    
+    // Если дата в прошлом, возвращаем пустой массив
+    if (isPast) {
+      return [];
+    }
+    
+    if (!isToday) {
+      // Если не сегодня, все слоты доступны
+      return slots;
+    }
+    
+    // Если сегодня, фильтруем прошедшие слоты
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    return slots.filter((slot) => {
+      const [startTime] = slot.split('-');
+      const [hour, minute] = startTime.split(':').map(Number);
+      
+      // Исключаем слоты, которые уже прошли
+      if (hour < currentHour) return false;
+      if (hour === currentHour && minute < currentMinute) return false;
+      
+      // Исключаем текущий час (запас 1 час)
+      if (hour === currentHour) return false;
+      
+      return true;
+    });
+  };
+  
+  const [availableDates] = useState(() => getAvailableDates());
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
@@ -296,11 +382,28 @@ export function CheckoutPage() {
       // Подготовка данных заказа
       const phoneDigits = getPhoneDigits(formData.phone);
       const finalAmount = discountInfo?.final_amount || totalAmount;
+      
+      // Формируем строку времени доставки
+      let deliveryTimeStr: string | undefined;
+      if (formData.deliveryTime === 'asap') {
+        deliveryTimeStr = 'Как можно скорее';
+      } else if (formData.deliveryTime === 'scheduled' && formData.deliveryDate && formData.deliveryTimeSlot) {
+        // Форматируем дату и время
+        const date = new Date(formData.deliveryDate);
+        const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+        deliveryTimeStr = `${dateStr}, ${formData.deliveryTimeSlot}`;
+      } else if (formData.deliveryTime === 'scheduled' && formData.deliveryDate) {
+        // Только дата без времени
+        const date = new Date(formData.deliveryDate);
+        const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+        deliveryTimeStr = dateStr;
+      }
+      
       const orderData = {
         phone: phoneDigits,
         name: formData.name || undefined,
         deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : formData.address,
-        deliveryTime: formData.deliveryTime || undefined,
+        deliveryTime: deliveryTimeStr,
         deliveryType: formData.deliveryType,
         comment: formData.comment || undefined,
         paymentMethod: formData.paymentMethod?.code || null,
@@ -439,26 +542,101 @@ export function CheckoutPage() {
 
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">
-                Время доставки (опционально)
+                Время доставки
               </label>
-              <select
-                value={formData.deliveryTime}
-                onChange={(e) => setFormData({ ...formData, deliveryTime: e.target.value })}
-                className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">Выберите время</option>
-                {availableTimeSlots.length > 0 ? (
-                  availableTimeSlots.map((slot) => (
-                    <option key={slot} value={slot}>{slot}</option>
-                  ))
-                ) : (
-                  <option value="" disabled>Нет доступных временных слотов на сегодня</option>
-                )}
-              </select>
-              {availableTimeSlots.length === 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Все временные слоты на сегодня заняты. Выберите время или оставьте поле пустым.
-                </p>
+              
+              {/* Радио-кнопки для выбора типа времени */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deliveryTime"
+                    value="asap"
+                    checked={formData.deliveryTime === 'asap'}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      deliveryTime: e.target.value,
+                      deliveryDate: '',
+                      deliveryTimeSlot: '',
+                    })}
+                    className="w-4 h-4 text-primary border-input"
+                  />
+                  <span className="text-sm text-foreground">Как можно скорее</span>
+                </label>
+                
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deliveryTime"
+                    value="scheduled"
+                    checked={formData.deliveryTime === 'scheduled'}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      deliveryTime: e.target.value,
+                    })}
+                    className="w-4 h-4 text-primary border-input"
+                  />
+                  <span className="text-sm text-foreground">Выбрать дату и время</span>
+                </label>
+              </div>
+              
+              {/* Выбор даты и времени, если выбрано "Выбрать дату и время" */}
+              {formData.deliveryTime === 'scheduled' && (
+                <div className="mt-4 space-y-3 pl-7">
+                  {/* Выбор даты */}
+                  <div>
+                    <label className="mb-1.5 block text-sm text-muted-foreground">
+                      Дата доставки
+                    </label>
+                    <select
+                      value={formData.deliveryDate}
+                      onChange={(e) => {
+                        setFormData({ 
+                          ...formData, 
+                          deliveryDate: e.target.value,
+                          deliveryTimeSlot: '', // Сбрасываем время при смене даты
+                        });
+                      }}
+                      className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Выберите дату</option>
+                      {availableDates.map((date) => (
+                        <option key={date.value} value={date.value}>
+                          {date.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Выбор времени */}
+                  {formData.deliveryDate && (
+                    <div>
+                      <label className="mb-1.5 block text-sm text-muted-foreground">
+                        Время доставки
+                      </label>
+                      <select
+                        value={formData.deliveryTimeSlot}
+                        onChange={(e) => setFormData({ 
+                          ...formData, 
+                          deliveryTimeSlot: e.target.value,
+                        })}
+                        className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        <option value="">Выберите время</option>
+                        {getTimeSlotsForDate(formData.deliveryDate).map((slot) => (
+                          <option key={slot} value={slot}>
+                            {slot}
+                          </option>
+                        ))}
+                      </select>
+                      {getTimeSlotsForDate(formData.deliveryDate).length === 0 && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Нет доступных временных слотов на выбранную дату
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -608,12 +786,18 @@ export function CheckoutPage() {
                     <span className="text-foreground text-right max-w-[200px]">{formData.address}</span>
                   </div>
                 )}
-                {formData.deliveryTime && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Время</span>
-                    <span className="text-foreground">{formData.deliveryTime}</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Время доставки</span>
+                  <span className="text-foreground">
+                    {formData.deliveryTime === 'asap' 
+                      ? 'Как можно скорее'
+                      : formData.deliveryTime === 'scheduled' && formData.deliveryDate && formData.deliveryTimeSlot
+                      ? `${new Date(formData.deliveryDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}, ${formData.deliveryTimeSlot}`
+                      : formData.deliveryTime === 'scheduled' && formData.deliveryDate
+                      ? new Date(formData.deliveryDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+                      : 'Как можно скорее'}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Телефон</span>
                   <span className="text-foreground">{formData.phone}</span>

@@ -226,7 +226,7 @@ export default {
                     formData.notification_text = null;
                 }
 
-                await apiPost('/v1/payment-methods', formData);
+                await apiPost('/payment-methods', formData);
                 this.$router.push('/payment-methods');
             } catch (err) {
                 if (err.response?.data?.errors) {

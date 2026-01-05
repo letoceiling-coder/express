@@ -200,7 +200,7 @@ export default {
             this.loading = true;
             this.error = null;
             try {
-                const response = await apiGet('/v1/payment-methods');
+                const response = await apiGet('/payment-methods');
                 this.methods = response.data || [];
             } catch (err) {
                 this.error = err.response?.data?.message || 'Ошибка загрузки способов оплаты';
@@ -215,7 +215,7 @@ export default {
             }
 
             try {
-                await apiDelete(`/v1/payment-methods/${id}`);
+                await apiDelete(`/payment-methods/${id}`);
                 this.methods = this.methods.filter(m => m.id !== id);
             } catch (err) {
                 alert(err.response?.data?.message || 'Ошибка удаления способа оплаты');

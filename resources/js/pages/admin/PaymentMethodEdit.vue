@@ -232,7 +232,7 @@ export default {
             this.loading = true;
             this.error = null;
             try {
-                const response = await apiGet(`/v1/payment-methods/${this.$route.params.id}`);
+                const response = await apiGet(`/payment-methods/${this.$route.params.id}`);
                 this.method = response.data;
                 this.form = {
                     code: this.method.code || '',
@@ -267,7 +267,7 @@ export default {
                     formData.notification_text = null;
                 }
 
-                await apiPut(`/v1/payment-methods/${this.$route.params.id}`, formData);
+                await apiPut(`/payment-methods/${this.$route.params.id}`, formData);
                 this.$router.push('/payment-methods');
             } catch (err) {
                 if (err.response?.data?.errors) {
