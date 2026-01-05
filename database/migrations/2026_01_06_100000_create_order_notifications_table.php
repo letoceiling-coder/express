@@ -31,7 +31,7 @@ return new class extends Migration
             $table->index('status');
             $table->index('expires_at');
             // Составной индекс для быстрого поиска активных уведомлений клиента
-            $table->index(['order_id', 'telegram_user_id', 'notification_type']);
+            $table->index(['order_id', 'telegram_user_id', 'notification_type'], 'idx_order_user_type');
         });
     }
 
