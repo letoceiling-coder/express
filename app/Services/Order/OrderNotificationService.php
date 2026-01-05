@@ -440,9 +440,9 @@ class OrderNotificationService
             );
 
             if ($result['success'] ?? false) {
-                $this->createNotification(
-                    $order->id,
-                    $courier->id,
+                $this->saveNotification(
+                    $order,
+                    $courier,
                     $result['data']['message_id'],
                     $courier->telegram_id,
                     OrderNotification::TYPE_COURIER_ORDER,

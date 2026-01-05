@@ -1878,13 +1878,16 @@ class BotController extends Controller
                     throw new \Exception('Courier not assigned to this order');
                 }
 
-                // Если оплата уже получена, сразу меняем статус на delivered
+                // Меняем статус на delivered
+                $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                    'role' => 'courier',
+                    'changed_by_telegram_user_id' => $telegramUser->id,
+                    'comment' => 'Заказ доставлен курьером',
+                ]);
+
+                // Если оплата уже получена, обновляем комментарий
                 if ($order->payment_status === Order::PAYMENT_STATUS_SUCCEEDED) {
-                    $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
-                        'role' => 'courier',
-                        'changed_by_telegram_user_id' => $telegramUser->id,
-                        'comment' => 'Заказ доставлен, оплата уже получена',
-                    ]);
+                    // Оплата уже получена, ничего не делаем
                 }
 
                 // Увеличиваем version
@@ -1991,35 +1994,33 @@ class BotController extends Controller
                 }
 
                 if ($status === 'received') {
-                // Создаем платеж в БД
-                $payment = \App\Models\Payment::create([
-                    'order_id' => $order->id,
-                    'payment_method' => $order->payment_method ?? \App\Models\Payment::METHOD_CASH,
-                    'payment_provider' => 'courier',
-                    'status' => \App\Models\Payment::STATUS_SUCCEEDED,
-                    'amount' => $order->total_amount,
-                    'currency' => 'RUB',
-                    'transaction_id' => 'COURIER-' . $order->order_id . '-' . time(),
-                    'notes' => "Оплата принята курьером {$telegramUser->full_name}",
-                    'paid_at' => now(),
-                ]);
+                    // Проверяем, не создан ли уже платеж для этого заказа
+                    $existingPayment = \App\Models\Payment::where('order_id', $order->id)
+                        ->where('payment_provider', 'courier')
+                        ->where('status', \App\Models\Payment::STATUS_SUCCEEDED)
+                        ->first();
 
-                    // Создаем платеж в БД
-                    $payment = \App\Models\Payment::create([
-                        'order_id' => $order->id,
-                        'payment_method' => $order->payment_method ?? \App\Models\Payment::METHOD_CASH,
-                        'payment_provider' => 'courier',
-                        'status' => \App\Models\Payment::STATUS_SUCCEEDED,
-                        'amount' => $order->total_amount,
-                        'currency' => 'RUB',
-                        'transaction_id' => 'COURIER-' . $order->order_id . '-' . time(),
-                        'notes' => "Оплата принята курьером {$telegramUser->full_name}",
-                        'paid_at' => now(),
-                    ]);
+                    if (!$existingPayment) {
+                        // Создаем платеж в БД
+                        $payment = \App\Models\Payment::create([
+                            'order_id' => $order->id,
+                            'payment_method' => $order->payment_method ?? \App\Models\Payment::METHOD_CASH,
+                            'payment_provider' => 'courier',
+                            'status' => \App\Models\Payment::STATUS_SUCCEEDED,
+                            'amount' => $order->total_amount,
+                            'currency' => 'RUB',
+                            'transaction_id' => 'COURIER-' . $order->order_id . '-' . time(),
+                            'notes' => "Оплата принята курьером {$telegramUser->full_name}",
+                            'paid_at' => now(),
+                        ]);
+                    } else {
+                        $payment = $existingPayment;
+                    }
 
                     // Обновляем статус оплаты заказа
                     $order->payment_status = Order::PAYMENT_STATUS_SUCCEEDED;
                     $order->payment_id = (string) $payment->id;
+                    $order->save();
 
                     // Изменяем статус заказа на доставлен
                     $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
@@ -2044,6 +2045,7 @@ class BotController extends Controller
                     // Обновляем статус оплаты заказа
                     $order->payment_status = Order::PAYMENT_STATUS_FAILED;
                     $order->payment_id = (string) $payment->id;
+                    $order->save();
 
                     // Все равно доставляем заказ, но отмечаем что оплата не получена
                     $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
