@@ -22,18 +22,29 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
 
   useEffect(() => {
-    console.log('OrdersPage - Component mounted, loading orders...');
-    console.log('OrdersPage - window.Telegram:', window.Telegram);
-    console.log('OrdersPage - window.Telegram?.WebApp:', window.Telegram?.WebApp);
+    console.log('OrdersPage - Component mounted, checking if orders need loading...');
+    console.log('OrdersPage - Current orders count:', orders.length);
     
-    // Небольшая задержка, чтобы Telegram WebApp успел инициализироваться
-    const timer = setTimeout(() => {
-      console.log('OrdersPage - Calling loadOrders after delay...');
-      loadOrders();
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [loadOrders]);
+    // Загружаем заказы только если их нет или прошло достаточно времени
+    if (orders.length === 0) {
+      console.log('OrdersPage - No orders, loading...');
+      // Небольшая задержка, чтобы Telegram WebApp успел инициализироваться
+      const timer = setTimeout(() => {
+        console.log('OrdersPage - Calling loadOrders after delay...');
+        loadOrders(true); // Принудительная загрузка при первом открытии
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    } else {
+      console.log('OrdersPage - Orders already loaded, refreshing silently...');
+      // Обновляем заказы в фоне без показа загрузки
+      const timer = setTimeout(() => {
+        loadOrders(false); // Тихая проверка обновлений
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Запускаем только при монтировании
 
   useEffect(() => {
     console.log('OrdersPage - Orders state changed:', {

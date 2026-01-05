@@ -347,12 +347,34 @@ export const ordersAPI = {
 
   async getByOrderId(orderId: string): Promise<Order | null> {
     try {
-      // Ищем по order_id через поиск
-      const response = await apiRequest(`/orders?search=${orderId}`);
-      const orders = response.data?.data || response.data || [];
-      const order = orders.find((o: any) => o.order_id === orderId);
+      console.log('Orders API - getByOrderId request:', { orderId });
       
-      if (!order) return null;
+      // Получаем telegram_id для публичного запроса
+      const { getTelegramUser } = await import('@/lib/telegram');
+      const user = getTelegramUser();
+      const telegramId = user?.id;
+      
+      if (!telegramId) {
+        console.warn('Orders API - getByOrderId: No telegram_id, cannot fetch order');
+        return null;
+      }
+      
+      // Ищем по order_id через поиск с telegram_id для безопасности
+      const searchUrl = `/orders?search=${encodeURIComponent(orderId)}&telegram_id=${telegramId}`;
+      console.log('Orders API - getByOrderId search URL:', searchUrl);
+      
+      const response = await apiRequest(searchUrl);
+      console.log('Orders API - getByOrderId raw response:', response);
+      
+      const orders = response.data?.data || response.data || [];
+      const order = Array.isArray(orders) ? orders.find((o: any) => o.order_id === orderId) : null;
+      
+      if (!order) {
+        console.warn('Orders API - getByOrderId: Order not found', { orderId, ordersCount: orders.length });
+        return null;
+      }
+      
+      console.log('Orders API - getByOrderId: Order found', { orderId: order.order_id });
       
       return {
         id: String(order.id),

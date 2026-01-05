@@ -127,7 +127,7 @@ export function CheckoutPage() {
           console.log('CheckoutPage - Using last order for autofill:', lastOrder);
           
           // Обрабатываем телефон: если он уже отформатирован, используем как есть, иначе форматируем
-          let phoneValue = prev.phone;
+          let phoneValue = '';
           if (lastOrder.phone) {
             // Проверяем, отформатирован ли телефон уже
             const phoneDigits = getPhoneDigits(lastOrder.phone);
@@ -142,7 +142,7 @@ export function CheckoutPage() {
           
           setFormData(prev => ({
             ...prev,
-            phone: phoneValue,
+            phone: phoneValue || prev.phone,
             address: lastOrder.deliveryAddress || prev.address,
             name: lastOrder.name || prev.name || '', // Имя берем из заказа
           }));

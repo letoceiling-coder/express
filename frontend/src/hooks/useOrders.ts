@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ordersAPI } from '@/api';
 import { Order, CreateOrderPayload } from '@/types';
 import { getTelegramUser } from '@/lib/telegram';
@@ -7,9 +7,22 @@ export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastLoadTimeRef = useRef<number>(0);
+  const ordersRef = useRef<Order[]>([]);
 
-  const loadOrders = useCallback(async () => {
-    console.log('useOrders - loadOrders called');
+  // Синхронизируем ref с state
+  ordersRef.current = orders;
+
+  const loadOrders = useCallback(async (forceRefresh = false) => {
+    const currentOrders = ordersRef.current;
+    console.log('useOrders - loadOrders called', { forceRefresh, hasOrders: currentOrders.length > 0 });
+    
+    // Если заказы уже загружены и прошло менее 5 секунд, не перезагружаем
+    if (!forceRefresh && currentOrders.length > 0 && Date.now() - lastLoadTimeRef.current < 5000) {
+      console.log('useOrders - Orders recently loaded, skipping reload');
+      return;
+    }
+    
     console.log('useOrders - window.Telegram check:', {
       exists: !!window.Telegram,
       hasWebApp: !!window.Telegram?.WebApp,
@@ -50,8 +63,11 @@ export function useOrders() {
         initDataUnsafe: window.Telegram?.WebApp?.initDataUnsafe,
         initData: window.Telegram?.WebApp?.initData,
       });
-      setOrders([]);
-      setError('Не удалось определить пользователя Telegram. Пожалуйста, перезагрузите приложение.');
+      // Не очищаем заказы, если они уже есть
+      if (currentOrders.length === 0) {
+        setOrders([]);
+        setError('Не удалось определить пользователя Telegram. Пожалуйста, перезагрузите приложение.');
+      }
       return;
     }
     
@@ -62,7 +78,40 @@ export function useOrders() {
       console.log('useOrders - Calling ordersAPI.getByTelegramId with:', telegramId);
       const data = await ordersAPI.getByTelegramId(telegramId);
       console.log('useOrders - Received orders:', data, 'count:', data.length);
-      setOrders(data);
+      
+      // Умное обновление: сверяем заказы и обновляем только при расхождении
+      if (currentOrders.length > 0 && !forceRefresh) {
+        const currentOrderIds = new Set(currentOrders.map(o => o.orderId));
+        const newOrderIds = new Set(data.map(o => o.orderId));
+        
+        // Проверяем, есть ли изменения
+        const hasChanges = 
+          currentOrderIds.size !== newOrderIds.size ||
+          Array.from(currentOrderIds).some(id => !newOrderIds.has(id)) ||
+          Array.from(newOrderIds).some(id => !currentOrderIds.has(id));
+        
+        if (hasChanges) {
+          console.log('useOrders - Orders changed, updating...', {
+            oldCount: currentOrders.length,
+            newCount: data.length,
+          });
+          setOrders(data);
+        } else {
+          console.log('useOrders - No changes detected, keeping existing orders');
+          // Обновляем только статусы существующих заказов
+          setOrders(prevOrders => {
+            return prevOrders.map(oldOrder => {
+              const newOrder = data.find(o => o.orderId === oldOrder.orderId);
+              return newOrder || oldOrder;
+            });
+          });
+        }
+      } else {
+        // Первая загрузка или принудительное обновление
+        setOrders(data);
+      }
+      
+      lastLoadTimeRef.current = Date.now();
       
       if (data.length === 0) {
         console.warn('useOrders - No orders returned for telegramId:', telegramId);
@@ -76,7 +125,10 @@ export function useOrders() {
         data: err?.response?.data,
       });
       setError(err?.response?.data?.message || err?.message || 'Ошибка загрузки заказов');
-      setOrders([]); // Очищаем заказы при ошибке
+      // Не очищаем заказы при ошибке, если они уже есть
+      if (currentOrders.length === 0) {
+        setOrders([]);
+      }
     } finally {
       setLoading(false);
     }

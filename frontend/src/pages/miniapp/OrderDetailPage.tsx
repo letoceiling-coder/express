@@ -13,20 +13,32 @@ import { OptimizedImage } from '@/components/OptimizedImage';
 export function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrderById } = useOrders();
+  const { getOrderById, orders } = useOrders();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
       if (!orderId) return;
+      
+      // Сначала проверяем заказы из кеша
+      const cachedOrder = orders.find(o => o.orderId === orderId);
+      if (cachedOrder) {
+        console.log('OrderDetailPage - Found order in cache:', cachedOrder.orderId);
+        setOrder(cachedOrder);
+        setLoading(false);
+        return;
+      }
+      
+      // Если не найден в кеше, загружаем с сервера
+      console.log('OrderDetailPage - Order not in cache, fetching from server:', orderId);
       setLoading(true);
       const data = await getOrderById(orderId);
       setOrder(data);
       setLoading(false);
     };
     fetchOrder();
-  }, [orderId, getOrderById]);
+  }, [orderId, getOrderById, orders]);
 
   if (loading) {
     return (
