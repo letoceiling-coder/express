@@ -79,9 +79,13 @@ class OrderController extends Controller
             Log::info('OrderController::store - Creating order', [
                 'telegram_id' => $telegramId,
                 'telegram_id_type' => gettype($telegramId),
+                'telegram_id_value' => var_export($telegramId, true),
                 'order_id' => $orderId,
                 'phone' => $request->get('phone'),
                 'name' => $request->get('name'),
+                'total_amount' => $request->get('total_amount'),
+                'items_count' => count($request->get('items', [])),
+                'request_all' => $request->all(),
             ]);
             
             $order = Order::create([
@@ -99,10 +103,15 @@ class OrderController extends Controller
                 'payment_status' => Order::PAYMENT_STATUS_PENDING,
             ]);
             
-            Log::info('OrderController::store - Order created', [
+            Log::info('OrderController::store - Order created successfully', [
                 'order_id' => $order->id,
                 'order_order_id' => $order->order_id,
                 'telegram_id' => $order->telegram_id,
+                'telegram_id_type' => gettype($order->telegram_id),
+                'phone' => $order->phone,
+                'name' => $order->name,
+                'total_amount' => $order->total_amount,
+                'items_count' => $order->items()->count(),
             ]);
 
             // Создаем элементы заказа

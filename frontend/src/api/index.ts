@@ -170,6 +170,14 @@ export const productsAPI = {
 // Orders API
 export const ordersAPI = {
   async create(payload: CreateOrderPayload, telegramId: number): Promise<Order> {
+    console.log('ordersAPI.create - Creating order', {
+      telegramId,
+      telegramIdType: typeof telegramId,
+      payloadPhone: payload.phone,
+      payloadItemsCount: payload.items.length,
+      totalAmount: payload.totalAmount,
+    });
+    
     // Генерируем order_id на клиенте (или можно доверить серверу)
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -197,11 +205,22 @@ export const ordersAPI = {
       })),
     };
 
+    console.log('ordersAPI.create - Order data prepared', {
+      orderId,
+      telegram_id: orderData.telegram_id,
+      itemsCount: orderData.items.length,
+    });
+
     // ВАЖНО: Этот endpoint нужно будет создать на сервере
     // Пока используем прямое создание через OrderController (если будет метод store)
     const response = await apiRequest('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
+    });
+    
+    console.log('ordersAPI.create - Order created successfully', {
+      orderId: response.data?.order_id,
+      telegramId: response.data?.telegram_id,
     });
 
     const order = response.data;
