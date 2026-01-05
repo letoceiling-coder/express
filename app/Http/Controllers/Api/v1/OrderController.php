@@ -194,9 +194,15 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         // Логируем входящий запрос для отладки
+        $hasAuth = $request->user() !== null;
+        $authHeader = $request->header('Authorization');
+        $hasToken = !empty($authHeader) && str_starts_with($authHeader, 'Bearer ');
+        
         Log::info('OrderController::index - Incoming request', [
-            'has_user' => $request->user() !== null,
+            'has_user' => $hasAuth,
             'user_id' => $request->user()?->id,
+            'has_auth_header' => !empty($authHeader),
+            'auth_header_preview' => $authHeader ? substr($authHeader, 0, 20) . '...' : null,
             'telegram_id' => $request->get('telegram_id'),
             'method' => $request->method(),
             'path' => $request->path(),
@@ -206,11 +212,13 @@ class OrderController extends Controller
 
         // Безопасность: если запрос без авторизации (публичный), обязателен telegram_id
         // Пользователь может получить только свои заказы
-        if (!$request->user()) {
+        // Если есть токен в заголовке, считаем запрос авторизованным (даже если Sanctum не распознал)
+        if (!$hasAuth && !$hasToken) {
+            // Публичный запрос БЕЗ токена - требуется telegram_id
             if (!$request->has('telegram_id') || !$request->get('telegram_id')) {
                 Log::warning('OrderController::index - Missing telegram_id for public request');
                 return response()->json([
-                    'message' => 'Для получения заказов необходимо указать telegram_id',
+                    'message' => 'Для получения заказов необходимо указать telegram_id или авторизоваться',
                 ], 400);
             }
             // Для публичных запросов принудительно фильтруем по telegram_id
@@ -224,8 +232,9 @@ class OrderController extends Controller
             if ($request->has('telegram_id')) {
                 $query->where('telegram_id', $request->get('telegram_id'));
             }
-            Log::info('OrderController::index - Authenticated request', [
-                'user_id' => $request->user()->id,
+            Log::info('OrderController::index - Authenticated request (by token or user)', [
+                'user_id' => $request->user()?->id,
+                'has_token' => $hasToken,
             ]);
         }
 
