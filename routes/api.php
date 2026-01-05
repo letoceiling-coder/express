@@ -96,8 +96,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('products/{productId}/history/{historyId}', [ProductHistoryController::class, 'show'])
             ->name('products.history.show');
         
-        // Orders
-        Route::apiResource('orders', OrderController::class);
+        // Orders (GET и POST обрабатываются публичными роутами, здесь только защищенные методы)
+        Route::get('orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+        Route::put('orders/{id}', [OrderController::class, 'update'])->name('orders.update');
+        Route::delete('orders/{id}', [OrderController::class, 'destroy'])->name('orders.destroy');
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
         Route::get('orders/{id}/status-history', [OrderController::class, 'statusHistory'])

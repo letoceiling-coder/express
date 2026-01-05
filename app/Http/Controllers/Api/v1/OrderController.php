@@ -193,24 +193,40 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
+        // Логируем входящий запрос для отладки
+        Log::info('OrderController::index - Incoming request', [
+            'has_user' => $request->user() !== null,
+            'user_id' => $request->user()?->id,
+            'telegram_id' => $request->get('telegram_id'),
+            'method' => $request->method(),
+            'path' => $request->path(),
+        ]);
+
         $query = Order::query()->with(['items', 'manager', 'bot']);
 
         // Безопасность: если запрос без авторизации (публичный), обязателен telegram_id
         // Пользователь может получить только свои заказы
         if (!$request->user()) {
             if (!$request->has('telegram_id') || !$request->get('telegram_id')) {
+                Log::warning('OrderController::index - Missing telegram_id for public request');
                 return response()->json([
                     'message' => 'Для получения заказов необходимо указать telegram_id',
                 ], 400);
             }
             // Для публичных запросов принудительно фильтруем по telegram_id
             $query->where('telegram_id', $request->get('telegram_id'));
+            Log::info('OrderController::index - Public request filtered by telegram_id', [
+                'telegram_id' => $request->get('telegram_id'),
+            ]);
         } else {
             // Для авторизованных пользователей (админов) можно использовать все фильтры
             // Фильтрация по telegram_id (опционально)
             if ($request->has('telegram_id')) {
                 $query->where('telegram_id', $request->get('telegram_id'));
             }
+            Log::info('OrderController::index - Authenticated request', [
+                'user_id' => $request->user()->id,
+            ]);
         }
 
         // Фильтрация по статусу
