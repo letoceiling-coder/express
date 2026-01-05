@@ -660,6 +660,38 @@ if (store.state.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${store.state.token}`;
 }
 
+// Добавляем interceptor для автоматического добавления токена во все запросы
+axios.interceptors.request.use(
+    (config) => {
+        // Получаем токен из localStorage (на случай, если он обновился)
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers = config.headers || {};
+            config.headers['Authorization'] = `Bearer ${token}`;
+            
+            // Логируем для отладки (только для API запросов)
+            if (config.url && config.url.includes('/api/')) {
+                console.log('🔐 Axios Interceptor - Adding Authorization header', {
+                    url: config.url,
+                    hasToken: !!token,
+                    tokenLength: token ? token.length : 0,
+                });
+            }
+        } else {
+            // Логируем предупреждение, если токена нет для API запросов
+            if (config.url && config.url.includes('/api/') && !config.url.includes('/api/auth/')) {
+                console.warn('⚠️ Axios Interceptor - No token found for API request', {
+                    url: config.url,
+                });
+            }
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 // Инициализация пользователя при загрузке приложения
 if (store.state.token) {
     console.log('🔍 App initialization - Token found, fetching user...');
