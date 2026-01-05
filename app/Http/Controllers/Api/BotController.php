@@ -1849,6 +1849,9 @@ class BotController extends Controller
             // Отправляем курьеру новое сообщение с кнопками
             $this->orderNotificationService->notifyCourierInTransit($order, $telegramUser);
 
+            // Отправляем адрес доставки с кнопкой для открытия в навигаторе
+            $this->sendDeliveryAddressToCourier($bot, $order, $telegramUser);
+
             \Illuminate\Support\Facades\Log::info('Order picked by courier', [
                 'order_id' => $orderId,
                 'courier_id' => $telegramUser->id,
@@ -1957,12 +1960,14 @@ class BotController extends Controller
                     'order_id' => $order->id,
                     'courier_id' => $telegramUser->id,
                 ]);
-                return;
             }
 
+            // Всегда уведомляем администратора о доставке
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_DELIVERED, [
                 'message' => "Заказ #{$order->order_id} доставлен курьером {$telegramUser->full_name}",
             ]);
+            
+            // Обновляем статус у клиента
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_DELIVERED);
             
             \Illuminate\Support\Facades\Log::info('Order delivered by courier (payment already received)', [
@@ -2108,6 +2113,13 @@ class BotController extends Controller
                     'payment_id' => $order->payment_id,
                     'amount' => $order->total_amount,
                 ]);
+
+                // Отправляем благодарственное сообщение курьеру
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $telegramUser->telegram_id,
+                    "✅ Все хорошо, спасибо за работу!\n\nЗаказ #{$order->order_id} успешно доставлен и оплачен."
+                );
             } else {
                 \Illuminate\Support\Facades\Log::warning('Payment not received by courier', [
                     'order_id' => $order->id,
@@ -2539,6 +2551,82 @@ class BotController extends Controller
                 'order_id' => $order->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Отправить адрес доставки курьеру с кнопкой для открытия в навигаторе
+     *
+     * @param Bot $bot
+     * @param Order $order
+     * @param TelegramUser $courier
+     * @return void
+     */
+    private function sendDeliveryAddressToCourier(Bot $bot, Order $order, TelegramUser $courier): void
+    {
+        try {
+            $address = $order->delivery_address;
+            if (empty($address)) {
+                \Illuminate\Support\Facades\Log::warning('No delivery address for courier', [
+                    'order_id' => $order->id,
+                ]);
+                return;
+            }
+
+            // Формируем URL для открытия в навигаторе (Yandex Maps)
+            $encodedAddress = urlencode($address);
+            $yandexMapsUrl = "https://yandex.ru/maps/?text={$encodedAddress}";
+            
+            // Также можно использовать Google Maps
+            $googleMapsUrl = "https://www.google.com/maps/search/?api=1&query={$encodedAddress}";
+
+            $message = "📍 Адрес доставки для заказа #{$order->order_id}:\n\n";
+            $message .= "{$address}\n\n";
+            $message .= "Нажмите на кнопку ниже, чтобы открыть в навигаторе:";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => '🗺️ Открыть в Яндекс.Картах',
+                            'url' => $yandexMapsUrl
+                        ]
+                    ],
+                    [
+                        [
+                            'text' => '🗺️ Открыть в Google Maps',
+                            'url' => $googleMapsUrl
+                        ]
+                    ]
+                ]
+            ];
+
+            $result = $this->telegramService->sendMessage(
+                $bot->token,
+                $courier->telegram_id,
+                $message,
+                ['reply_markup' => json_encode($keyboard)]
+            );
+
+            if ($result['success'] ?? false) {
+                \Illuminate\Support\Facades\Log::info('Delivery address sent to courier', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'address' => $address,
+                ]);
+            } else {
+                \Illuminate\Support\Facades\Log::warning('Failed to send delivery address to courier', [
+                    'order_id' => $order->id,
+                    'courier_id' => $courier->id,
+                    'error' => $result['message'] ?? 'Unknown error',
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending delivery address to courier: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'courier_id' => $courier->id ?? null,
+                'error' => $e->getMessage(),
             ]);
         }
     }

@@ -964,5 +964,60 @@ class TelegramService
         // По умолчанию возвращаем 1 секунду
         return 1;
     }
+
+    /**
+     * Отправить локацию (координаты)
+     */
+    public function sendLocation(string $token, int|string $chatId, float $latitude, float $longitude, array $options = []): array
+    {
+        return $this->retryWithBackoff(function () use ($token, $chatId, $latitude, $longitude, $options) {
+            $params = array_merge([
+                'chat_id' => $chatId,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ], $options);
+
+            Log::info('📍 Sending location via Telegram API', [
+                'chat_id' => $chatId,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ]);
+
+            $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/sendLocation', $params);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if ($data['ok'] ?? false) {
+                    Log::info('✅ Location sent successfully', [
+                        'chat_id' => $chatId,
+                        'message_id' => $data['result']['message_id'] ?? null,
+                    ]);
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+                
+                Log::error('❌ Telegram API error sending location', [
+                    'chat_id' => $chatId,
+                    'description' => $data['description'] ?? 'Unknown error',
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => $data['description'] ?? 'Не удалось отправить локацию',
+                ];
+            }
+            
+            $errorData = $response->json();
+            $errorMessage = $errorData['description'] ?? 'Ошибка подключения к Telegram API';
+            
+            return [
+                'success' => false,
+                'message' => $errorMessage,
+            ];
+        });
+    }
 }
 
