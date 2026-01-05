@@ -44,8 +44,20 @@ class OrderNotificationService
                 ->where('is_blocked', false)
                 ->get();
 
+            Log::info('Admin notification check', [
+                'order_id' => $order->id,
+                'bot_id' => $bot->id,
+                'admins_count' => $admins->count(),
+                'admin_ids' => $admins->pluck('id')->toArray(),
+                'admin_telegram_ids' => $admins->pluck('telegram_id')->toArray(),
+            ]);
+
             if ($admins->isEmpty()) {
-                Log::warning('No admins found for order notification', ['order_id' => $order->id, 'bot_id' => $bot->id]);
+                Log::warning('No admins found for order notification', [
+                    'order_id' => $order->id,
+                    'bot_id' => $bot->id,
+                    'all_telegram_users_count' => TelegramUser::where('bot_id', $bot->id)->count(),
+                ]);
                 return false;
             }
 
@@ -70,18 +82,53 @@ class OrderNotificationService
 
             $sent = false;
             foreach ($admins as $admin) {
-                // Используем очередь для отправки
-                SendOrderNotificationJob::dispatch(
-                    $bot->token,
-                    $admin->telegram_id,
-                    $message,
-                    ['reply_markup' => json_encode($keyboard)],
-                    $order->id,
-                    $admin->id,
-                    OrderNotification::TYPE_ADMIN_NEW,
-                    now()->addMinutes(5) // Уведомления администратора истекают через 5 минут
-                )->onQueue('telegram-notifications');
-                $sent = true;
+                try {
+                    // Для администраторов отправляем синхронно, чтобы гарантировать доставку
+                    $result = $this->telegramService->sendMessage(
+                        $bot->token,
+                        $admin->telegram_id,
+                        $message,
+                        ['reply_markup' => json_encode($keyboard)]
+                    );
+
+                    if ($result['success'] ?? false) {
+                        $messageId = $result['data']['message_id'] ?? null;
+                        
+                        // Сохраняем уведомление в БД
+                        if ($messageId) {
+                            $this->saveNotification(
+                                $order,
+                                $admin,
+                                $messageId,
+                                $admin->telegram_id,
+                                OrderNotification::TYPE_ADMIN_NEW,
+                                now()->addMinutes(5)
+                            );
+                        }
+
+                        Log::info('Admin notification sent successfully', [
+                            'order_id' => $order->id,
+                            'admin_id' => $admin->id,
+                            'admin_telegram_id' => $admin->telegram_id,
+                            'message_id' => $messageId,
+                        ]);
+                        $sent = true;
+                    } else {
+                        Log::error('Failed to send admin notification', [
+                            'order_id' => $order->id,
+                            'admin_id' => $admin->id,
+                            'admin_telegram_id' => $admin->telegram_id,
+                            'error' => $result['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Exception sending admin notification', [
+                        'order_id' => $order->id,
+                        'admin_id' => $admin->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
             }
 
             return $sent;

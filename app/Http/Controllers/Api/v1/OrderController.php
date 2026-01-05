@@ -175,6 +175,14 @@ class OrderController extends Controller
             // Отправляем уведомление администратору о новом заказе
             // Статус остается 'new' до принятия администратором
             try {
+                Log::info('Attempting to notify admin about new order', [
+                    'order_id' => $order->id,
+                    'order_order_id' => $order->order_id,
+                    'bot_id' => $order->bot_id,
+                    'bot_exists' => $order->bot ? true : false,
+                    'bot_token_exists' => $order->bot && $order->bot->token ? true : false,
+                ]);
+                
                 $notified = $this->orderNotificationService->notifyAdminNewOrder($order);
                 
                 if ($notified) {
@@ -187,12 +195,14 @@ class OrderController extends Controller
                     Log::warning('Order created but admin notification failed', [
                         'order_id' => $order->id,
                         'order_order_id' => $order->order_id,
+                        'bot_id' => $order->bot_id,
                     ]);
                 }
             } catch (\Exception $e) {
                 Log::error('Error notifying admin about new order: ' . $e->getMessage(), [
                     'order_id' => $order->id,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
 
