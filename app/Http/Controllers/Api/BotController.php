@@ -1066,15 +1066,29 @@ class BotController extends Controller
                 return;
             }
 
-            $this->orderStatusService->changeStatus($order, Order::STATUS_IN_TRANSIT, [
+            $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_IN_TRANSIT, [
                 'role' => 'courier',
                 'changed_by_telegram_user_id' => $telegramUser->id,
             ]);
+
+            if (!$statusChanged) {
+                \Illuminate\Support\Facades\Log::error('Failed to change order status to in_transit', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
+                return;
+            }
+
+            // Обновляем заказ из БД
+            $order->refresh();
 
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_IN_TRANSIT, [
                 'message' => "Курьер {$telegramUser->full_name} забрал заказ #{$order->order_id}",
             ]);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_IN_TRANSIT);
+            
+            // Отправляем курьеру новое сообщение с кнопкой "Товар доставлен"
+            $this->orderNotificationService->notifyCourierInTransit($order, $telegramUser);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error handling courier picked: ' . $e->getMessage());
         }
@@ -1088,6 +1102,10 @@ class BotController extends Controller
         try {
             $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
             if (!$order || $order->status !== Order::STATUS_IN_TRANSIT) {
+                \Illuminate\Support\Facades\Log::warning('Order not found or wrong status for delivery', [
+                    'order_id' => $orderId,
+                    'order_status' => $order->status ?? null,
+                ]);
                 return;
             }
 
@@ -1096,11 +1114,34 @@ class BotController extends Controller
                 ->first();
 
             if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_COURIER) {
+                \Illuminate\Support\Facades\Log::warning('Invalid user for delivery handling', [
+                    'order_id' => $orderId,
+                    'user_role' => $telegramUser->role ?? null,
+                ]);
+                return;
+            }
+
+            // Проверяем, что курьер назначен на этот заказ
+            $notesData = [];
+            if ($order->notes) {
+                $notesData = json_decode($order->notes, true) ?? [];
+            }
+            if (($notesData['courier_id'] ?? null) != $telegramUser->id) {
+                \Illuminate\Support\Facades\Log::warning('Courier not assigned to this order', [
+                    'order_id' => $order->id,
+                    'courier_id' => $telegramUser->id,
+                    'assigned_courier_id' => $notesData['courier_id'] ?? null,
+                ]);
                 return;
             }
 
             // Если оплата не получена, отправляем кнопки для обработки оплаты
             if ($order->payment_status === Order::PAYMENT_STATUS_PENDING) {
+                $message = "✅ Заказ #{$order->order_id} доставлен\n\n";
+                $message .= "💳 Требуется подтверждение оплаты\n";
+                $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n\n";
+                $message .= "Подтвердите получение оплаты:";
+
                 $keyboard = [
                     'inline_keyboard' => [
                         [
@@ -1110,27 +1151,50 @@ class BotController extends Controller
                     ]
                 ];
 
-                $this->telegramService->sendMessage($bot->token, $telegramUser->telegram_id,
-                    "💳 Заказ #{$order->order_id} доставлен. Статус оплаты?",
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $telegramUser->telegram_id,
+                    $message,
                     ['reply_markup' => json_encode($keyboard)]
                 );
+                
+                \Illuminate\Support\Facades\Log::info('Payment confirmation requested from courier', [
+                    'order_id' => $order->id,
+                    'courier_id' => $telegramUser->id,
+                ]);
                 return;
             }
 
             // Если оплата уже получена, сразу меняем статус на delivered
-            $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+            $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
                 'role' => 'courier',
                 'changed_by_telegram_user_id' => $telegramUser->id,
+                'comment' => 'Заказ доставлен, оплата уже получена',
             ]);
 
-            $order->update(['payment_status' => Order::PAYMENT_STATUS_SUCCEEDED]);
+            if (!$statusChanged) {
+                \Illuminate\Support\Facades\Log::error('Failed to change order status to delivered', [
+                    'order_id' => $order->id,
+                ]);
+                return;
+            }
+
+            $order->refresh();
 
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_DELIVERED, [
                 'message' => "Заказ #{$order->order_id} доставлен курьером {$telegramUser->full_name}",
             ]);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_DELIVERED);
+            
+            \Illuminate\Support\Facades\Log::info('Order delivered by courier (payment already received)', [
+                'order_id' => $order->id,
+                'courier_id' => $telegramUser->id,
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error handling courier delivered: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error handling courier delivered: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -1142,6 +1206,10 @@ class BotController extends Controller
         try {
             $order = Order::where('id', $orderId)->where('bot_id', $bot->id)->first();
             if (!$order) {
+                \Illuminate\Support\Facades\Log::warning('Order not found for payment handling', [
+                    'order_id' => $orderId,
+                    'bot_id' => $bot->id,
+                ]);
                 return;
             }
 
@@ -1150,30 +1218,115 @@ class BotController extends Controller
                 ->first();
 
             if (!$telegramUser || $telegramUser->role !== TelegramUser::ROLE_COURIER) {
+                \Illuminate\Support\Facades\Log::warning('Invalid user for payment handling', [
+                    'order_id' => $orderId,
+                    'user_role' => $telegramUser->role ?? null,
+                ]);
+                return;
+            }
+
+            // Проверяем, что заказ в статусе in_transit (курьер забрал заказ)
+            if ($order->status !== Order::STATUS_IN_TRANSIT) {
+                \Illuminate\Support\Facades\Log::warning('Order status not suitable for payment handling', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
                 return;
             }
 
             if ($status === 'received') {
-                $order->update(['payment_status' => Order::PAYMENT_STATUS_SUCCEEDED]);
-                $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                // Создаем платеж в БД
+                $payment = \App\Models\Payment::create([
+                    'order_id' => $order->id,
+                    'payment_method' => $order->payment_method ?? \App\Models\Payment::METHOD_CASH,
+                    'payment_provider' => 'courier',
+                    'status' => \App\Models\Payment::STATUS_SUCCEEDED,
+                    'amount' => $order->total_amount,
+                    'currency' => 'RUB',
+                    'transaction_id' => 'COURIER-' . $order->order_id . '-' . time(),
+                    'notes' => "Оплата принята курьером {$telegramUser->full_name}",
+                    'paid_at' => now(),
+                ]);
+
+                // Обновляем статус оплаты заказа
+                $order->payment_status = Order::PAYMENT_STATUS_SUCCEEDED;
+                $order->payment_id = (string) $payment->id;
+                $order->save();
+
+                // Изменяем статус заказа на доставлен
+                $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
                     'role' => 'courier',
                     'changed_by_telegram_user_id' => $telegramUser->id,
-                    'comment' => 'Оплата получена',
+                    'comment' => 'Оплата получена курьером',
+                    'metadata' => ['payment_id' => $payment->id],
+                ]);
+
+                if (!$statusChanged) {
+                    \Illuminate\Support\Facades\Log::error('Failed to change order status to delivered', [
+                        'order_id' => $order->id,
+                    ]);
+                    return;
+                }
+
+                $order->refresh();
+
+                \Illuminate\Support\Facades\Log::info('Payment received by courier', [
+                    'order_id' => $order->id,
+                    'payment_id' => $payment->id,
+                    'amount' => $payment->amount,
                 ]);
             } else {
-                $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
+                // Оплата не получена - создаем платеж со статусом failed
+                $payment = \App\Models\Payment::create([
+                    'order_id' => $order->id,
+                    'payment_method' => $order->payment_method ?? \App\Models\Payment::METHOD_CASH,
+                    'payment_provider' => 'courier',
+                    'status' => \App\Models\Payment::STATUS_FAILED,
+                    'amount' => $order->total_amount,
+                    'currency' => 'RUB',
+                    'transaction_id' => 'COURIER-FAILED-' . $order->order_id . '-' . time(),
+                    'notes' => "Оплата не получена курьером {$telegramUser->full_name}",
+                ]);
+
+                // Обновляем статус оплаты заказа
+                $order->payment_status = Order::PAYMENT_STATUS_FAILED;
+                $order->payment_id = (string) $payment->id;
+                $order->save();
+
+                // Все равно доставляем заказ, но отмечаем что оплата не получена
+                $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_DELIVERED, [
                     'role' => 'courier',
                     'changed_by_telegram_user_id' => $telegramUser->id,
                     'comment' => 'Оплата не получена',
+                    'metadata' => ['payment_id' => $payment->id, 'payment_failed' => true],
+                ]);
+
+                if (!$statusChanged) {
+                    \Illuminate\Support\Facades\Log::error('Failed to change order status to delivered', [
+                        'order_id' => $order->id,
+                    ]);
+                    return;
+                }
+
+                $order->refresh();
+
+                \Illuminate\Support\Facades\Log::warning('Payment not received by courier', [
+                    'order_id' => $order->id,
+                    'payment_id' => $payment->id,
+                    'amount' => $payment->amount,
                 ]);
             }
 
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_DELIVERED, [
-                'message' => "Заказ #{$order->order_id} доставлен. Оплата: " . ($status === 'received' ? 'получена' : 'не получена'),
+                'message' => "Заказ #{$order->order_id} доставлен курьером {$telegramUser->full_name}. Оплата: " . ($status === 'received' ? 'получена' : 'не получена'),
             ]);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_DELIVERED);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error handling order payment: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error handling order payment: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'status' => $status,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 

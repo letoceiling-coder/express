@@ -260,6 +260,62 @@ class OrderNotificationService
     }
 
     /**
+     * Уведомить курьера о том, что заказ в пути (после того как он забрал заказ)
+     *
+     * @param Order $order
+     * @param TelegramUser $courier
+     * @return bool
+     */
+    public function notifyCourierInTransit(Order $order, TelegramUser $courier): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token) {
+                return false;
+            }
+
+            $message = "✅ Заказ #{$order->order_id} забран\n\n";
+            $message .= "📍 Адрес доставки: {$order->delivery_address}\n";
+            if ($order->delivery_time) {
+                $message .= "⏰ Время доставки: {$order->delivery_time}\n";
+            }
+            $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n";
+            
+            // Проверяем статус оплаты
+            $paymentStatus = $order->payment_status === Order::PAYMENT_STATUS_PENDING 
+                ? "⚠️ Оплата не получена (принять при доставке)" 
+                : "✅ Оплата получена";
+            $message .= "\n{$paymentStatus}";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => '✅ Товар доставлен',
+                            'callback_data' => "order_courier_delivered:{$order->id}"
+                        ]
+                    ]
+                ]
+            ];
+
+            $result = $this->telegramService->sendMessage(
+                $bot->token,
+                $courier->telegram_id,
+                $message,
+                ['reply_markup' => json_encode($keyboard)]
+            );
+
+            return $result['success'] ?? false;
+        } catch (\Exception $e) {
+            Log::error('Error notifying courier in transit: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'courier_id' => $courier->id,
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Уведомить клиента об изменении статуса
      *
      * @param Order $order
