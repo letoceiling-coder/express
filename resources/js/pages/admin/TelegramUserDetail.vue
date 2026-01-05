@@ -334,8 +334,11 @@ export default {
             const labels = {
                 new: 'Новый',
                 accepted: 'Принят',
+                sent_to_kitchen: 'Отправлен на кухню',
+                kitchen_accepted: 'Принят кухней',
                 preparing: 'Готовится',
                 ready_for_delivery: 'Готов к доставке',
+                courier_assigned: 'Курьер назначен',
                 in_transit: 'В пути',
                 delivered: 'Доставлен',
                 cancelled: 'Отменен',

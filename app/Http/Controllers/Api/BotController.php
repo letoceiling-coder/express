@@ -780,16 +780,60 @@ class BotController extends Controller
     private function handleSendToKitchen(Bot $bot, Order $order, TelegramUser $adminUser): void
     {
         try {
-            $this->orderStatusService->changeStatus($order, Order::STATUS_SENT_TO_KITCHEN, [
+            // Проверяем, что заказ в правильном статусе
+            if (!in_array($order->status, [Order::STATUS_NEW, Order::STATUS_ACCEPTED])) {
+                \Illuminate\Support\Facades\Log::warning('Order status not suitable for sending to kitchen', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
+                return;
+            }
+
+            // Проверяем наличие пользователей с ролью кухни
+            $hasKitchen = TelegramUser::where('bot_id', $bot->id)
+                ->where('role', TelegramUser::ROLE_KITCHEN)
+                ->where('is_blocked', false)
+                ->exists();
+
+            if (!$hasKitchen) {
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $adminUser->telegram_id,
+                    '❌ Нет доступных пользователей с ролью "Кухня"'
+                );
+                return;
+            }
+
+            // Изменяем статус заказа
+            $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_SENT_TO_KITCHEN, [
                 'role' => 'admin',
                 'changed_by_telegram_user_id' => $adminUser->id,
             ]);
 
+            if (!$statusChanged) {
+                \Illuminate\Support\Facades\Log::error('Failed to change order status to sent_to_kitchen', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
+                return;
+            }
+
+            // Обновляем заказ из БД
+            $order->refresh();
+
             $this->orderNotificationService->notifyKitchenOrderSent($order);
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_SENT_TO_KITCHEN, []);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_SENT_TO_KITCHEN);
+            
+            \Illuminate\Support\Facades\Log::info('Order sent to kitchen successfully', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error sending order to kitchen: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error sending order to kitchen: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -799,6 +843,16 @@ class BotController extends Controller
     private function handleCallCourier(Bot $bot, Order $order, TelegramUser $adminUser): void
     {
         try {
+            // Проверяем, что заказ в правильном статусе для назначения курьера
+            if (!in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_READY_FOR_DELIVERY])) {
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $adminUser->telegram_id,
+                    "❌ Заказ должен быть в статусе 'Принят' или 'Готов к доставке' для назначения курьера. Текущий статус: {$order->status}"
+                );
+                return;
+            }
+
             $couriers = TelegramUser::where('bot_id', $bot->id)
                 ->where('role', TelegramUser::ROLE_COURIER)
                 ->where('is_blocked', false)
@@ -821,8 +875,16 @@ class BotController extends Controller
             $this->telegramService->sendMessage($bot->token, $adminUser->telegram_id, $message, [
                 'reply_markup' => json_encode($keyboard)
             ]);
+            
+            \Illuminate\Support\Facades\Log::info('Courier selection menu sent', [
+                'order_id' => $order->id,
+                'couriers_count' => $couriers->count(),
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error calling courier: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error calling courier: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -903,6 +965,22 @@ class BotController extends Controller
             $courier = TelegramUser::find($courierId);
 
             if (!$order || !$courier || $courier->role !== TelegramUser::ROLE_COURIER) {
+                \Illuminate\Support\Facades\Log::warning('Invalid courier assignment attempt', [
+                    'order_id' => $orderId,
+                    'courier_id' => $courierId,
+                    'order_exists' => !!$order,
+                    'courier_exists' => !!$courier,
+                    'courier_role' => $courier->role ?? null,
+                ]);
+                return;
+            }
+
+            // Проверяем, что заказ в правильном статусе для назначения курьера
+            if (!in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_READY_FOR_DELIVERY])) {
+                \Illuminate\Support\Facades\Log::warning('Order status not suitable for courier assignment', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
                 return;
             }
 
@@ -914,22 +992,49 @@ class BotController extends Controller
                 $notesData = json_decode($notes, true) ?? [];
             }
             $notesData['courier_id'] = $courier->id;
-            $order->update(['notes' => json_encode($notesData)]);
+            $order->notes = json_encode($notesData);
+            $order->save();
 
-            $this->orderStatusService->changeStatus($order, Order::STATUS_COURIER_ASSIGNED, [
+            // Получаем администратора, который назначил курьера
+            $adminUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            // Изменяем статус заказа
+            $statusChanged = $this->orderStatusService->changeStatus($order, Order::STATUS_COURIER_ASSIGNED, [
                 'role' => 'admin',
-                'changed_by_telegram_user_id' => TelegramUser::where('bot_id', $bot->id)
-                    ->where('telegram_id', $from['id'] ?? null)->first()->id ?? null,
+                'changed_by_telegram_user_id' => $adminUser->id ?? null,
                 'metadata' => ['courier_id' => $courier->id],
             ]);
+
+            if (!$statusChanged) {
+                \Illuminate\Support\Facades\Log::error('Failed to change order status to courier_assigned', [
+                    'order_id' => $order->id,
+                    'current_status' => $order->status,
+                ]);
+                return;
+            }
+
+            // Обновляем заказ из БД, чтобы получить актуальный статус
+            $order->refresh();
 
             $this->orderNotificationService->notifyCourierOrderReady($order, $courier);
             $this->orderNotificationService->notifyAdminStatusChange($order, Order::STATUS_COURIER_ASSIGNED, [
                 'message' => "Курьер {$courier->full_name} назначен на заказ #{$order->order_id}",
             ]);
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_COURIER_ASSIGNED);
+            
+            \Illuminate\Support\Facades\Log::info('Courier assigned successfully', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+                'courier_id' => $courier->id,
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error assigning courier: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error assigning courier: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'courier_id' => $courierId,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 

@@ -26,8 +26,11 @@
                         <option value="">Все</option>
                         <option value="new">Новый</option>
                         <option value="accepted">Принят</option>
+                        <option value="sent_to_kitchen">Отправлен на кухню</option>
+                        <option value="kitchen_accepted">Принят кухней</option>
                         <option value="preparing">Готовится</option>
                         <option value="ready_for_delivery">Готов к доставке</option>
+                        <option value="courier_assigned">Курьер назначен</option>
                         <option value="in_transit">В пути</option>
                         <option value="delivered">Доставлен</option>
                         <option value="cancelled">Отменен</option>
@@ -113,8 +116,11 @@
                             >
                                 <option value="new">Новый</option>
                                 <option value="accepted">Принят</option>
+                                <option value="sent_to_kitchen">Отправлен на кухню</option>
+                                <option value="kitchen_accepted">Принят кухней</option>
                                 <option value="preparing">Готовится</option>
                                 <option value="ready_for_delivery">Готов к доставке</option>
+                                <option value="courier_assigned">Курьер назначен</option>
                                 <option value="in_transit">В пути</option>
                                 <option value="delivered">Доставлен</option>
                                 <option value="cancelled">Отменен</option>
@@ -230,15 +236,18 @@ export default {
         },
         getStatusClass(status) {
             const classes = {
-                new: 'bg-blue-100 text-blue-800',
-                accepted: 'bg-yellow-100 text-yellow-800',
-                preparing: 'bg-orange-100 text-orange-800',
-                ready_for_delivery: 'bg-purple-100 text-purple-800',
-                in_transit: 'bg-indigo-100 text-indigo-800',
-                delivered: 'bg-green-100 text-green-800',
-                cancelled: 'bg-red-100 text-red-800',
+                new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                accepted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                sent_to_kitchen: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+                kitchen_accepted: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+                preparing: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                ready_for_delivery: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                courier_assigned: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+                in_transit: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                delivered: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
             };
-            return classes[status] || '';
+            return classes[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
         },
         getPaymentStatusClass(status) {
             const classes = {

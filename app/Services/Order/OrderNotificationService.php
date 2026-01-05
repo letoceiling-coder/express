@@ -47,20 +47,42 @@ class OrderNotificationService
             }
 
             $message = $this->formatOrderMessage($order);
-            $keyboard = [
-                'inline_keyboard' => [
-                    [
-                        [
-                            'text' => '📤 Отправить на кухню',
-                            'callback_data' => "order_action:{$order->id}:send_to_kitchen"
-                        ],
-                        [
-                            'text' => '🚚 Вызвать курьера',
-                            'callback_data' => "order_action:{$order->id}:call_courier"
-                        ]
-                    ]
-                ]
-            ];
+            
+            // Проверяем наличие пользователей с нужными ролями
+            $hasKitchen = TelegramUser::where('bot_id', $bot->id)
+                ->where('role', TelegramUser::ROLE_KITCHEN)
+                ->where('is_blocked', false)
+                ->exists();
+            
+            $hasCourier = TelegramUser::where('bot_id', $bot->id)
+                ->where('role', TelegramUser::ROLE_COURIER)
+                ->where('is_blocked', false)
+                ->exists();
+            
+            // Формируем клавиатуру только с доступными действиями
+            $keyboard = ['inline_keyboard' => []];
+            $row = [];
+            
+            // Кнопка "Отправить на кухню" только если есть пользователи с ролью кухни
+            if ($hasKitchen && in_array($order->status, [Order::STATUS_NEW, Order::STATUS_ACCEPTED])) {
+                $row[] = [
+                    'text' => '📤 Отправить на кухню',
+                    'callback_data' => "order_action:{$order->id}:send_to_kitchen"
+                ];
+            }
+            
+            // Кнопка "Вызвать курьера" только если есть курьеры и заказ готов к доставке
+            if ($hasCourier && in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_READY_FOR_DELIVERY])) {
+                $row[] = [
+                    'text' => '🚚 Вызвать курьера',
+                    'callback_data' => "order_action:{$order->id}:call_courier"
+                ];
+            }
+            
+            // Добавляем строку только если есть хотя бы одна кнопка
+            if (!empty($row)) {
+                $keyboard['inline_keyboard'][] = $row;
+            }
 
             $sent = false;
             foreach ($admins as $admin) {

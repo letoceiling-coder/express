@@ -41,8 +41,11 @@
                             >
                                 <option value="new">Новый</option>
                                 <option value="accepted">Принят</option>
+                                <option value="sent_to_kitchen">Отправлен на кухню</option>
+                                <option value="kitchen_accepted">Принят кухней</option>
                                 <option value="preparing">Готовится</option>
                                 <option value="ready_for_delivery">Готов к доставке</option>
+                                <option value="courier_assigned">Курьер назначен</option>
                                 <option value="in_transit">В пути</option>
                                 <option value="delivered">Доставлен</option>
                                 <option value="cancelled">Отменен</option>

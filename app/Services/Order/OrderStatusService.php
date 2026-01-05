@@ -69,7 +69,30 @@ class OrderStatusService
 
             // Обновляем статус заказа
             $order->status = $newStatus;
-            $order->save();
+            $saved = $order->save();
+
+            if (!$saved) {
+                Log::error('Failed to save order status', [
+                    'order_id' => $order->id,
+                    'new_status' => $newStatus,
+                ]);
+                DB::rollBack();
+                return false;
+            }
+
+            // Обновляем модель из БД, чтобы убедиться, что статус сохранен
+            $order->refresh();
+
+            // Проверяем, что статус действительно обновился
+            if ($order->status !== $newStatus) {
+                Log::error('Order status not updated correctly', [
+                    'order_id' => $order->id,
+                    'expected_status' => $newStatus,
+                    'actual_status' => $order->status,
+                ]);
+                DB::rollBack();
+                return false;
+            }
 
             // Записываем в историю
             $this->logStatusChange($order, $newStatus, [
@@ -83,10 +106,12 @@ class OrderStatusService
 
             DB::commit();
 
-            Log::info('Order status changed', [
+            Log::info('Order status changed successfully', [
                 'order_id' => $order->id,
+                'order_id_string' => $order->order_id,
                 'previous_status' => $previousStatus,
                 'new_status' => $newStatus,
+                'actual_status' => $order->status,
                 'role' => $role,
             ]);
 
