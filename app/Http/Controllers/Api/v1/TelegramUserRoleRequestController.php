@@ -98,7 +98,12 @@ class TelegramUserRoleRequestController extends Controller
                 $telegramUser = $roleRequest->telegramUser;
                 $bot = $telegramUser->bot;
                 if ($bot && $bot->token) {
-                    $roleName = $roleRequest->requested_role === 'courier' ? 'курьера' : 'администратора';
+                    $roleName = match($roleRequest->requested_role) {
+                        'courier' => 'курьера',
+                        'admin' => 'администратора',
+                        'kitchen' => 'кухни',
+                        default => $roleRequest->requested_role,
+                    };
                     $message = "✅ Ваша заявка на роль {$roleName} одобрена! Теперь у вас есть соответствующие права доступа.";
                     
                     $this->telegramService->sendMessage(
@@ -176,7 +181,12 @@ class TelegramUserRoleRequestController extends Controller
                 $telegramUser = $roleRequest->telegramUser;
                 $bot = $telegramUser->bot;
                 if ($bot && $bot->token) {
-                    $roleName = $roleRequest->requested_role === 'courier' ? 'курьера' : 'администратора';
+                    $roleName = match($roleRequest->requested_role) {
+                        'courier' => 'курьера',
+                        'admin' => 'администратора',
+                        'kitchen' => 'кухни',
+                        default => $roleRequest->requested_role,
+                    };
                     $message = "❌ Ваша заявка на роль {$roleName} отклонена.";
                     
                     if ($rejectionReason) {
@@ -233,6 +243,7 @@ class TelegramUserRoleRequestController extends Controller
             'rejected' => TelegramUserRoleRequest::where('status', TelegramUserRoleRequest::STATUS_REJECTED)->count(),
             'courier_requests' => TelegramUserRoleRequest::where('requested_role', TelegramUserRoleRequest::ROLE_COURIER)->count(),
             'admin_requests' => TelegramUserRoleRequest::where('requested_role', TelegramUserRoleRequest::ROLE_ADMIN)->count(),
+            'kitchen_requests' => TelegramUserRoleRequest::where('requested_role', TelegramUserRoleRequest::ROLE_KITCHEN)->count(),
         ];
 
         return response()->json(['data' => $stats]);

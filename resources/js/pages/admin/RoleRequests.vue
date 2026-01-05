@@ -53,6 +53,7 @@
                         <option value="">Все</option>
                         <option value="courier">Курьер</option>
                         <option value="admin">Администратор</option>
+                        <option value="kitchen">Кухня</option>
                     </select>
                 </div>
             </div>
@@ -99,10 +100,12 @@
                                     'px-2 py-1 text-xs rounded-md font-medium',
                                     request.requested_role === 'courier'
                                         ? 'bg-blue-500/10 text-blue-500'
-                                        : 'bg-purple-500/10 text-purple-500'
+                                        : request.requested_role === 'admin'
+                                        ? 'bg-purple-500/10 text-purple-500'
+                                        : 'bg-orange-500/10 text-orange-500'
                                 ]"
                             >
-                                {{ request.requested_role === 'courier' ? 'Курьер' : 'Администратор' }}
+                                {{ getRoleLabel(request.requested_role) }}
                             </span>
                         </td>
                         <td class="px-6 py-4">
@@ -331,6 +334,15 @@ export default {
             loadRequests(page);
         };
 
+        const getRoleLabel = (role) => {
+            const labels = {
+                courier: 'Курьер',
+                admin: 'Администратор',
+                kitchen: 'Кухня',
+            };
+            return labels[role] || role;
+        };
+
         const getStatusLabel = (status) => {
             const labels = {
                 pending: 'Ожидает',
@@ -368,6 +380,7 @@ export default {
             showRejectModal,
             rejectRequest,
             changePage,
+            getRoleLabel,
             getStatusLabel,
             formatDate,
         };
