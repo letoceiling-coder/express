@@ -124,6 +124,27 @@ class YooKassaService
             if (isset($logPayload['receipt']['customer']['email'])) {
                 $logPayload['receipt']['customer']['email'] = substr($logPayload['receipt']['customer']['email'], 0, 3) . '****';
             }
+            
+            // Детальное логирование receipt для отладки
+            if (isset($payload['receipt'])) {
+                Log::info('YooKassa createPayment - Receipt details', [
+                    'customer_has_email' => isset($payload['receipt']['customer']['email']),
+                    'customer_has_phone' => isset($payload['receipt']['customer']['phone']),
+                    'items_count' => count($payload['receipt']['items'] ?? []),
+                    'items_preview' => array_map(function($item) {
+                        return [
+                            'description' => substr($item['description'] ?? '', 0, 50),
+                            'quantity' => $item['quantity'] ?? null,
+                            'amount_value' => $item['amount']['value'] ?? null,
+                            'vat_code' => $item['vat_code'] ?? null,
+                            'vat_code_type' => gettype($item['vat_code'] ?? null),
+                            'payment_subject' => $item['payment_subject'] ?? null,
+                            'payment_mode' => $item['payment_mode'] ?? null,
+                        ];
+                    }, $payload['receipt']['items'] ?? []),
+                ]);
+            }
+            
             Log::info('YooKassa createPayment request', [
                 'payload' => $logPayload,
                 'idempotence_key' => $idempotenceKey,

@@ -378,7 +378,7 @@ class PaymentController extends Controller
                             'value' => number_format($unitPrice, 2, '.', ''), // Цена ЗА ЕДИНИЦУ, не общая сумма!
                             'currency' => 'RUB',
                         ],
-                        'vat_code' => 1, // НДС 20% (можно настроить в настройках)
+                        'vat_code' => '1', // НДС 20% - строка, не число! (можно настроить в настройках)
                         'payment_subject' => 'commodity', // Признак предмета расчета: товар
                         'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                     ];
@@ -393,7 +393,7 @@ class PaymentController extends Controller
                         'value' => number_format($receiptTotalAmount, 2, '.', ''), // Для одного товара это и есть цена за единицу
                         'currency' => 'RUB',
                     ],
-                    'vat_code' => 1, // НДС 20%
+                    'vat_code' => '1', // НДС 20% - строка, не число!
                     'payment_subject' => 'commodity', // Признак предмета расчета: товар
                     'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                 ];
@@ -426,6 +426,7 @@ class PaymentController extends Controller
             
             // Формируем данные покупателя для чека
             // ЮКасса требует email или phone для отправки квитанции
+            // ВАЖНО: Приоритет email, так как он более надежен для фискализации
             $receiptCustomer = [];
             
             // Приоритет: email из запроса, затем phone из заказа
@@ -434,10 +435,10 @@ class PaymentController extends Controller
                 $receiptCustomer['email'] = $email;
             }
             
-            // Добавляем phone, если email не указан или в дополнение к email
-            if ($order->phone) {
+            // Если email не указан, добавляем phone
+            if (empty($receiptCustomer) && $order->phone) {
                 // Форматируем телефон для чека
-                // Согласно документации ЮКасса: телефон должен быть в формате +7XXXXXXXXXX или 7XXXXXXXXXX
+                // Согласно документации ЮКасса: телефон должен быть в формате +7XXXXXXXXXX
                 $phone = preg_replace('/[^0-9]/', '', $order->phone);
                 if (strlen($phone) === 11 && $phone[0] === '7') {
                     // Формат: 7XXXXXXXXXX -> +7XXXXXXXXXX
