@@ -552,6 +552,14 @@ class PaymentController extends Controller
 
             // Создаем платеж в ЮKassa
             try {
+                Log::info('PaymentController::createYooKassaPayment - Creating payment', [
+                    'order_id' => $order->id,
+                    'is_test_mode' => $settings->is_test_mode,
+                    'shop_id' => $settings->getActiveShopId(),
+                    'amount' => $paymentAmount,
+                    'has_receipt' => isset($paymentData['receipt']),
+                ]);
+                
                 $yooKassaPayment = $yooKassaService->createPayment($paymentData, $idempotenceKey);
                 
                 Log::info('PaymentController::createYooKassaPayment - Payment created successfully', [
@@ -559,6 +567,7 @@ class PaymentController extends Controller
                     'payment_id' => $yooKassaPayment['id'] ?? null,
                     'status' => $yooKassaPayment['status'] ?? null,
                     'confirmation_url' => $yooKassaPayment['confirmation']['confirmation_url'] ?? null,
+                    'is_test_mode' => $settings->is_test_mode, // Режим работы (тестовый/продакшн)
                 ]);
             } catch (\Exception $e) {
                 Log::error('PaymentController::createYooKassaPayment - Failed to create payment', [
@@ -603,6 +612,7 @@ class PaymentController extends Controller
                     'payment' => $payment,
                     'yookassa_payment' => $yooKassaPayment,
                     'confirmation_url' => $yooKassaPayment['confirmation']['confirmation_url'] ?? null,
+                    'is_test_mode' => $settings->is_test_mode, // Информация о тестовом режиме для frontend
                 ],
                 'message' => 'Платеж успешно создан',
             ], 201);

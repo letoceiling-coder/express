@@ -491,6 +491,12 @@ export function CheckoutPage() {
           );
 
           console.log('Payment data received:', paymentData);
+          
+          // Проверяем, используется ли тестовый режим
+          const isTestMode = paymentData?.data?.is_test_mode ?? false;
+          if (isTestMode) {
+            console.log('⚠️ Тестовый режим активен - используется тестовый магазин YooKassa');
+          }
 
           // Получаем URL для оплаты (проверяем разные варианты структуры ответа)
           const confirmationUrl = 
@@ -500,10 +506,19 @@ export function CheckoutPage() {
             paymentData?.confirmation_url;
           
           console.log('Confirmation URL:', confirmationUrl);
+          console.log('Test mode:', isTestMode);
           
           if (confirmationUrl) {
             // Перенаправляем на страницу оплаты ЮKassa
             console.log('Redirecting to:', confirmationUrl);
+            
+            // Показываем информацию о тестовом режиме пользователю
+            if (isTestMode) {
+              toast.info('Тестовый режим: используется тестовая среда YooKassa', {
+                duration: 3000,
+              });
+            }
+            
             window.location.href = confirmationUrl;
             toast.success('Переход к оплате...');
           } else {

@@ -23,7 +23,17 @@ class YooKassaService
     public function __construct(?PaymentSetting $settings = null)
     {
         $this->settings = $settings ?? PaymentSetting::forProvider('yookassa') ?? new PaymentSetting(['provider' => 'yookassa']);
+        // ВАЖНО: YooKassa использует один и тот же URL для тестового и продакшн режима
+        // Разница только в ключах: тестовые ключи -> тестовые платежи, продакшн ключи -> реальные платежи
         $this->baseUrl = 'https://api.yookassa.ru/v3';
+        
+        // Логируем режим работы при инициализации сервиса
+        Log::info('YooKassaService initialized', [
+            'is_test_mode' => $this->settings->is_test_mode,
+            'base_url' => $this->baseUrl,
+            'shop_id' => $this->settings->getActiveShopId(),
+            'has_secret_key' => !empty($this->settings->getActiveSecretKey()),
+        ]);
         
         // Поддержка env переменной YUKASSA как fallback (если настройки не заданы)
         if (!$this->settings->getActiveSecretKey() && env('YUKASSA')) {
