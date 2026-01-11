@@ -4,10 +4,15 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { useCartStore } from '@/store/cartStore';
 import { useOrders } from '@/hooks/useOrders';
 import { toast } from 'sonner';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check, CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
 import { ordersAPI, paymentMethodsAPI, paymentAPI, deliverySettingsAPI } from '@/api';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 // Функция форматирования телефона с маской
 const formatPhone = (value: string): string => {
@@ -107,31 +112,14 @@ export function CheckoutPage() {
     paymentMethod: null as any | null,
   });
   
-  // Генерация доступных дат (сегодня и следующие 7 дней)
-  const getAvailableDates = (): { value: string; label: string }[] => {
-    const dates: { value: string; label: string }[] = [];
-    const today = new Date();
-    
-    for (let i = 0; i < 8; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      
-      const dateStr = date.toISOString().split('T')[0];
-      const dayName = date.toLocaleDateString('ru-RU', { weekday: 'short' });
-      const dayNumber = date.getDate();
-      const monthName = date.toLocaleDateString('ru-RU', { month: 'short' });
-      
-      if (i === 0) {
-        dates.push({ value: dateStr, label: `Сегодня, ${dayNumber} ${monthName}` });
-      } else if (i === 1) {
-        dates.push({ value: dateStr, label: `Завтра, ${dayNumber} ${monthName}` });
-      } else {
-        dates.push({ value: dateStr, label: `${dayName}, ${dayNumber} ${monthName}` });
-      }
-    }
-    
-    return dates;
-  };
+  // Минимальная дата (сегодня)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Максимальная дата (2 месяца вперед)
+  const maxDate = new Date();
+  maxDate.setMonth(maxDate.getMonth() + 2);
+  maxDate.setHours(23, 59, 59, 999);
   
   // Генерация временных слотов для выбранной даты
   const getTimeSlotsForDate = (selectedDate: string): string[] => {
@@ -191,7 +179,6 @@ export function CheckoutPage() {
     });
   };
   
-  const [availableDates] = useState(() => getAvailableDates());
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
@@ -294,13 +281,15 @@ export function CheckoutPage() {
         const methods = await paymentMethodsAPI.getAll();
         setPaymentMethods(methods);
         
-        // Автоматически выбираем способ оплаты по умолчанию
-        const defaultMethod = methods.find((m: any) => m.isDefault);
-        if (defaultMethod && !formData.paymentMethod) {
-          setFormData(prev => ({
-            ...prev,
-            paymentMethod: defaultMethod,
-          }));
+        // Автоматически выбираем способ оплаты по умолчанию (только если не самовывоз)
+        if (formData.deliveryType !== 'pickup') {
+          const defaultMethod = methods.find((m: any) => m.isDefault);
+          if (defaultMethod && !formData.paymentMethod) {
+            setFormData(prev => ({
+              ...prev,
+              paymentMethod: defaultMethod,
+            }));
+          }
         }
       } catch (error) {
         console.error('CheckoutPage - Failed to load payment methods:', error);
@@ -311,6 +300,39 @@ export function CheckoutPage() {
     };
     loadPaymentMethods();
   }, []);
+
+  // Автоматический выбор способа оплаты "наличные" при выборе самовывоза
+  useEffect(() => {
+    if (formData.deliveryType === 'pickup' && paymentMethods.length > 0) {
+      // Ищем способ оплаты "наличные" по коду "cash"
+      const cashMethod = paymentMethods.find((method: any) => method.code === 'cash');
+      
+      if (cashMethod) {
+        // Загружаем полную информацию о способе оплаты с расчетом скидки
+        paymentMethodsAPI.getById(cashMethod.id, totalAmount)
+          .then((methodInfo) => {
+            if (methodInfo) {
+              setFormData(prev => ({
+                ...prev,
+                paymentMethod: methodInfo,
+              }));
+            } else {
+              setFormData(prev => ({
+                ...prev,
+                paymentMethod: cashMethod,
+              }));
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to load cash payment method details:', error);
+            setFormData(prev => ({
+              ...prev,
+              paymentMethod: cashMethod,
+            }));
+          });
+      }
+    }
+  }, [formData.deliveryType, paymentMethods, totalAmount]);
 
   // Расчет скидки при изменении способа оплаты или суммы корзины
   useEffect(() => {
@@ -951,29 +973,52 @@ export function CheckoutPage() {
               {/* Выбор даты и времени, если выбрано "Выбрать дату и время" */}
               {formData.deliveryTime === 'scheduled' && (
                 <div className="mt-4 space-y-3 pl-7">
-                  {/* Выбор даты */}
+                  {/* Выбор даты через календарь */}
                   <div>
                     <label className="mb-1.5 block text-sm text-muted-foreground">
                       Дата доставки
                     </label>
-                    <select
-                      value={formData.deliveryDate}
-                      onChange={(e) => {
-                        setFormData({ 
-                          ...formData, 
-                          deliveryDate: e.target.value,
-                          deliveryTimeSlot: '', // Сбрасываем время при смене даты
-                        });
-                      }}
-                      className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="">Выберите дату</option>
-                      {availableDates.map((date) => (
-                        <option key={date.value} value={date.value}>
-                          {date.label}
-                        </option>
-                      ))}
-                    </select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-11",
+                            !formData.deliveryDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.deliveryDate ? (
+                            format(new Date(formData.deliveryDate), "PPP", { locale: ru })
+                          ) : (
+                            <span>Выберите дату</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.deliveryDate ? new Date(formData.deliveryDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              const dateStr = format(date, "yyyy-MM-dd");
+                              setFormData({ 
+                                ...formData, 
+                                deliveryDate: dateStr,
+                                deliveryTimeSlot: '', // Сбрасываем время при смене даты
+                              });
+                            }
+                          }}
+                          disabled={(date) => {
+                            // Отключаем прошлые даты и даты после максимума
+                            const dateStart = new Date(date);
+                            dateStart.setHours(0, 0, 0, 0);
+                            return dateStart < today || dateStart > maxDate;
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   
                   {/* Выбор времени */}

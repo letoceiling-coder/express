@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\PaymentMethodController;
 use App\Http\Controllers\Api\v1\PaymentSettingsController;
 use App\Http\Controllers\Api\v1\DeliverySettingsController;
+use App\Http\Controllers\Api\v1\AboutPageController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
@@ -61,6 +62,9 @@ Route::prefix('v1')->group(function () {
     // Публичный роут для расчета стоимости доставки (из MiniApp)
     Route::post('delivery/calculate-cost', [DeliverySettingsController::class, 'calculateCost'])
         ->name('delivery.calculate-cost.public');
+    
+    // Публичный роут для страницы "О нас"
+    Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
     
     // Публичный вебхук от YooKassa (без авторизации, так как YooKassa отправляет уведомления напрямую)
     Route::post('webhooks/yookassa', [PaymentSettingsController::class, 'webhookYooKassa'])
@@ -189,6 +193,12 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('delivery-settings.get');
         Route::put('delivery-settings', [DeliverySettingsController::class, 'updateSettings'])
             ->name('delivery-settings.update');
+        
+        // About Page (Admin)
+        Route::get('admin/about', [AboutPageController::class, 'getAdmin'])
+            ->name('admin.about.get');
+        Route::put('admin/about', [AboutPageController::class, 'update'])
+            ->name('admin.about.update');
         
         // Telegram MiniApp
         Route::post('telegram/validate-init-data', [TelegramController::class, 'validateInitData'])

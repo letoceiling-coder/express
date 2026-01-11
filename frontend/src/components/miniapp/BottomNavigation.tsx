@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ClipboardList } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardList, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
 
@@ -7,6 +7,7 @@ const navItems = [
   { path: '/', icon: Home, label: 'Каталог' },
   { path: '/cart', icon: ShoppingCart, label: 'Корзина', showBadge: true },
   { path: '/orders', icon: ClipboardList, label: 'Заказы' },
+  { path: '/about', icon: Info, label: 'О нас' },
 ];
 
 export function BottomNavigation() {
@@ -19,7 +20,8 @@ export function BottomNavigation() {
       <div className="flex h-14 items-center justify-around">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
-            (item.path === '/orders' && location.pathname.startsWith('/orders'));
+            (item.path === '/orders' && location.pathname.startsWith('/orders')) ||
+            (item.path === '/about' && location.pathname === '/about');
           const Icon = item.icon;
           const showBadge = item.showBadge && totalItems > 0;
 

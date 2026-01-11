@@ -587,6 +587,33 @@ export const paymentSettingsAPI = {
   },
 };
 
+// About Page API (Admin)
+export const aboutPageAPI = {
+  async get(): Promise<any | null> {
+    try {
+      const response = await apiRequest('/admin/about');
+      return response.data || null;
+    } catch (error: any) {
+      console.error('AboutPage API - get error:', error);
+      throw error;
+    }
+  },
+
+  async update(data: any): Promise<any> {
+    try {
+      const response = await apiRequest('/admin/about', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('AboutPage API - update error:', error);
+      throw error;
+    }
+  },
+};
+
 // Delivery Settings API
 export const deliverySettingsAPI = {
   async getSettings(): Promise<any | null> {
@@ -636,6 +663,19 @@ export const deliverySettingsAPI = {
         valid: false,
         error: error.response?.data?.error || 'Ошибка при расчете стоимости доставки',
       };
+    }
+  },
+};
+
+// About Page API
+export const aboutAPI = {
+  async get(): Promise<any | null> {
+    try {
+      const response = await apiRequest('/about');
+      return response.data || null;
+    } catch (error: any) {
+      console.error('About API - get error:', error);
+      throw error;
     }
   },
 };

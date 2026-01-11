@@ -12,6 +12,7 @@ import { OrderSuccessPage } from "./pages/miniapp/OrderSuccessPage";
 import { OrdersPage } from "./pages/miniapp/OrdersPage";
 import { OrderDetailPage } from "./pages/miniapp/OrderDetailPage";
 import { ProductDetailPage } from "./pages/miniapp/ProductDetailPage";
+import { AboutPage } from "./pages/miniapp/AboutPage";
 
 // Admin Pages
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="/about" element={<AboutPage />} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
@@ -48,6 +50,7 @@ const App = () => (
             <Route path="orders" element={<AdminOrders />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
+            <Route path="about" element={<AdminAbout />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
           </Route>
