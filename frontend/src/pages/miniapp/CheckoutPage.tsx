@@ -476,6 +476,9 @@ export function CheckoutPage() {
           const user = getTelegramUser();
           const telegramId = user?.id || order.telegramId;
           
+          // Пытаемся получить email из Telegram WebApp для отправки квитанции
+          const telegramEmail = window.Telegram?.WebApp?.initDataUnsafe?.user?.email;
+          
           // Создаем платеж через ЮKassa
           const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
           const paymentData = await paymentAPI.createYooKassaPayment(
@@ -483,7 +486,8 @@ export function CheckoutPage() {
             finalAmount,
             returnUrl,
             `Оплата заказа #${order.orderId}`,
-            telegramId
+            telegramId,
+            telegramEmail // Передаем email для квитанции
           );
 
           // Получаем URL для оплаты

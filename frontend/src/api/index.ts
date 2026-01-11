@@ -569,7 +569,7 @@ export const paymentSettingsAPI = {
 
 // Payment API
 export const paymentAPI = {
-  async createYooKassaPayment(orderId: number, amount: number, returnUrl: string, description?: string, telegramId?: number): Promise<any> {
+  async createYooKassaPayment(orderId: number, amount: number, returnUrl: string, description?: string, telegramId?: number, email?: string): Promise<any> {
     try {
       // Получаем telegram_id если не передан
       let finalTelegramId = telegramId;
@@ -591,6 +591,11 @@ export const paymentAPI = {
       
       if (finalTelegramId) {
         requestBody.telegram_id = finalTelegramId;
+      }
+      
+      // Добавляем email для отправки квитанции
+      if (email) {
+        requestBody.email = email;
       }
       
       const response = await apiRequest('/payments/yookassa/create', {

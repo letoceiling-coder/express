@@ -291,6 +291,7 @@ class PaymentController extends Controller
             'return_url' => 'required|url',
             'description' => 'nullable|string|max:255',
             'telegram_id' => 'nullable|integer', // Для проверки владельца заказа
+            'email' => 'nullable|email', // Email для отправки квитанции
         ]);
 
         try {
@@ -388,7 +389,16 @@ class PaymentController extends Controller
             }
             
             // Формируем данные покупателя для чека
+            // ЮКасса требует email или phone для отправки квитанции
             $receiptCustomer = [];
+            
+            // Приоритет: email из запроса, затем phone из заказа
+            $email = $request->get('email');
+            if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $receiptCustomer['email'] = $email;
+            }
+            
+            // Добавляем phone, если email не указан или в дополнение к email
             if ($order->phone) {
                 // Форматируем телефон для чека (только цифры, начинается с +7)
                 $phone = preg_replace('/[^0-9]/', '', $order->phone);
@@ -400,6 +410,13 @@ class PaymentController extends Controller
                     // Если телефон в другом формате, пробуем добавить +7
                     $receiptCustomer['phone'] = '+7' . substr($phone, -10);
                 }
+            }
+            
+            // Если нет ни email, ни phone, создаем placeholder email для квитанции
+            // (ЮКасса требует хотя бы один контакт для отправки квитанции)
+            if (empty($receiptCustomer)) {
+                // Используем placeholder email на основе order_id
+                $receiptCustomer['email'] = 'order-' . $order->order_id . '@neekloai.ru';
             }
             
             // Формируем receipt для онлайн-кассы (54-ФЗ)
