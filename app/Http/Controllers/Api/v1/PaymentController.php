@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PaymentRequest;
 use App\Models\Payment;
+use App\Models\PaymentSetting;
+use App\Services\Payment\YooKassaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -273,6 +275,119 @@ class PaymentController extends Controller
                 'order_id' => $order->order_id,
             ],
         ]);
+    }
+
+    /**
+     * Создать платеж через ЮKassa
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function createYooKassaPayment(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|integer|exists:orders,id',
+            'amount' => 'required|numeric|min:0.01',
+            'return_url' => 'required|url',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $order = \App\Models\Order::findOrFail($request->get('order_id'));
+            
+            // Проверяем настройки ЮKassa
+            $settings = PaymentSetting::forProvider('yookassa');
+            
+            if (!$settings || !$settings->is_enabled) {
+                return response()->json([
+                    'message' => 'Интеграция с ЮKassa отключена или не настроена',
+                ], 400);
+            }
+
+            $yooKassaService = new YooKassaService($settings);
+
+            // Формируем описание платежа
+            $description = $request->get('description') 
+                ?? ($settings->description_template 
+                    ? str_replace('{order_id}', $order->order_id, $settings->description_template)
+                    : "Оплата заказа #{$order->order_id}");
+
+            // Подготавливаем данные для платежа
+            $paymentData = [
+                'amount' => (float) $request->get('amount'),
+                'currency' => 'RUB',
+                'description' => $description,
+                'return_url' => $request->get('return_url'),
+                'metadata' => [
+                    'order_id' => $order->order_id,
+                    'order_db_id' => $order->id,
+                ],
+                'capture' => $settings->auto_capture ?? true,
+            ];
+
+            // Генерируем ключ идемпотентности
+            $idempotenceKey = sprintf(
+                '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                mt_rand(0, 0xffff),
+                mt_rand(0, 0x0fff) | 0x4000,
+                mt_rand(0, 0x3fff) | 0x8000,
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            );
+
+            // Создаем платеж в ЮKassa
+            $yooKassaPayment = $yooKassaService->createPayment($paymentData, $idempotenceKey);
+
+            DB::beginTransaction();
+
+            // Создаем запись платежа в БД
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'payment_method' => Payment::METHOD_ONLINE,
+                'payment_provider' => 'yookassa',
+                'status' => $yooKassaPayment['status'] === 'succeeded' 
+                    ? Payment::STATUS_SUCCEEDED 
+                    : Payment::STATUS_PENDING,
+                'amount' => $yooKassaPayment['amount']['value'],
+                'currency' => $yooKassaPayment['amount']['currency'],
+                'transaction_id' => $yooKassaPayment['id'],
+                'provider_response' => $yooKassaPayment,
+                'paid_at' => isset($yooKassaPayment['paid_at']) 
+                    ? \Carbon\Carbon::parse($yooKassaPayment['paid_at']) 
+                    : null,
+            ]);
+
+            // Обновляем статус заказа, если платеж уже прошел
+            if ($yooKassaPayment['status'] === 'succeeded') {
+                $order->payment_status = \App\Models\Order::PAYMENT_STATUS_SUCCEEDED;
+                $order->payment_id = (string) $payment->id;
+                $order->save();
+            }
+
+            DB::commit();
+
+            $payment->load('order');
+
+            return response()->json([
+                'data' => [
+                    'payment' => $payment,
+                    'yookassa_payment' => $yooKassaPayment,
+                    'confirmation_url' => $yooKassaPayment['confirmation']['confirmation_url'] ?? null,
+                ],
+                'message' => 'Платеж успешно создан',
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Ошибка при создании платежа ЮKassa: ' . $e->getMessage(), [
+                'order_id' => $request->get('order_id'),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Ошибка при создании платежа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

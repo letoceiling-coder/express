@@ -19,6 +19,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminOrders } from "./pages/admin/AdminOrders";
 import { AdminProducts } from "./pages/admin/AdminProducts";
 import { AdminCategories } from "./pages/admin/AdminCategories";
+import { YooKassaSettings } from "./pages/admin/YooKassaSettings";
 
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="orders" element={<AdminOrders />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
+            <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

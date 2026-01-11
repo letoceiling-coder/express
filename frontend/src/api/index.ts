@@ -528,3 +528,62 @@ export const paymentMethodsAPI = {
     }
   },
 };
+
+// Payment Settings API (Admin)
+export const paymentSettingsAPI = {
+  async getYooKassa(): Promise<any | null> {
+    try {
+      const response = await apiRequest('/payment-settings/yookassa');
+      return response.data || null;
+    } catch (error: any) {
+      console.error('PaymentSettings API - getYooKassa error:', error);
+      throw error;
+    }
+  },
+
+  async updateYooKassa(data: any): Promise<any> {
+    try {
+      const response = await apiRequest('/payment-settings/yookassa', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('PaymentSettings API - updateYooKassa error:', error);
+      throw error;
+    }
+  },
+
+  async testYooKassa(): Promise<any> {
+    try {
+      const response = await apiRequest('/payment-settings/yookassa/test', {
+        method: 'POST',
+      });
+      return response;
+    } catch (error: any) {
+      console.error('PaymentSettings API - testYooKassa error:', error);
+      throw error;
+    }
+  },
+};
+
+// Payment API
+export const paymentAPI = {
+  async createYooKassaPayment(orderId: number, amount: number, returnUrl: string, description?: string): Promise<any> {
+    try {
+      const response = await apiRequest('/payments/yookassa/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          order_id: orderId,
+          amount,
+          return_url: returnUrl,
+          description,
+        }),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Payment API - createYooKassaPayment error:', error);
+      throw error;
+    }
+  },
+};

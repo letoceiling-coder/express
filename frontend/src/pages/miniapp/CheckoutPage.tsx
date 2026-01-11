@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Loader2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
-import { ordersAPI, paymentMethodsAPI } from '@/api';
+import { ordersAPI, paymentMethodsAPI, paymentAPI } from '@/api';
 
 // Функция форматирования телефона с маской
 const formatPhone = (value: string): string => {
@@ -469,12 +469,35 @@ export function CheckoutPage() {
       clearCart();
       hapticFeedback('success');
       
-      // Для ЮКассы - переходим к оплате (в будущем можно добавить редирект на страницу оплаты)
+      // Для ЮКассы - создаем платеж и переходим к оплате
       if (paymentCode === 'yookassa') {
-        // TODO: Реализовать редирект на страницу оплаты ЮКассы
-        // Пока просто переходим на страницу заказа
-        navigate(`/orders/${order.orderId}?payment=yookassa`);
-        toast.success('Заказ создан. Переход к оплате...');
+        try {
+          // Создаем платеж через ЮKassa
+          const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
+          const paymentData = await paymentAPI.createYooKassaPayment(
+            Number(order.id),
+            finalAmount,
+            returnUrl,
+            `Оплата заказа #${order.orderId}`
+          );
+
+          // Получаем URL для оплаты
+          const confirmationUrl = paymentData.yookassa_payment?.confirmation?.confirmation_url;
+          
+          if (confirmationUrl) {
+            // Перенаправляем на страницу оплаты ЮKassa
+            window.location.href = confirmationUrl;
+            toast.success('Переход к оплате...');
+          } else {
+            // Если URL не получен, переходим на страницу заказа
+            navigate(`/orders/${order.orderId}?payment=yookassa`);
+            toast.success('Заказ создан. Переход к оплате...');
+          }
+        } catch (paymentError: any) {
+          console.error('Ошибка при создании платежа ЮKassa:', paymentError);
+          toast.error('Ошибка при создании платежа. Заказ создан, но оплата не была инициирована.');
+          navigate(`/orders/${order.orderId}?payment=error`);
+        }
       } else {
         // Для других способов оплаты - переходим на страницу успеха
         navigate(`/orders/${order.orderId}?success=true`);

@@ -119,6 +119,8 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Payments
         Route::apiResource('payments', PaymentController::class);
+        Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
+            ->name('payments.yookassa.create');
         Route::put('payments/{id}/status', [PaymentController::class, 'updateStatus'])
             ->name('payments.status');
         Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])

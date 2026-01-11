@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use App\Models\PaymentSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Config;
 
 /**
  * Сервис для работы с API ЮКасса
@@ -22,9 +23,14 @@ class YooKassaService
     public function __construct(?PaymentSetting $settings = null)
     {
         $this->settings = $settings ?? PaymentSetting::forProvider('yookassa') ?? new PaymentSetting(['provider' => 'yookassa']);
-        $this->baseUrl = $this->settings->is_test_mode 
-            ? 'https://api.yookassa.ru/v3' 
-            : 'https://api.yookassa.ru/v3';
+        $this->baseUrl = 'https://api.yookassa.ru/v3';
+        
+        // Поддержка env переменной YUKASSA как fallback (если настройки не заданы)
+        if (!$this->settings->getActiveSecretKey() && env('YUKASSA')) {
+            // Если есть env переменная YUKASSA, используем её как секретный ключ
+            // Но для работы нужен shop_id, поэтому лучше использовать настройки из БД
+            Log::warning('YooKassaService: YUKASSA env variable found, but it\'s recommended to use database settings');
+        }
     }
 
     /**
@@ -32,7 +38,7 @@ class YooKassaService
      * 
      * @return array
      */
-    protected function getHeaders(): array
+    protected function getHeaders(?string $idempotenceKey = null): array
     {
         $shopId = $this->settings->getActiveShopId();
         $secretKey = $this->settings->getActiveSecretKey();
@@ -46,39 +52,79 @@ class YooKassaService
         return [
             'Authorization' => "Basic {$auth}",
             'Content-Type' => 'application/json',
-            'Idempotence-Key' => uniqid('', true),
+            'Idempotence-Key' => $idempotenceKey ?? $this->generateIdempotenceKey(),
         ];
+    }
+
+    /**
+     * Генерация ключа идемпотентности
+     * 
+     * @return string
+     */
+    protected function generateIdempotenceKey(): string
+    {
+        return sprintf(
+            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0x0fff) | 0x4000,
+            mt_rand(0, 0x3fff) | 0x8000,
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+        );
     }
 
     /**
      * Создать платеж
      * 
      * @param array $data
+     * @param string|null $idempotenceKey
      * @return array
      */
-    public function createPayment(array $data): array
+    public function createPayment(array $data, ?string $idempotenceKey = null): array
     {
         try {
-            $response = Http::withHeaders($this->getHeaders())
-                ->post("{$this->baseUrl}/payments", [
-                    'amount' => [
-                        'value' => number_format($data['amount'], 2, '.', ''),
-                        'currency' => $data['currency'] ?? 'RUB',
-                    ],
-                    'confirmation' => [
-                        'type' => 'redirect',
-                        'return_url' => $data['return_url'] ?? url('/'),
-                    ],
-                    'description' => $data['description'] ?? 'Оплата заказа',
-                    'metadata' => $data['metadata'] ?? [],
-                    'payment_method_data' => $data['payment_method_data'] ?? null,
-                ]);
+            $payload = [
+                'amount' => [
+                    'value' => number_format($data['amount'], 2, '.', ''),
+                    'currency' => $data['currency'] ?? 'RUB',
+                ],
+                'confirmation' => [
+                    'type' => $data['confirmation_type'] ?? 'redirect',
+                    'return_url' => $data['return_url'] ?? url('/'),
+                ],
+                'description' => $data['description'] ?? 'Оплата заказа',
+                'metadata' => $data['metadata'] ?? [],
+            ];
+
+            // Добавляем payment_method_data, если указан
+            if (isset($data['payment_method_data'])) {
+                $payload['payment_method_data'] = $data['payment_method_data'];
+            }
+
+            // Добавляем сохранение способа оплаты, если указано
+            if (isset($data['save_payment_method'])) {
+                $payload['save_payment_method'] = $data['save_payment_method'];
+            }
+
+            // Добавляем capture, если указано
+            if (isset($data['capture'])) {
+                $payload['capture'] = $data['capture'];
+            }
+
+            $response = Http::withHeaders($this->getHeaders($idempotenceKey))
+                ->post("{$this->baseUrl}/payments", $payload);
 
             if ($response->successful()) {
                 return $response->json();
             }
 
-            throw new \Exception('Ошибка создания платежа: ' . $response->body());
+            $errorBody = $response->body();
+            Log::error('YooKassa createPayment error', [
+                'status' => $response->status(),
+                'body' => $errorBody,
+            ]);
+
+            throw new \Exception('Ошибка создания платежа: ' . $errorBody);
         } catch (\Exception $e) {
             Log::error('YooKassa createPayment error: ' . $e->getMessage());
             throw $e;
@@ -243,6 +289,7 @@ class YooKassaService
         return hash_equals($expectedSignature, base64_decode($signature));
     }
 }
+
 
 
 
