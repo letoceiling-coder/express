@@ -71,12 +71,45 @@ class PaymentSettingsController extends Controller
         try {
             DB::beginTransaction();
 
-            $settings = PaymentSetting::firstOrNew(['provider' => 'yookassa']);
-            $settings->fill($request->validated());
+            // Получаем или создаем настройки
+            $settings = PaymentSetting::firstOrCreate(
+                ['provider' => 'yookassa'],
+                ['provider' => 'yookassa']
+            );
+            
+            // Получаем валидированные данные
+            $validated = $request->validated();
+            
+            // Сохраняем существующие ключи перед fill()
+            $existingSecretKey = $settings->secret_key;
+            $existingTestSecretKey = $settings->test_secret_key;
+            
+            // Удаляем пустые ключи из валидированных данных
+            // Если поле пароля пустое, это означает, что пользователь не хочет его менять
+            if (isset($validated['secret_key']) && empty(trim($validated['secret_key'] ?? ''))) {
+                unset($validated['secret_key']);
+            }
+            if (isset($validated['test_secret_key']) && empty(trim($validated['test_secret_key'] ?? ''))) {
+                unset($validated['test_secret_key']);
+            }
+            
+            // Обновляем настройки
+            $settings->fill($validated);
+            
+            // Восстанавливаем ключи, если они не были переданы или были пустыми
+            if (!isset($validated['secret_key']) && $existingSecretKey) {
+                $settings->secret_key = $existingSecretKey;
+            }
+            if (!isset($validated['test_secret_key']) && $existingTestSecretKey) {
+                $settings->test_secret_key = $existingTestSecretKey;
+            }
+            
             $settings->save();
 
             DB::commit();
 
+            // Перезагружаем модель, чтобы получить актуальные данные
+            $settings->refresh();
             $data = $settings->toArray();
             unset($data['secret_key'], $data['test_secret_key']);
 

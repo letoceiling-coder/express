@@ -37,23 +37,41 @@ export function YooKassaSettings() {
       setIsLoadingData(true);
       const data = await paymentSettingsAPI.getYooKassa();
       
+      console.log('Settings loaded from API:', data);
+      
       if (data) {
-        setFormData(prev => ({
-          shop_id: data.shop_id || prev.shop_id || '',
-          secret_key: prev.secret_key || '', // Сохраняем введенный ключ, если был
-          test_shop_id: data.test_shop_id || prev.test_shop_id || '',
-          test_secret_key: prev.test_secret_key || '', // Сохраняем введенный ключ, если был
-          is_test_mode: data.is_test_mode ?? true,
-          is_enabled: data.is_enabled ?? false,
-          webhook_url: data.webhook_url || prev.webhook_url || '',
-          description_template: data.description_template || prev.description_template || '',
-          merchant_name: data.merchant_name || prev.merchant_name || '',
-          auto_capture: data.auto_capture ?? true,
-        }));
+        // Сохраняем текущие секретные ключи, если они были введены
+        setFormData(prev => {
+          const hasCurrentSecretKey = prev.secret_key && prev.secret_key.length > 0;
+          const hasCurrentTestSecretKey = prev.test_secret_key && prev.test_secret_key.length > 0;
+          
+          const newFormData = {
+            shop_id: data.shop_id ?? prev.shop_id ?? '',
+            secret_key: hasCurrentSecretKey ? prev.secret_key : '', // Сохраняем только если был введен
+            test_shop_id: data.test_shop_id ?? prev.test_shop_id ?? '',
+            test_secret_key: hasCurrentTestSecretKey ? prev.test_secret_key : '', // Сохраняем только если был введен
+            is_test_mode: data.is_test_mode !== undefined ? data.is_test_mode : (prev.is_test_mode ?? true),
+            is_enabled: data.is_enabled !== undefined ? data.is_enabled : (prev.is_enabled ?? false),
+            webhook_url: data.webhook_url ?? prev.webhook_url ?? '',
+            description_template: data.description_template ?? prev.description_template ?? '',
+            merchant_name: data.merchant_name ?? prev.merchant_name ?? '',
+            auto_capture: data.auto_capture !== undefined ? data.auto_capture : (prev.auto_capture ?? true),
+          };
+          
+          console.log('Form data updated:', newFormData);
+          return newFormData;
+        });
+      } else {
+        console.log('No settings found, keeping current form data');
+        // Если данных нет, не сбрасываем форму - оставляем текущие значения
+        // Это позволяет пользователю продолжать заполнять форму
       }
     } catch (error: any) {
       console.error('Error loading YooKassa settings:', error);
-      toast.error('Ошибка при загрузке настроек');
+      // Не показываем ошибку, если настройки еще не созданы (это нормально)
+      if (error?.response?.status !== 404 && error?.response?.status !== 200) {
+        toast.error('Ошибка при загрузке настроек');
+      }
     } finally {
       setIsLoadingData(false);
     }
@@ -64,25 +82,69 @@ export function YooKassaSettings() {
     setIsLoading(true);
 
     try {
+      // Сохраняем текущие значения перед отправкой
+      const currentFormData = { ...formData };
+      const savedSecretKey = currentFormData.secret_key;
+      const savedTestSecretKey = currentFormData.test_secret_key;
+      
+      console.log('Saving settings with formData:', {
+        ...currentFormData,
+        secret_key: savedSecretKey ? '***hidden***' : '',
+        test_secret_key: savedTestSecretKey ? '***hidden***' : '',
+      });
+      
       const response = await paymentSettingsAPI.updateYooKassa(formData);
       toast.success('Настройки успешно сохранены');
       
-      // Обновляем форму с сохраненными данными, но сохраняем введенные секретные ключи
-      if (response && response.data) {
-        setFormData(prev => ({
-          ...prev,
-          ...response.data,
-          // Сохраняем введенные секретные ключи, если они были заполнены
-          secret_key: prev.secret_key || '',
-          test_secret_key: prev.test_secret_key || '',
-        }));
+      // updateYooKassa возвращает response.data, где response от apiRequest - это { data: {...}, message: '...' }
+      // Так что response уже является объектом с настройками (без обертки data)
+      const savedData = response;
+      
+      console.log('Settings saved, response from API:', savedData);
+      
+      // Всегда обновляем форму - либо из ответа API, либо перезагружаем
+      if (savedData && typeof savedData === 'object' && (savedData.id || savedData.shop_id !== undefined || savedData.test_shop_id !== undefined || savedData.provider === 'yookassa')) {
+        // Обновляем форму с сохраненными данными из ответа API
+        const updatedFormData = {
+          shop_id: savedData.shop_id ?? currentFormData.shop_id ?? '',
+          secret_key: savedSecretKey || '', // Сохраняем введенный ключ
+          test_shop_id: savedData.test_shop_id ?? currentFormData.test_shop_id ?? '',
+          test_secret_key: savedTestSecretKey || '', // Сохраняем введенный ключ
+          is_test_mode: savedData.is_test_mode !== undefined ? savedData.is_test_mode : (currentFormData.is_test_mode ?? true),
+          is_enabled: savedData.is_enabled !== undefined ? savedData.is_enabled : (currentFormData.is_enabled ?? false),
+          webhook_url: savedData.webhook_url ?? currentFormData.webhook_url ?? '',
+          description_template: savedData.description_template ?? currentFormData.description_template ?? '',
+          merchant_name: savedData.merchant_name ?? currentFormData.merchant_name ?? '',
+          auto_capture: savedData.auto_capture !== undefined ? savedData.auto_capture : (currentFormData.auto_capture ?? true),
+        };
+        
+        console.log('Updating form with saved data:', {
+          ...updatedFormData,
+          secret_key: updatedFormData.secret_key ? '***hidden***' : '',
+          test_secret_key: updatedFormData.test_secret_key ? '***hidden***' : '',
+        });
+        
+        setFormData(updatedFormData);
       } else {
-        // Если ответ без данных, перезагружаем настройки
-        await loadSettings();
+        // Если ответ не содержит данных, перезагружаем настройки
+        console.log('Response does not contain expected data, reloading settings...');
+        
+        // Небольшая задержка для гарантии сохранения на сервере
+        setTimeout(async () => {
+          await loadSettings();
+          
+          // Восстанавливаем введенные ключи после загрузки
+          setFormData(prev => ({
+            ...prev,
+            secret_key: savedSecretKey || prev.secret_key || '',
+            test_secret_key: savedTestSecretKey || prev.test_secret_key || '',
+          }));
+        }, 300);
       }
     } catch (error: any) {
       console.error('Error saving YooKassa settings:', error);
-      toast.error(error?.response?.data?.message || 'Ошибка при сохранении настроек');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Ошибка при сохранении настроек';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
