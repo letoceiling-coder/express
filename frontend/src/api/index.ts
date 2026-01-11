@@ -626,7 +626,7 @@ export const deliverySettingsAPI = {
       const response = await apiRequest('/delivery/calculate-cost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, cart_total: cartTotal }),
       });
       // API возвращает данные напрямую, без обертки data
       return response || { valid: false, error: 'Неизвестная ошибка' };

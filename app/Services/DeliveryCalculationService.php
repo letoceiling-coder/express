@@ -192,7 +192,14 @@ class DeliveryCalculationService
         );
 
         // Расчет стоимости доставки
-        $cost = $this->settings->getDeliveryCost($distance);
+        $baseCost = $this->settings->getDeliveryCost($distance);
+
+        // Проверка бесплатной доставки
+        $threshold = $this->settings->free_delivery_threshold ?? null;
+        $cost = $baseCost;
+        if ($threshold !== null && $cartTotal !== null && $cartTotal >= $threshold) {
+            $cost = 0;
+        }
 
         // Определение зоны
         $zone = $this->getZoneName($distance);

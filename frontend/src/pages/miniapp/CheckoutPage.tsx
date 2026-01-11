@@ -441,7 +441,7 @@ export function CheckoutPage() {
 
     setIsCalculatingDelivery(true);
     try {
-      const result = await deliverySettingsAPI.calculateCost(address);
+      const result = await deliverySettingsAPI.calculateCost(address, totalAmount);
       if (result.valid) {
         setDeliveryCost(result.cost || null);
         setDeliveryValidation({
@@ -508,7 +508,7 @@ export function CheckoutPage() {
         if (deliveryValidation === null && !isCalculatingDelivery) {
           setIsCalculatingDelivery(true);
           try {
-            const result = await deliverySettingsAPI.calculateCost(formData.address);
+            const result = await deliverySettingsAPI.calculateCost(formData.address, totalAmount);
             if (!result.valid) {
               toast.error(result.error || 'Адрес не найден. Проверьте правильность адреса');
               setIsCalculatingDelivery(false);
@@ -890,7 +890,7 @@ export function CheckoutPage() {
                       </p>
                     )}
                     <p className="text-sm font-semibold text-primary">
-                      Стоимость доставки: {deliveryCost.toLocaleString('ru-RU')} ₽
+                      {deliveryCost === 0 ? 'Доставка бесплатна' : `Стоимость доставки: ${deliveryCost.toLocaleString('ru-RU')} ₽`}
                     </p>
                   </div>
                 )}
@@ -1145,10 +1145,12 @@ export function CheckoutPage() {
                         {deliveryValidation?.address || formData.address}
                       </span>
                     </div>
-                    {deliveryCost !== null && deliveryCost > 0 && (
+                    {deliveryCost !== null && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Стоимость доставки</span>
-                        <span className="text-foreground">{deliveryCost.toLocaleString('ru-RU')} ₽</span>
+                        <span className="text-foreground">
+                          {deliveryCost === 0 ? 'Бесплатно' : `${deliveryCost.toLocaleString('ru-RU')} ₽`}
+                        </span>
                       </div>
                     )}
                   </>

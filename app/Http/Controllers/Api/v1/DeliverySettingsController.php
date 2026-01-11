@@ -148,16 +148,20 @@ class DeliverySettingsController extends Controller
     {
         $request->validate([
             'address' => ['required', 'string', 'max:500'],
+            'cart_total' => ['nullable', 'numeric', 'min:0'],
         ], [
             'address.required' => 'Адрес обязателен',
             'address.string' => 'Адрес должен быть строкой',
+            'cart_total.numeric' => 'Сумма корзины должна быть числом',
+            'cart_total.min' => 'Сумма корзины не может быть отрицательной',
         ]);
 
         try {
             $settings = DeliverySetting::getSettings();
             $calculationService = new DeliveryCalculationService($settings);
             
-            $result = $calculationService->validateAddressAndCalculateCost($request->address);
+            $cartTotal = $request->get('cart_total') ? (float) $request->get('cart_total') : null;
+            $result = $calculationService->validateAddressAndCalculateCost($request->address, $cartTotal);
             
             if ($result['valid']) {
                 return response()->json([

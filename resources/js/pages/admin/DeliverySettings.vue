@@ -57,6 +57,26 @@
                         </div>
                     </div>
 
+                    <!-- Free Delivery Threshold -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-1">
+                                Сумма корзины для бесплатной доставки (₽)
+                            </label>
+                            <input
+                                v-model.number="form.free_delivery_threshold"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="10000"
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                При сумме заказа равной или превышающей указанную, доставка будет бесплатной
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Origin Point -->
                     <div class="space-y-4">
                         <div>
@@ -238,6 +258,8 @@ export default {
                 origin_address: '',
                 origin_latitude: '',
                 origin_longitude: '',
+                default_city: 'Екатеринбург',
+                free_delivery_threshold: 10000,
                 delivery_zones: [
                     { max_distance: 3, cost: 300 },
                     { max_distance: 7, cost: 500 },
@@ -276,6 +298,9 @@ export default {
                         origin_latitude: this.settings.origin_latitude ? String(this.settings.origin_latitude) : '',
                         origin_longitude: this.settings.origin_longitude ? String(this.settings.origin_longitude) : '',
                         default_city: this.settings.default_city || 'Екатеринбург',
+                        free_delivery_threshold: this.settings.free_delivery_threshold !== undefined && this.settings.free_delivery_threshold !== null
+                            ? Number(this.settings.free_delivery_threshold)
+                            : 10000,
                         delivery_zones: this.settings.delivery_zones && Array.isArray(this.settings.delivery_zones) && this.settings.delivery_zones.length > 0
                             ? this.settings.delivery_zones
                             : this.form.delivery_zones,

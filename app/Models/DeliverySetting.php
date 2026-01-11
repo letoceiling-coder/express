@@ -37,6 +37,7 @@ class DeliverySetting extends Model
         'origin_latitude',
         'origin_longitude',
         'default_city',
+        'free_delivery_threshold',
         'delivery_zones',
         'is_enabled',
     ];
@@ -67,6 +68,8 @@ class DeliverySetting extends Model
         if (!$settings) {
             // Создаем настройки по умолчанию
             $settings = self::create([
+                'default_city' => 'Екатеринбург',
+                'free_delivery_threshold' => 10000,
                 'delivery_zones' => [
                     ['max_distance' => 3, 'cost' => 300],
                     ['max_distance' => 7, 'cost' => 500],

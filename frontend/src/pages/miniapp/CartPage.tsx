@@ -84,10 +84,6 @@ export function CartPage() {
             <span className="text-muted-foreground">Товары ({items.length})</span>
             <span className="text-foreground">{totalAmount.toLocaleString('ru-RU')} ₽</span>
           </div>
-          <div className="flex items-center justify-between text-sm mt-1">
-            <span className="text-muted-foreground">Доставка</span>
-            <span className="text-foreground">Бесплатно</span>
-          </div>
           <div className="border-t border-border mt-2 pt-2 flex items-center justify-between">
             <span className="font-semibold text-foreground">Итого</span>
             <span className="text-lg font-bold text-primary">

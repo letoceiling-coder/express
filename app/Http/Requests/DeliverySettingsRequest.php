@@ -27,6 +27,7 @@ class DeliverySettingsRequest extends FormRequest
             'origin_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'origin_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'default_city' => ['nullable', 'string', 'max:255'],
+            'free_delivery_threshold' => ['nullable', 'numeric', 'min:0'],
             'delivery_zones' => ['nullable', 'array'],
             'delivery_zones.*.max_distance' => ['nullable', 'numeric', 'min:0'],
             'delivery_zones.*.cost' => ['required_with:delivery_zones', 'numeric', 'min:0'],
@@ -44,6 +45,8 @@ class DeliverySettingsRequest extends FormRequest
         return [
             'origin_latitude.between' => 'Широта должна быть между -90 и 90',
             'origin_longitude.between' => 'Долгота должна быть между -180 и 180',
+            'free_delivery_threshold.numeric' => 'Порог бесплатной доставки должен быть числом',
+            'free_delivery_threshold.min' => 'Порог бесплатной доставки не может быть отрицательным',
             'delivery_zones.*.max_distance.min' => 'Максимальное расстояние не может быть отрицательным',
             'delivery_zones.*.cost.required_with' => 'Стоимость доставки обязательна',
             'delivery_zones.*.cost.min' => 'Стоимость доставки не может быть отрицательной',
