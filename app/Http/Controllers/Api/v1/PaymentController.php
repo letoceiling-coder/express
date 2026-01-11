@@ -321,6 +321,7 @@ class PaymentController extends Controller
                 'metadata' => [
                     'order_id' => $order->order_id,
                     'order_db_id' => $order->id,
+                    'merchant_name' => $settings->merchant_name ?? null,
                 ],
                 'capture' => $settings->auto_capture ?? true,
             ];

@@ -1,25 +1,43 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useOrders } from '@/hooks/useOrders';
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order } from '@/types';
-import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2 } from 'lucide-react';
+import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { openTelegramLink } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import { OptimizedImage } from '@/components/OptimizedImage';
+import { toast } from 'sonner';
 
 export function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { getOrderById, orders } = useOrders();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [showPaymentError, setShowPaymentError] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
       if (!orderId) return;
+      
+      // Проверяем параметры URL для обработки возврата с оплаты
+      const paymentStatus = searchParams.get('payment');
+      if (paymentStatus === 'success') {
+        setShowPaymentSuccess(true);
+        toast.success('Оплата успешно выполнена!');
+        // Убираем параметр из URL
+        navigate(`/orders/${orderId}`, { replace: true });
+      } else if (paymentStatus === 'error') {
+        setShowPaymentError(true);
+        toast.error('Произошла ошибка при оплате');
+        // Убираем параметр из URL
+        navigate(`/orders/${orderId}`, { replace: true });
+      }
       
       // Сначала проверяем заказы из кеша
       const cachedOrder = orders.find(o => o.orderId === orderId);
@@ -38,7 +56,7 @@ export function OrderDetailPage() {
       setLoading(false);
     };
     fetchOrder();
-  }, [orderId, getOrderById, orders]);
+  }, [orderId, getOrderById, orders, searchParams, navigate]);
 
   if (loading) {
     return (
@@ -96,6 +114,52 @@ export function OrderDetailPage() {
       <MiniAppHeader title={`Заказ #${order.orderId}`} showBack showCart={false} />
 
       <div className="px-4 py-4 space-y-4">
+        {/* Payment Success Alert */}
+        {showPaymentSuccess && (
+          <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-green-700 dark:text-green-400">
+                  Оплата успешно выполнена!
+                </h3>
+                <p className="mt-1 text-xs text-green-600 dark:text-green-500">
+                  Ваш платеж обрабатывается. Заказ будет обработан после подтверждения оплаты.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaymentSuccess(false)}
+                className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Error Alert */}
+        {showPaymentError && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">
+                  Ошибка при оплате
+                </h3>
+                <p className="mt-1 text-xs text-red-600 dark:text-red-500">
+                  Произошла ошибка при обработке платежа. Заказ создан, но оплата не была выполнена.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaymentError(false)}
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Order ID & Status */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-start justify-between">

@@ -23,6 +23,7 @@ export function YooKassaSettings() {
     is_enabled: false,
     webhook_url: '',
     description_template: '',
+    merchant_name: '',
     auto_capture: true,
   });
   const [testResult, setTestResult] = useState<any>(null);
@@ -46,6 +47,7 @@ export function YooKassaSettings() {
           is_enabled: data.is_enabled ?? false,
           webhook_url: data.webhook_url || '',
           description_template: data.description_template || '',
+          merchant_name: data.merchant_name || '',
           auto_capture: data.auto_capture ?? true,
         });
       }
@@ -304,6 +306,22 @@ export function YooKassaSettings() {
                 />
                 <p className="text-sm text-muted-foreground mt-1">
                   Используйте {'{order_id}'} для подстановки номера заказа
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="merchant_name">Название магазина для страницы оплаты</Label>
+                <Input
+                  id="merchant_name"
+                  value={formData.merchant_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, merchant_name: e.target.value })
+                  }
+                  placeholder="ИП Ходжаян Артур Альбертович"
+                  className="mt-1.5"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Название, которое будет отображаться на странице оплаты ЮKassa
                 </p>
               </div>
             </CardContent>

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Casts\Encrypted;
  * @property array|null $payment_methods
  * @property bool $auto_capture
  * @property string|null $description_template
+ * @property string|null $merchant_name
  * @property string|null $test_shop_id
  * @property string|null $test_secret_key (encrypted)
  * @property \Illuminate\Support\Carbon|null $last_test_at
@@ -49,6 +50,7 @@ class PaymentSetting extends Model
         'payment_methods',
         'auto_capture',
         'description_template',
+        'merchant_name',
         'test_shop_id',
         'test_secret_key',
         'last_test_at',
