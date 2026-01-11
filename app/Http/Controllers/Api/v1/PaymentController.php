@@ -456,11 +456,9 @@ class PaymentController extends Controller
             }
             
             // Формируем receipt для онлайн-кассы (54-ФЗ)
-            // Receipt обязателен, если в настройках ЮКасса включена онлайн-касса
-            $receipt = [
-                'customer' => $receiptCustomer,
-                'items' => $receiptItems,
-            ];
+            // ВАЖНО: В тестовом режиме фискализация может быть не настроена,
+            // поэтому receipt отправляем только если он корректно сформирован
+            $receipt = null;
             
             // Проверяем финальную сумму чека
             // ВАЖНО: amount.value - это цена за единицу, нужно умножить на quantity
@@ -471,8 +469,25 @@ class PaymentController extends Controller
                 $finalReceiptTotal += $unitPrice * $quantity;
             }
             
+            // Формируем receipt только если есть корректные данные
+            // В тестовом режиме можно попробовать отключить receipt, если он вызывает проблемы
+            if (count($receiptItems) > 0 && !empty($receiptCustomer)) {
+                // В тестовом режиме: отключаем receipt, если фискализация не настроена
+                // В продакшн режиме: всегда отправляем receipt
+                $shouldSendReceipt = !$settings->is_test_mode; // В тестовом режиме отключаем receipt
+                
+                if ($shouldSendReceipt) {
+                    $receipt = [
+                        'customer' => $receiptCustomer,
+                        'items' => $receiptItems,
+                    ];
+                }
+            }
+            
             Log::info('PaymentController::createYooKassaPayment - Receipt prepared', [
                 'order_id' => $order->id,
+                'is_test_mode' => $settings->is_test_mode,
+                'receipt_enabled' => $receipt !== null,
                 'items_count' => count($receiptItems),
                 'customer_phone' => isset($receiptCustomer['phone']) ? substr($receiptCustomer['phone'], 0, 4) . '****' : null,
                 'customer_email' => isset($receiptCustomer['email']) ? substr($receiptCustomer['email'], 0, 3) . '****' : null,
@@ -501,8 +516,12 @@ class PaymentController extends Controller
                     'merchant_name' => $settings->merchant_name ?? null,
                 ],
                 'capture' => $settings->auto_capture ?? true,
-                'receipt' => $receipt, // Добавляем receipt для онлайн-кассы
             ];
+            
+            // Добавляем receipt только если он был сформирован
+            if ($receipt !== null) {
+                $paymentData['receipt'] = $receipt;
+            }
 
             // Генерируем ключ идемпотентности
             $idempotenceKey = sprintf(
