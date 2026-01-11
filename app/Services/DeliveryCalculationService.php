@@ -23,6 +23,44 @@ class DeliveryCalculationService
     }
 
     /**
+     * Проверка валидности API ключа Яндекс.Геокодера
+     * 
+     * @return bool true если ключ валиден, false если нет
+     */
+    public function validateApiKey(): bool
+    {
+        $apiKey = $this->settings->yandex_geocoder_api_key;
+        if (empty($apiKey)) {
+            return false;
+        }
+
+        try {
+            // Пытаемся геокодировать простой тестовый адрес
+            $testAddress = 'Москва';
+            $response = Http::timeout(5)->get($this->geocoderUrl, [
+                'apikey' => $apiKey,
+                'geocode' => $testAddress,
+                'format' => 'json',
+                'results' => 1,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                // Проверяем наличие результатов
+                $featureMember = $data['response']['GeoObjectCollection']['featureMember'][0] ?? null;
+                return $featureMember !== null;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            Log::warning('Error validating Yandex Geocoder API key', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Валидация и геокодинг адреса
      * 
      * @param string $address Адрес

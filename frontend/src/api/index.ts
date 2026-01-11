@@ -628,7 +628,8 @@ export const deliverySettingsAPI = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
-      return response.data || { valid: false, error: 'Неизвестная ошибка' };
+      // API возвращает данные напрямую, без обертки data
+      return response || { valid: false, error: 'Неизвестная ошибка' };
     } catch (error: any) {
       console.error('DeliverySettings API - calculateCost error:', error);
       return {

@@ -48,9 +48,30 @@ class DeliverySettingsController extends Controller
             // Сохраняем существующий API ключ перед fill()
             $existingApiKey = $settings->yandex_geocoder_api_key;
             
+            // Извлекаем новый API ключ для проверки (до удаления из validated)
+            $newApiKey = null;
+            if (isset($validated['yandex_geocoder_api_key']) && !empty(trim($validated['yandex_geocoder_api_key'] ?? ''))) {
+                $newApiKey = trim($validated['yandex_geocoder_api_key']);
+            }
+            
             // Удаляем пустой API ключ из валидированных данных
             if (isset($validated['yandex_geocoder_api_key']) && empty(trim($validated['yandex_geocoder_api_key'] ?? ''))) {
                 unset($validated['yandex_geocoder_api_key']);
+            }
+            
+            // Проверяем новый API ключ ДО сохранения
+            if ($newApiKey) {
+                // Создаем временную настройку с новым ключом для проверки
+                $tempSettings = new DeliverySetting();
+                $tempSettings->yandex_geocoder_api_key = $newApiKey;
+                $calculationService = new DeliveryCalculationService($tempSettings);
+                if (!$calculationService->validateApiKey()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Ошибка валидации API ключа',
+                        'error' => 'Неверный или недействительный API ключ Яндекс.Геокодера. Проверьте правильность ключа.',
+                    ], 400);
+                }
             }
             
             // Обновляем настройки
@@ -63,7 +84,9 @@ class DeliverySettingsController extends Controller
             
             // Если обновлен адрес начала доставки, попробуем получить координаты
             if (isset($validated['origin_address']) && !empty(trim($validated['origin_address']))) {
-                if (!$settings->origin_latitude || !$settings->origin_longitude) {
+                // Если координаты не были переданы вручную, пытаемся геокодировать адрес
+                if (!isset($validated['origin_latitude']) || !isset($validated['origin_longitude']) 
+                    || !$validated['origin_latitude'] || !$validated['origin_longitude']) {
                     $this->geocodeOriginAddress($settings);
                 }
             }
@@ -138,7 +161,12 @@ class DeliverySettingsController extends Controller
             
             if ($result['valid']) {
                 return response()->json([
-                    'data' => $result,
+                    'valid' => true,
+                    'cost' => $result['cost'],
+                    'distance' => $result['distance'],
+                    'address' => $result['address'],
+                    'zone' => $result['zone'],
+                    'coordinates' => $result['coordinates'],
                 ]);
             } else {
                 return response()->json([
