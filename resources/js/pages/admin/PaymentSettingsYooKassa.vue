@@ -221,9 +221,8 @@
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-2">Webhook URL</label>
                             <input
-                                v-model="form.webhook_url"
                                 type="url"
-                                placeholder="https://yoursite.com/api/v1/webhooks/yookassa"
+                                placeholder="https://yoursite.com/api/v1/payment-settings/yookassa/webhook"
                                 class="w-full h-10 px-3 rounded-lg border border-input bg-background"
                                 :value="webhookUrl"
                                 readonly
@@ -346,7 +345,7 @@ export default {
     computed: {
         webhookUrl() {
             const baseUrl = window.location.origin;
-            return `${baseUrl}/api/v1/webhooks/yookassa`;
+            return `${baseUrl}/api/v1/payment-settings/yookassa/webhook`;
         },
     },
     mounted() {
@@ -475,25 +474,45 @@ export default {
             }
         },
         async handleTestConnection() {
+            // Проверяем, что есть хотя бы базовые настройки в форме
             const shopId = this.form.is_test_mode ? this.form.test_shop_id : this.form.shop_id;
             const secretKey = this.form.is_test_mode ? this.form.test_secret_key : this.form.secret_key;
             
-            if (!shopId || !secretKey) {
-                window.showToast('error', `Заполните ${this.form.is_test_mode ? 'Test ' : ''}Shop ID и ${this.form.is_test_mode ? 'Test ' : ''}Secret Key перед проверкой`);
+            if (!shopId) {
+                window.showToast('error', `Заполните ${this.form.is_test_mode ? 'Test ' : ''}Shop ID перед проверкой`);
                 return;
             }
 
-            if (!this.form.is_enabled) {
-                window.showToast('error', 'Включите интеграцию перед проверкой подключения');
+            // Если ключ введен в форме, но настройки еще не сохранены, сохраняем их перед тестом
+            if (secretKey && secretKey.trim() && !this.settings) {
+                window.showToast('info', 'Сначала сохраните настройки, затем проверьте подключение');
                 return;
+            }
+
+            // Если ключ был изменен в форме, предлагаем сначала сохранить
+            if (secretKey && secretKey.trim() && this.settings) {
+                const currentKey = this.form.is_test_mode ? this.savedSecretKeys.test_secret_key : this.savedSecretKeys.secret_key;
+                if (secretKey !== currentKey) {
+                    if (!confirm('Ключ был изменен. Сохранить настройки перед проверкой подключения?')) {
+                        return;
+                    }
+                    // Сохраняем настройки перед тестом
+                    try {
+                        await this.handleSubmit();
+                        // Небольшая задержка для гарантии сохранения
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    } catch (error) {
+                        window.showToast('error', 'Не удалось сохранить настройки. Проверьте подключение с текущими сохраненными настройками.');
+                        // Продолжаем тест с текущими настройками из БД
+                    }
+                }
             }
 
             this.testing = true;
             this.testResult = null;
 
             try {
-                // Сначала сохраняем текущие настройки, если они были изменены
-                // (тест использует сохраненные настройки из БД)
+                // Тест использует сохраненные настройки из БД
                 const response = await paymentSettingsAPI.testYooKassaConnection();
                 
                 const result = response.data || response;
