@@ -456,9 +456,8 @@ class PaymentController extends Controller
             }
             
             // Формируем receipt для онлайн-кассы (54-ФЗ)
-            // ВАЖНО: В тестовом режиме фискализация может быть не настроена,
-            // поэтому receipt отправляем только если он корректно сформирован
-            $receipt = null;
+            // ВАЖНО: Согласно документации YooKassa, receipt обязателен, если в аккаунте включена фискализация
+            // Receipt должен быть корректно сформирован со всеми обязательными полями
             
             // Проверяем финальную сумму чека
             // ВАЖНО: amount.value - это цена за единицу, нужно умножить на quantity
@@ -469,42 +468,64 @@ class PaymentController extends Controller
                 $finalReceiptTotal += $unitPrice * $quantity;
             }
             
-            // Формируем receipt только если есть корректные данные
-            // В тестовом режиме можно попробовать отключить receipt, если он вызывает проблемы
+            // Формируем receipt - ОБЯЗАТЕЛЬНО, если есть данные
+            // YooKassa требует receipt, если фискализация включена в аккаунте
             if (count($receiptItems) > 0 && !empty($receiptCustomer)) {
-                // В тестовом режиме: отключаем receipt, если фискализация не настроена
-                // В продакшн режиме: всегда отправляем receipt
-                $shouldSendReceipt = !$settings->is_test_mode; // В тестовом режиме отключаем receipt
-                
-                if ($shouldSendReceipt) {
-                    $receipt = [
-                        'customer' => $receiptCustomer,
-                        'items' => $receiptItems,
-                    ];
-                }
+                $receipt = [
+                    'customer' => $receiptCustomer,
+                    'items' => $receiptItems,
+                ];
+            } else {
+                // Если нет данных для receipt, создаем минимальный receipt
+                // Это может быть нужно, если фискализация обязательна
+                $receipt = [
+                    'customer' => $receiptCustomer,
+                    'items' => [
+                        [
+                            'description' => $description,
+                            'quantity' => '1.00',
+                            'amount' => [
+                                'value' => number_format($paymentAmount, 2, '.', ''),
+                                'currency' => 'RUB',
+                            ],
+                            'vat_code' => '1',
+                            'payment_subject' => 'commodity',
+                            'payment_mode' => 'full_payment',
+                        ],
+                    ],
+                ];
             }
             
             Log::info('PaymentController::createYooKassaPayment - Receipt prepared', [
                 'order_id' => $order->id,
                 'is_test_mode' => $settings->is_test_mode,
-                'receipt_enabled' => $receipt !== null,
-                'items_count' => count($receiptItems),
-                'customer_phone' => isset($receiptCustomer['phone']) ? substr($receiptCustomer['phone'], 0, 4) . '****' : null,
-                'customer_email' => isset($receiptCustomer['email']) ? substr($receiptCustomer['email'], 0, 3) . '****' : null,
+                'receipt_enabled' => true, // Receipt всегда включен, так как обязателен
+                'receipt_items_count' => count($receipt['items'] ?? []),
+                'receipt_customer' => [
+                    'has_email' => isset($receipt['customer']['email']),
+                    'has_phone' => isset($receipt['customer']['phone']),
+                    'email_preview' => isset($receipt['customer']['email']) ? substr($receipt['customer']['email'], 0, 3) . '****' : null,
+                    'phone_preview' => isset($receipt['customer']['phone']) ? substr($receipt['customer']['phone'], 0, 4) . '****' : null,
+                ],
                 'receipt_total' => $finalReceiptTotal,
                 'payment_amount' => $paymentAmount,
                 'amount_match' => abs($finalReceiptTotal - $paymentAmount) < 0.01,
                 'receipt_items_preview' => array_map(function($item) {
                     return [
-                        'description' => $item['description'],
-                        'quantity' => $item['quantity'],
-                        'unit_price' => $item['amount']['value'],
-                        'item_total' => (float)$item['amount']['value'] * (float)$item['quantity'],
+                        'description' => substr($item['description'] ?? '', 0, 50),
+                        'quantity' => $item['quantity'] ?? null,
+                        'unit_price' => $item['amount']['value'] ?? null,
+                        'vat_code' => $item['vat_code'] ?? null,
+                        'vat_code_type' => isset($item['vat_code']) ? gettype($item['vat_code']) : null,
+                        'payment_subject' => $item['payment_subject'] ?? null,
+                        'payment_mode' => $item['payment_mode'] ?? null,
+                        'item_total' => isset($item['amount']['value'], $item['quantity']) ? (float)$item['amount']['value'] * (float)$item['quantity'] : null,
                     ];
-                }, $receiptItems),
+                }, $receipt['items'] ?? []),
             ]);
 
             // Подготавливаем данные для платежа
+            // ВАЖНО: receipt обязателен, если фискализация включена в аккаунте YooKassa
             $paymentData = [
                 'amount' => (float) $request->get('amount'),
                 'currency' => 'RUB',
@@ -516,12 +537,8 @@ class PaymentController extends Controller
                     'merchant_name' => $settings->merchant_name ?? null,
                 ],
                 'capture' => $settings->auto_capture ?? true,
+                'receipt' => $receipt, // Receipt обязателен согласно требованиям YooKassa
             ];
-            
-            // Добавляем receipt только если он был сформирован
-            if ($receipt !== null) {
-                $paymentData['receipt'] = $receipt;
-            }
 
             // Генерируем ключ идемпотентности
             $idempotenceKey = sprintf(
