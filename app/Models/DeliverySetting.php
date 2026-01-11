@@ -36,6 +36,7 @@ class DeliverySetting extends Model
         'origin_address',
         'origin_latitude',
         'origin_longitude',
+        'default_city',
         'delivery_zones',
         'is_enabled',
     ];

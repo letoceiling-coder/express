@@ -26,6 +26,7 @@ class DeliverySettingsRequest extends FormRequest
             'origin_address' => ['nullable', 'string', 'max:500'],
             'origin_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'origin_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'default_city' => ['nullable', 'string', 'max:255'],
             'delivery_zones' => ['nullable', 'array'],
             'delivery_zones.*.max_distance' => ['nullable', 'numeric', 'min:0'],
             'delivery_zones.*.cost' => ['required_with:delivery_zones', 'numeric', 'min:0'],

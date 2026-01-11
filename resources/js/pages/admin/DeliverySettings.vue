@@ -39,6 +39,24 @@
                         </div>
                     </div>
 
+                    <!-- Default City -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-1">
+                                Город по умолчанию для поиска адресов
+                            </label>
+                            <input
+                                v-model="form.default_city"
+                                type="text"
+                                placeholder="Например: Екатеринбург"
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Город, по которому будет происходить поиск адресов при оформлении заказа
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Origin Point -->
                     <div class="space-y-4">
                         <div>
@@ -257,6 +275,7 @@ export default {
                         origin_address: this.settings.origin_address || '',
                         origin_latitude: this.settings.origin_latitude ? String(this.settings.origin_latitude) : '',
                         origin_longitude: this.settings.origin_longitude ? String(this.settings.origin_longitude) : '',
+                        default_city: this.settings.default_city || 'Екатеринбург',
                         delivery_zones: this.settings.delivery_zones && Array.isArray(this.settings.delivery_zones) && this.settings.delivery_zones.length > 0
                             ? this.settings.delivery_zones
                             : this.form.delivery_zones,

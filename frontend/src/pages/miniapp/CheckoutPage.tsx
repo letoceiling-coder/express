@@ -195,6 +195,22 @@ export function CheckoutPage() {
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
 
+  // Загрузка настроек доставки для получения города по умолчанию
+  useEffect(() => {
+    const loadDeliverySettings = async () => {
+      try {
+        const settings = await deliverySettingsAPI.getSettings();
+        if (settings && settings.default_city) {
+          setDefaultCity(settings.default_city);
+        }
+      } catch (error) {
+        console.error('Error loading delivery settings:', error);
+        // Используем значение по умолчанию
+      }
+    };
+    loadDeliverySettings();
+  }, []);
+
   // Загрузка прошлых заказов и автозаполнение данных
   useEffect(() => {
     const loadPastOrders = async () => {
@@ -352,20 +368,21 @@ export function CheckoutPage() {
     }
 
     try {
-      // Добавляем "Екатеринбург" к запросу для ограничения поиска
-      const searchQuery = `Екатеринбург ${query}`;
+      // Добавляем город по умолчанию к запросу для ограничения поиска
+      const searchQuery = `${defaultCity} ${query}`;
       const url = `https://suggest-maps.yandex.ru/v1/suggest?apikey=&text=${encodeURIComponent(searchQuery)}&lang=ru_RU&types=address&results=5`;
       
       const response = await fetch(url);
       const data = await response.json();
       
       if (data.results && Array.isArray(data.results)) {
+        const cityLower = defaultCity.toLowerCase();
         const suggestions = data.results
           .map((item: any) => ({
             value: item.title?.text || item.subtitle?.text || '',
             display: item.title?.text || item.subtitle?.text || '',
           }))
-          .filter((item: any) => item.value && item.display && item.display.toLowerCase().includes('екатеринбург'));
+          .filter((item: any) => item.value && item.display && item.display.toLowerCase().includes(cityLower));
         
         setAddressSuggestions(suggestions);
         setShowSuggestions(suggestions.length > 0);
@@ -401,7 +418,7 @@ export function CheckoutPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [formData.address]);
+  }, [formData.address, defaultCity]);
 
   // Выбор адреса из списка предложений
   const handleAddressSelect = (address: string) => {
