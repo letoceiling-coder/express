@@ -94,6 +94,7 @@ export function CheckoutPage() {
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{ value: string; display: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressInputRef, setAddressInputRef] = useState<HTMLInputElement | null>(null);
+  const [defaultCity, setDefaultCity] = useState<string>('Екатеринбург');
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
