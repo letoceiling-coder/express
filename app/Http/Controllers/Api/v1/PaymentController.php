@@ -351,6 +351,66 @@ class PaymentController extends Controller
                     ? str_replace('{order_id}', $order->order_id, $settings->description_template)
                     : "Оплата заказа #{$order->order_id}");
 
+            // Загружаем элементы заказа для формирования чека
+            $order->load('items');
+            
+            // Формируем данные для чека (54-ФЗ)
+            // Согласно документации ЮКасса: https://yookassa.ru/developers/api#create_payment_receipt
+            $receiptItems = [];
+            if ($order->items && $order->items->count() > 0) {
+                foreach ($order->items as $item) {
+                    $receiptItems[] = [
+                        'description' => $item->product_name ?? 'Товар',
+                        'quantity' => (string) $item->quantity,
+                        'amount' => [
+                            'value' => number_format((float) $item->unit_price, 2, '.', ''),
+                            'currency' => 'RUB',
+                        ],
+                        'vat_code' => 1, // НДС 20% (можно настроить в настройках)
+                    ];
+                }
+            } else {
+                // Если items не загружены, создаем один item на всю сумму заказа
+                $receiptItems[] = [
+                    'description' => $description,
+                    'quantity' => '1',
+                    'amount' => [
+                        'value' => number_format((float) $request->get('amount'), 2, '.', ''),
+                        'currency' => 'RUB',
+                    ],
+                    'vat_code' => 1, // НДС 20%
+                ];
+            }
+            
+            // Формируем данные покупателя для чека
+            $receiptCustomer = [];
+            if ($order->phone) {
+                // Форматируем телефон для чека (только цифры, начинается с +7)
+                $phone = preg_replace('/[^0-9]/', '', $order->phone);
+                if (strlen($phone) === 11 && $phone[0] === '7') {
+                    $receiptCustomer['phone'] = '+' . $phone;
+                } elseif (strlen($phone) === 10) {
+                    $receiptCustomer['phone'] = '+7' . $phone;
+                } elseif (strlen($phone) > 0) {
+                    // Если телефон в другом формате, пробуем добавить +7
+                    $receiptCustomer['phone'] = '+7' . substr($phone, -10);
+                }
+            }
+            
+            // Формируем receipt для онлайн-кассы (54-ФЗ)
+            // Receipt обязателен, если в настройках ЮКасса включена онлайн-касса
+            $receipt = [
+                'customer' => $receiptCustomer,
+                'items' => $receiptItems,
+            ];
+            
+            Log::info('PaymentController::createYooKassaPayment - Receipt prepared', [
+                'order_id' => $order->id,
+                'items_count' => count($receiptItems),
+                'customer_phone' => $receiptCustomer['phone'] ?? null,
+                'receipt_items' => $receiptItems,
+            ]);
+
             // Подготавливаем данные для платежа
             $paymentData = [
                 'amount' => (float) $request->get('amount'),
@@ -363,6 +423,7 @@ class PaymentController extends Controller
                     'merchant_name' => $settings->merchant_name ?? null,
                 ],
                 'capture' => $settings->auto_capture ?? true,
+                'receipt' => $receipt, // Добавляем receipt для онлайн-кассы
             ];
 
             // Генерируем ключ идемпотентности

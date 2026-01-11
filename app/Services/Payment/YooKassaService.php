@@ -111,6 +111,11 @@ class YooKassaService
                 $payload['capture'] = $data['capture'];
             }
 
+            // Добавляем receipt, если указан (для онлайн-кассы 54-ФЗ)
+            if (isset($data['receipt'])) {
+                $payload['receipt'] = $data['receipt'];
+            }
+
             $response = Http::withHeaders($this->getHeaders($idempotenceKey))
                 ->post("{$this->baseUrl}/payments", $payload);
 
