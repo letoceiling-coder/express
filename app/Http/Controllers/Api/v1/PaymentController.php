@@ -358,21 +358,24 @@ class PaymentController extends Controller
             // Формируем данные для чека (54-ФЗ)
             // Согласно документации ЮКасса: https://yookassa.ru/developers/api#create_payment_receipt
             // Обязательные поля для receipt.items: description, quantity, amount, vat_code, payment_subject, payment_mode
-            // ВАЖНО: Сумма всех items должна точно равняться сумме платежа
+            // ВАЖНО: amount.value - это цена ЗА ЕДИНИЦУ товара, а не общая сумма позиции!
+            // YooKassa автоматически умножает amount.value * quantity для получения суммы позиции
             $receiptItems = [];
             $receiptTotalAmount = 0;
             
             if ($order->items && $order->items->count() > 0) {
                 foreach ($order->items as $item) {
-                    // Используем total (unit_price * quantity) для каждого item
-                    $itemTotal = (float) ($item->total ?? ($item->unit_price * $item->quantity));
+                    // Получаем цену за единицу товара
+                    $unitPrice = (float) $item->unit_price;
+                    $quantity = (float) $item->quantity;
+                    $itemTotal = $unitPrice * $quantity; // Общая сумма позиции для проверки
                     $receiptTotalAmount += $itemTotal;
                     
                     $receiptItems[] = [
                         'description' => $item->product_name ?? 'Товар',
-                        'quantity' => (string) $item->quantity,
+                        'quantity' => number_format($quantity, 2, '.', ''), // Формат: "4.00"
                         'amount' => [
-                            'value' => number_format($itemTotal, 2, '.', ''),
+                            'value' => number_format($unitPrice, 2, '.', ''), // Цена ЗА ЕДИНИЦУ, не общая сумма!
                             'currency' => 'RUB',
                         ],
                         'vat_code' => 1, // НДС 20% (можно настроить в настройках)
@@ -385,9 +388,9 @@ class PaymentController extends Controller
                 $receiptTotalAmount = (float) $request->get('amount');
                 $receiptItems[] = [
                     'description' => $description,
-                    'quantity' => '1',
+                    'quantity' => '1.00', // Формат с двумя знаками после запятой
                     'amount' => [
-                        'value' => number_format($receiptTotalAmount, 2, '.', ''),
+                        'value' => number_format($receiptTotalAmount, 2, '.', ''), // Для одного товара это и есть цена за единицу
                         'currency' => 'RUB',
                     ],
                     'vat_code' => 1, // НДС 20%
@@ -407,11 +410,17 @@ class PaymentController extends Controller
                 ]);
                 
                 // Корректируем последний item, чтобы сумма совпадала
+                // ВАЖНО: корректируем цену за единицу, а не общую сумму
                 if (count($receiptItems) > 0) {
                     $lastItem = &$receiptItems[count($receiptItems) - 1];
+                    $lastQuantity = (float) $lastItem['quantity'];
+                    $lastUnitPrice = (float) $lastItem['amount']['value'];
+                    $lastItemTotal = $lastUnitPrice * $lastQuantity;
                     $adjustment = $paymentAmount - $receiptTotalAmount;
-                    $lastItemAmount = (float) $lastItem['amount']['value'];
-                    $lastItem['amount']['value'] = number_format($lastItemAmount + $adjustment, 2, '.', '');
+                    
+                    // Пересчитываем цену за единицу с учетом корректировки
+                    $newUnitPrice = ($lastItemTotal + $adjustment) / $lastQuantity;
+                    $lastItem['amount']['value'] = number_format($newUnitPrice, 2, '.', '');
                 }
             }
             
@@ -457,20 +466,30 @@ class PaymentController extends Controller
             ];
             
             // Проверяем финальную сумму чека
+            // ВАЖНО: amount.value - это цена за единицу, нужно умножить на quantity
             $finalReceiptTotal = 0;
             foreach ($receiptItems as $item) {
-                $finalReceiptTotal += (float) $item['amount']['value'];
+                $unitPrice = (float) $item['amount']['value'];
+                $quantity = (float) $item['quantity'];
+                $finalReceiptTotal += $unitPrice * $quantity;
             }
             
             Log::info('PaymentController::createYooKassaPayment - Receipt prepared', [
                 'order_id' => $order->id,
                 'items_count' => count($receiptItems),
-                'customer_phone' => $receiptCustomer['phone'] ?? null,
-                'customer_email' => $receiptCustomer['email'] ?? null,
+                'customer_phone' => isset($receiptCustomer['phone']) ? substr($receiptCustomer['phone'], 0, 4) . '****' : null,
+                'customer_email' => isset($receiptCustomer['email']) ? substr($receiptCustomer['email'], 0, 3) . '****' : null,
                 'receipt_total' => $finalReceiptTotal,
                 'payment_amount' => $paymentAmount,
                 'amount_match' => abs($finalReceiptTotal - $paymentAmount) < 0.01,
-                'receipt_items' => $receiptItems,
+                'receipt_items_preview' => array_map(function($item) {
+                    return [
+                        'description' => $item['description'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['amount']['value'],
+                        'item_total' => (float)$item['amount']['value'] * (float)$item['quantity'],
+                    ];
+                }, $receiptItems),
             ]);
 
             // Подготавливаем данные для платежа
