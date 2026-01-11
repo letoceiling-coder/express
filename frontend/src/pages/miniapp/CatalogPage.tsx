@@ -109,7 +109,16 @@ export function CatalogPage() {
         ) : (
           // Show grouped list when no category selected
           groupedProducts &&
-          Object.entries(groupedProducts).map(([categoryId, catProducts]) => (
+          Object.entries(groupedProducts)
+            .sort(([categoryIdA], [categoryIdB]) => {
+              const categoryA = categories.find(c => c.id === categoryIdA);
+              const categoryB = categories.find(c => c.id === categoryIdB);
+              const orderA = categoryA?.sortOrder || 0;
+              const orderB = categoryB?.sortOrder || 0;
+              if (orderA !== orderB) return orderA - orderB;
+              return (categoryA?.name || '').localeCompare(categoryB?.name || '');
+            })
+            .map(([categoryId, catProducts]) => (
             <div key={categoryId} className="mb-6">
               <div className="flex items-center justify-between py-3 px-2">
                 <h2 className="text-base sm:text-lg font-bold text-foreground">
