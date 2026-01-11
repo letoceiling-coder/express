@@ -425,20 +425,23 @@ class PaymentController extends Controller
             }
             
             // Формируем данные покупателя для чека
-            // ЮКасса требует email или phone для отправки квитанции
-            // ВАЖНО: Приоритет email, так как он более надежен для фискализации
+            // Согласно официальной документации ЮКасса: рекомендуется передавать оба параметра (email и phone)
+            // Приоритет email для фискализации, phone - как дополнительный параметр
             $receiptCustomer = [];
             
-            // Приоритет: email из запроса, затем phone из заказа
+            // Получаем email из запроса или создаем placeholder
             $email = $request->get('email');
             if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $receiptCustomer['email'] = $email;
+            } else {
+                // Создаем placeholder email на основе order_id
+                // YooKassa требует email для корректной работы фискализации
+                $receiptCustomer['email'] = 'order-' . $order->order_id . '@neekloai.ru';
             }
             
-            // Если email не указан, добавляем phone
-            if (empty($receiptCustomer) && $order->phone) {
-                // Форматируем телефон для чека
-                // Согласно документации ЮКасса: телефон должен быть в формате +7XXXXXXXXXX
+            // Добавляем phone как дополнительный параметр, если доступен
+            // Форматируем телефон для чека согласно документации ЮКасса: +7XXXXXXXXXX
+            if ($order->phone) {
                 $phone = preg_replace('/[^0-9]/', '', $order->phone);
                 if (strlen($phone) === 11 && $phone[0] === '7') {
                     // Формат: 7XXXXXXXXXX -> +7XXXXXXXXXX
@@ -450,13 +453,6 @@ class PaymentController extends Controller
                     // Если телефон в другом формате, пробуем добавить +7
                     $receiptCustomer['phone'] = '+7' . substr($phone, -10);
                 }
-            }
-            
-            // Если нет ни email, ни phone, создаем placeholder email для квитанции
-            // (ЮКасса требует хотя бы один контакт для отправки квитанции)
-            if (empty($receiptCustomer)) {
-                // Используем placeholder email на основе order_id
-                $receiptCustomer['email'] = 'order-' . $order->order_id . '@neekloai.ru';
             }
             
             // Формируем receipt для онлайн-кассы (54-ФЗ)

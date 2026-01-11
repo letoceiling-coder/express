@@ -155,18 +155,38 @@ class YooKassaService
 
             if ($response->successful()) {
                 $responseData = $response->json();
+                
+                // Детальное логирование успешного ответа
                 Log::info('YooKassa createPayment success', [
                     'payment_id' => $responseData['id'] ?? null,
                     'status' => $responseData['status'] ?? null,
                     'confirmation_url' => $responseData['confirmation']['confirmation_url'] ?? null,
+                    'receipt_registration' => $responseData['receipt_registration'] ?? null,
+                    'metadata' => $responseData['metadata'] ?? null,
+                    'full_response_preview' => [
+                        'id' => $responseData['id'] ?? null,
+                        'status' => $responseData['status'] ?? null,
+                        'amount' => $responseData['amount'] ?? null,
+                        'confirmation' => $responseData['confirmation'] ?? null,
+                        'receipt_registration' => $responseData['receipt_registration'] ?? null,
+                        'captured_at' => $responseData['captured_at'] ?? null,
+                        'created_at' => $responseData['created_at'] ?? null,
+                    ],
                 ]);
                 return $responseData;
             }
 
             $errorBody = $response->body();
+            $errorJson = $response->json();
+            
             Log::error('YooKassa createPayment error', [
                 'status' => $response->status(),
                 'body' => $errorBody,
+                'error_json' => $errorJson,
+                'error_type' => $errorJson['type'] ?? null,
+                'error_code' => $errorJson['code'] ?? null,
+                'error_description' => $errorJson['description'] ?? null,
+                'error_parameter' => $errorJson['parameter'] ?? null,
                 'payload_preview' => $logPayload,
             ]);
 
