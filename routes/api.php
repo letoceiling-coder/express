@@ -52,6 +52,10 @@ Route::prefix('v1')->group(function () {
     // Публичные роуты для способов оплаты (только активные)
     Route::get('payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index.public');
     Route::get('payment-methods/{id}', [PaymentMethodController::class, 'show'])->name('payment-methods.show.public');
+    
+    // Публичный роут для создания платежа через ЮКасса (из MiniApp)
+    Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
+        ->name('payments.yookassa.create.public');
 });
 
 // Защищённые роуты
@@ -119,8 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Payments
         Route::apiResource('payments', PaymentController::class);
-        Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
-            ->name('payments.yookassa.create');
+        // createYooKassaPayment вынесен в публичные роуты для MiniApp
         Route::put('payments/{id}/status', [PaymentController::class, 'updateStatus'])
             ->name('payments.status');
         Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])

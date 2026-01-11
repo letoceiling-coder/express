@@ -290,10 +290,49 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'return_url' => 'required|url',
             'description' => 'nullable|string|max:255',
+            'telegram_id' => 'nullable|integer', // Для проверки владельца заказа
         ]);
 
         try {
             $order = \App\Models\Order::findOrFail($request->get('order_id'));
+            
+            // Проверяем, что заказ принадлежит пользователю (если передан telegram_id)
+            $telegramId = $request->get('telegram_id');
+            if ($telegramId && $order->telegram_id != $telegramId) {
+                Log::warning('PaymentController::createYooKassaPayment - Order ownership mismatch', [
+                    'order_id' => $order->id,
+                    'order_telegram_id' => $order->telegram_id,
+                    'request_telegram_id' => $telegramId,
+                ]);
+                return response()->json([
+                    'message' => 'Заказ не принадлежит указанному пользователю',
+                ], 403);
+            }
+            
+            // Проверяем, что заказ еще не оплачен
+            if ($order->payment_status === 'succeeded') {
+                Log::warning('PaymentController::createYooKassaPayment - Order already paid', [
+                    'order_id' => $order->id,
+                    'payment_status' => $order->payment_status,
+                ]);
+                return response()->json([
+                    'message' => 'Заказ уже оплачен',
+                ], 400);
+            }
+            
+            // Проверяем, что сумма платежа соответствует сумме заказа
+            $requestAmount = (float) $request->get('amount');
+            $orderAmount = (float) $order->total_amount;
+            if (abs($requestAmount - $orderAmount) > 0.01) {
+                Log::warning('PaymentController::createYooKassaPayment - Amount mismatch', [
+                    'order_id' => $order->id,
+                    'request_amount' => $requestAmount,
+                    'order_amount' => $orderAmount,
+                ]);
+                return response()->json([
+                    'message' => 'Сумма платежа не соответствует сумме заказа',
+                ], 400);
+            }
             
             // Проверяем настройки ЮKassa
             $settings = PaymentSetting::forProvider('yookassa');

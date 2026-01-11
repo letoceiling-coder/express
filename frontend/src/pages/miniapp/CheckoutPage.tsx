@@ -472,13 +472,18 @@ export function CheckoutPage() {
       // Для ЮКассы - создаем платеж и переходим к оплате
       if (paymentCode === 'yookassa') {
         try {
+          // Получаем telegram_id для проверки владельца заказа
+          const user = getTelegramUser();
+          const telegramId = user?.id || order.telegramId;
+          
           // Создаем платеж через ЮKassa
           const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
           const paymentData = await paymentAPI.createYooKassaPayment(
             Number(order.id),
             finalAmount,
             returnUrl,
-            `Оплата заказа #${order.orderId}`
+            `Оплата заказа #${order.orderId}`,
+            telegramId
           );
 
           // Получаем URL для оплаты
