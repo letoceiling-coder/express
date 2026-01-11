@@ -10,6 +10,7 @@ import {
   X,
   Sun,
   Moon,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,6 +21,7 @@ const navItems = [
   { path: '/admin/orders', icon: ClipboardList, label: 'Заказы' },
   { path: '/admin/products', icon: Package, label: 'Товары' },
   { path: '/admin/categories', icon: Tags, label: 'Категории' },
+  { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },
 ];
 
 export function AdminLayout() {

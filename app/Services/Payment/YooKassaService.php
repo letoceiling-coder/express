@@ -245,31 +245,74 @@ class YooKassaService
      * 
      * @return array
      */
+    /**
+     * Тестирование подключения к API ЮКасса
+     * 
+     * Согласно документации ЮКасса: https://yookassa.ru/developers/api
+     * Используем GET /payments для проверки авторизации
+     * 
+     * @return array
+     */
     public function testConnection(): array
     {
         try {
+            $shopId = $this->settings->getActiveShopId();
+            $secretKey = $this->settings->getActiveSecretKey();
+
+            if (!$shopId || !$secretKey) {
+                return [
+                    'success' => false,
+                    'message' => 'Настройки ЮКасса не заполнены. Заполните ' . 
+                        ($this->settings->is_test_mode ? 'тестовые' : 'рабочие') . ' Shop ID и Secret Key',
+                ];
+            }
+
             // Пробуем получить список платежей (limit=1) для проверки авторизации
+            // Это стандартный способ проверки подключения согласно документации ЮКасса
             $response = Http::withHeaders($this->getHeaders())
+                ->timeout(10)
                 ->get("{$this->baseUrl}/payments", [
                     'limit' => 1,
                 ]);
 
             if ($response->successful()) {
+                $mode = $this->settings->is_test_mode ? 'тестовый' : 'рабочий';
                 return [
                     'success' => true,
-                    'message' => 'Подключение успешно',
+                    'message' => "Подключение к API ЮКасса успешно установлено ({$mode} режим)",
                 ];
+            }
+
+            // Парсим ответ с ошибкой
+            $errorBody = $response->json();
+            $errorMessage = 'Ошибка подключения';
+            
+            if (isset($errorBody['type']) && isset($errorBody['description'])) {
+                $errorMessage = $errorBody['description'];
+            } elseif ($response->status() === 401) {
+                $errorMessage = 'Неверный Shop ID или Secret Key. Проверьте правильность ключей';
+            } elseif ($response->status() === 403) {
+                $errorMessage = 'Доступ запрещен. Проверьте права доступа ключа';
+            } else {
+                $errorMessage = $errorBody['message'] ?? $response->body();
             }
 
             return [
                 'success' => false,
-                'message' => 'Ошибка подключения: ' . $response->body(),
+                'message' => $errorMessage,
             ];
         } catch (\Exception $e) {
-            Log::error('YooKassa testConnection error: ' . $e->getMessage());
+            Log::error('YooKassa testConnection error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'settings' => [
+                    'shop_id' => $this->settings->getActiveShopId(),
+                    'is_test_mode' => $this->settings->is_test_mode,
+                ],
+            ]);
+            
             return [
                 'success' => false,
-                'message' => 'Ошибка: ' . $e->getMessage(),
+                'message' => 'Ошибка подключения: ' . $e->getMessage(),
             ];
         }
     }

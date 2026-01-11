@@ -788,9 +788,9 @@ export const paymentSettingsAPI = {
         return { data: result };
     },
 
-    // Проверить подключение к ЮКасса
-    async testYooKassaConnection(data) {
-        const response = await apiPost('/payment-settings/yookassa/test', data);
+    // Проверить подключение к ЮКасса (использует настройки из БД)
+    async testYooKassaConnection() {
+        const response = await apiPost('/payment-settings/yookassa/test');
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: 'Ошибка проверки подключения' }));
             throw new Error(error.message || 'Ошибка проверки подключения');
