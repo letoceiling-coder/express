@@ -358,14 +358,21 @@ class PaymentController extends Controller
             // Формируем данные для чека (54-ФЗ)
             // Согласно документации ЮКасса: https://yookassa.ru/developers/api#create_payment_receipt
             // Обязательные поля для receipt.items: description, quantity, amount, vat_code, payment_subject, payment_mode
+            // ВАЖНО: Сумма всех items должна точно равняться сумме платежа
             $receiptItems = [];
+            $receiptTotalAmount = 0;
+            
             if ($order->items && $order->items->count() > 0) {
                 foreach ($order->items as $item) {
+                    // Используем total (unit_price * quantity) для каждого item
+                    $itemTotal = (float) ($item->total ?? ($item->unit_price * $item->quantity));
+                    $receiptTotalAmount += $itemTotal;
+                    
                     $receiptItems[] = [
                         'description' => $item->product_name ?? 'Товар',
                         'quantity' => (string) $item->quantity,
                         'amount' => [
-                            'value' => number_format((float) $item->unit_price, 2, '.', ''),
+                            'value' => number_format($itemTotal, 2, '.', ''),
                             'currency' => 'RUB',
                         ],
                         'vat_code' => 1, // НДС 20% (можно настроить в настройках)
@@ -375,17 +382,37 @@ class PaymentController extends Controller
                 }
             } else {
                 // Если items не загружены, создаем один item на всю сумму заказа
+                $receiptTotalAmount = (float) $request->get('amount');
                 $receiptItems[] = [
                     'description' => $description,
                     'quantity' => '1',
                     'amount' => [
-                        'value' => number_format((float) $request->get('amount'), 2, '.', ''),
+                        'value' => number_format($receiptTotalAmount, 2, '.', ''),
                         'currency' => 'RUB',
                     ],
                     'vat_code' => 1, // НДС 20%
                     'payment_subject' => 'commodity', // Признак предмета расчета: товар
                     'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                 ];
+            }
+            
+            // Проверяем, что сумма чека равна сумме платежа (с допуском 0.01)
+            $paymentAmount = (float) $request->get('amount');
+            if (abs($receiptTotalAmount - $paymentAmount) > 0.01) {
+                Log::warning('PaymentController::createYooKassaPayment - Receipt amount mismatch', [
+                    'order_id' => $order->id,
+                    'receipt_total' => $receiptTotalAmount,
+                    'payment_amount' => $paymentAmount,
+                    'difference' => abs($receiptTotalAmount - $paymentAmount),
+                ]);
+                
+                // Корректируем последний item, чтобы сумма совпадала
+                if (count($receiptItems) > 0) {
+                    $lastItem = &$receiptItems[count($receiptItems) - 1];
+                    $adjustment = $paymentAmount - $receiptTotalAmount;
+                    $lastItemAmount = (float) $lastItem['amount']['value'];
+                    $lastItem['amount']['value'] = number_format($lastItemAmount + $adjustment, 2, '.', '');
+                }
             }
             
             // Формируем данные покупателя для чека
@@ -400,11 +427,14 @@ class PaymentController extends Controller
             
             // Добавляем phone, если email не указан или в дополнение к email
             if ($order->phone) {
-                // Форматируем телефон для чека (только цифры, начинается с +7)
+                // Форматируем телефон для чека
+                // Согласно документации ЮКасса: телефон должен быть в формате +7XXXXXXXXXX или 7XXXXXXXXXX
                 $phone = preg_replace('/[^0-9]/', '', $order->phone);
                 if (strlen($phone) === 11 && $phone[0] === '7') {
+                    // Формат: 7XXXXXXXXXX -> +7XXXXXXXXXX
                     $receiptCustomer['phone'] = '+' . $phone;
                 } elseif (strlen($phone) === 10) {
+                    // Формат: XXXXXXXXXX -> +7XXXXXXXXXX
                     $receiptCustomer['phone'] = '+7' . $phone;
                 } elseif (strlen($phone) > 0) {
                     // Если телефон в другом формате, пробуем добавить +7
@@ -426,10 +456,20 @@ class PaymentController extends Controller
                 'items' => $receiptItems,
             ];
             
+            // Проверяем финальную сумму чека
+            $finalReceiptTotal = 0;
+            foreach ($receiptItems as $item) {
+                $finalReceiptTotal += (float) $item['amount']['value'];
+            }
+            
             Log::info('PaymentController::createYooKassaPayment - Receipt prepared', [
                 'order_id' => $order->id,
                 'items_count' => count($receiptItems),
                 'customer_phone' => $receiptCustomer['phone'] ?? null,
+                'customer_email' => $receiptCustomer['email'] ?? null,
+                'receipt_total' => $finalReceiptTotal,
+                'payment_amount' => $paymentAmount,
+                'amount_match' => abs($finalReceiptTotal - $paymentAmount) < 0.01,
                 'receipt_items' => $receiptItems,
             ]);
 
