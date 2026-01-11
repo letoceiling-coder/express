@@ -116,17 +116,37 @@ class YooKassaService
                 $payload['receipt'] = $data['receipt'];
             }
 
+            // Логируем payload для отладки (без секретных данных)
+            $logPayload = $payload;
+            if (isset($logPayload['receipt']['customer']['phone'])) {
+                $logPayload['receipt']['customer']['phone'] = substr($logPayload['receipt']['customer']['phone'], 0, 4) . '****';
+            }
+            if (isset($logPayload['receipt']['customer']['email'])) {
+                $logPayload['receipt']['customer']['email'] = substr($logPayload['receipt']['customer']['email'], 0, 3) . '****';
+            }
+            Log::info('YooKassa createPayment request', [
+                'payload' => $logPayload,
+                'idempotence_key' => $idempotenceKey,
+            ]);
+
             $response = Http::withHeaders($this->getHeaders($idempotenceKey))
                 ->post("{$this->baseUrl}/payments", $payload);
 
             if ($response->successful()) {
-                return $response->json();
+                $responseData = $response->json();
+                Log::info('YooKassa createPayment success', [
+                    'payment_id' => $responseData['id'] ?? null,
+                    'status' => $responseData['status'] ?? null,
+                    'confirmation_url' => $responseData['confirmation']['confirmation_url'] ?? null,
+                ]);
+                return $responseData;
             }
 
             $errorBody = $response->body();
             Log::error('YooKassa createPayment error', [
                 'status' => $response->status(),
                 'body' => $errorBody,
+                'payload_preview' => $logPayload,
             ]);
 
             throw new \Exception('Ошибка создания платежа: ' . $errorBody);

@@ -490,17 +490,27 @@ export function CheckoutPage() {
             telegramEmail // Передаем email для квитанции
           );
 
-          // Получаем URL для оплаты
-          const confirmationUrl = paymentData.yookassa_payment?.confirmation?.confirmation_url;
+          console.log('Payment data received:', paymentData);
+
+          // Получаем URL для оплаты (проверяем разные варианты структуры ответа)
+          const confirmationUrl = 
+            paymentData?.data?.confirmation_url || 
+            paymentData?.data?.yookassa_payment?.confirmation?.confirmation_url ||
+            paymentData?.yookassa_payment?.confirmation?.confirmation_url ||
+            paymentData?.confirmation_url;
+          
+          console.log('Confirmation URL:', confirmationUrl);
           
           if (confirmationUrl) {
             // Перенаправляем на страницу оплаты ЮKassa
+            console.log('Redirecting to:', confirmationUrl);
             window.location.href = confirmationUrl;
             toast.success('Переход к оплате...');
           } else {
             // Если URL не получен, переходим на страницу заказа
+            console.error('Confirmation URL not found in response:', paymentData);
             navigate(`/orders/${order.orderId}?payment=yookassa`);
-            toast.success('Заказ создан. Переход к оплате...');
+            toast.error('Ошибка: URL для оплаты не получен. Заказ создан.');
           }
         } catch (paymentError: any) {
           console.error('Ошибка при создании платежа ЮKassa:', paymentError);

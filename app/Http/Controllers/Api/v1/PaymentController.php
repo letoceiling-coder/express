@@ -459,7 +459,22 @@ class PaymentController extends Controller
             );
 
             // Создаем платеж в ЮKassa
-            $yooKassaPayment = $yooKassaService->createPayment($paymentData, $idempotenceKey);
+            try {
+                $yooKassaPayment = $yooKassaService->createPayment($paymentData, $idempotenceKey);
+                
+                Log::info('PaymentController::createYooKassaPayment - Payment created successfully', [
+                    'order_id' => $order->id,
+                    'payment_id' => $yooKassaPayment['id'] ?? null,
+                    'status' => $yooKassaPayment['status'] ?? null,
+                    'confirmation_url' => $yooKassaPayment['confirmation']['confirmation_url'] ?? null,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('PaymentController::createYooKassaPayment - Failed to create payment', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
 
             DB::beginTransaction();
 
