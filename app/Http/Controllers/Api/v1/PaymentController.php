@@ -356,6 +356,7 @@ class PaymentController extends Controller
             
             // Формируем данные для чека (54-ФЗ)
             // Согласно документации ЮКасса: https://yookassa.ru/developers/api#create_payment_receipt
+            // Обязательные поля для receipt.items: description, quantity, amount, vat_code, payment_subject, payment_mode
             $receiptItems = [];
             if ($order->items && $order->items->count() > 0) {
                 foreach ($order->items as $item) {
@@ -367,6 +368,8 @@ class PaymentController extends Controller
                             'currency' => 'RUB',
                         ],
                         'vat_code' => 1, // НДС 20% (можно настроить в настройках)
+                        'payment_subject' => 'commodity', // Признак предмета расчета: товар
+                        'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                     ];
                 }
             } else {
@@ -379,6 +382,8 @@ class PaymentController extends Controller
                         'currency' => 'RUB',
                     ],
                     'vat_code' => 1, // НДС 20%
+                    'payment_subject' => 'commodity', // Признак предмета расчета: товар
+                    'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                 ];
             }
             
