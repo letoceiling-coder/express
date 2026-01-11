@@ -161,6 +161,12 @@ class AdminMenu
                         'roles' => ['admin'],
                     ],
                     [
+                        'title' => 'Доставка',
+                        'route' => 'admin.settings.delivery',
+                        'icon' => 'truck',
+                        'roles' => ['admin'],
+                    ],
+                    [
                         'title' => 'Общие',
                         'route' => 'admin.settings',
                         'icon' => 'settings',

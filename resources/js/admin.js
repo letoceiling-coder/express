@@ -480,6 +480,13 @@ const routes = [
                 component: () => import('./pages/admin/PaymentSettingsYooKassa.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки ЮКасса' },
             },
+            // Delivery Settings
+            {
+                path: 'settings/delivery',
+                name: 'admin.settings.delivery',
+                component: () => import('./pages/admin/DeliverySettings.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки доставки' },
+            },
         ],
     },
 ];

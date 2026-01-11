@@ -818,3 +818,30 @@ export const paymentSettingsAPI = {
     },
 };
 
+// ============================================
+// Delivery Settings API
+// ============================================
+export const deliverySettingsAPI = {
+    // Получить настройки доставки
+    async getSettings() {
+        const response = await apiGet('/delivery-settings');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка загрузки настроек доставки' }));
+            throw new Error(error.message || 'Ошибка загрузки настроек доставки');
+        }
+        const data = await response.json();
+        return { data };
+    },
+
+    // Обновить настройки доставки
+    async updateSettings(data) {
+        const response = await apiPut('/delivery-settings', data);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка обновления настроек доставки' }));
+            throw new Error(error.message || 'Ошибка обновления настроек доставки');
+        }
+        const result = await response.json();
+        return { data: result };
+    },
+};
+
