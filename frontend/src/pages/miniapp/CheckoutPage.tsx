@@ -442,7 +442,12 @@ export function CheckoutPage() {
 
     setIsCalculatingDelivery(true);
     try {
-      const result = await deliverySettingsAPI.calculateCost(address, totalAmount);
+      // Добавляем город по умолчанию к адресу для поиска
+      const addressWithCity = defaultCity && !address.toLowerCase().includes(defaultCity.toLowerCase())
+        ? `${defaultCity}, ${address}`
+        : address;
+      
+      const result = await deliverySettingsAPI.calculateCost(addressWithCity, totalAmount);
       if (result.valid) {
         setDeliveryCost(result.cost || null);
         setDeliveryValidation({
@@ -482,7 +487,7 @@ export function CheckoutPage() {
     }, 1000); // Задержка 1 секунда после ввода
 
     return () => clearTimeout(timer);
-  }, [formData.address, formData.deliveryType]);
+  }, [formData.address, formData.deliveryType, defaultCity]);
 
   const validateStep = async (currentStep: Step): Promise<boolean> => {
     if (currentStep === 1) {
@@ -509,7 +514,12 @@ export function CheckoutPage() {
         if (deliveryValidation === null && !isCalculatingDelivery) {
           setIsCalculatingDelivery(true);
           try {
-            const result = await deliverySettingsAPI.calculateCost(formData.address, totalAmount);
+            // Добавляем город по умолчанию к адресу для поиска
+            const addressWithCity = defaultCity && !formData.address.toLowerCase().includes(defaultCity.toLowerCase())
+              ? `${defaultCity}, ${formData.address}`
+              : formData.address;
+            
+            const result = await deliverySettingsAPI.calculateCost(addressWithCity, totalAmount);
             if (!result.valid) {
               toast.error(result.error || 'Адрес не найден. Проверьте правильность адреса');
               setIsCalculatingDelivery(false);
