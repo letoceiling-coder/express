@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Encrypted;
 
 /**
  * Модель настроек платежной системы
@@ -63,8 +62,8 @@ class PaymentSetting extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'secret_key' => Encrypted::class,
-        'test_secret_key' => Encrypted::class,
+        'secret_key' => 'encrypted',
+        'test_secret_key' => 'encrypted',
         'is_test_mode' => 'boolean',
         'is_enabled' => 'boolean',
         'payment_methods' => 'array',
