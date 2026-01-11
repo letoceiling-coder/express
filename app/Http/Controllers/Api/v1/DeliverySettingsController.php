@@ -160,7 +160,8 @@ class DeliverySettingsController extends Controller
             $settings = DeliverySetting::getSettings();
             $calculationService = new DeliveryCalculationService($settings);
             
-            $cartTotal = $request->get('cart_total') ? (float) $request->get('cart_total') : null;
+            $cartTotal = $request->input('cart_total', 0);
+            $cartTotal = $cartTotal ? (float) $cartTotal : 0;
             $result = $calculationService->validateAddressAndCalculateCost($request->address, $cartTotal);
             
             if ($result['valid']) {

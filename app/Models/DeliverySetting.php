@@ -52,6 +52,7 @@ class DeliverySetting extends Model
         'origin_longitude' => 'decimal:8',
         'delivery_zones' => 'array',
         'is_enabled' => 'boolean',
+        'free_delivery_threshold' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -87,10 +88,16 @@ class DeliverySetting extends Model
      * Получить стоимость доставки по расстоянию
      * 
      * @param float $distance Расстояние в км
+     * @param float $cartTotal Сумма корзины
      * @return float Стоимость доставки
      */
-    public function getDeliveryCost(float $distance): float
+    public function getDeliveryCost(float $distance, float $cartTotal = 0): float
     {
+        // Проверка бесплатной доставки
+        if ($this->free_delivery_threshold > 0 && $cartTotal >= $this->free_delivery_threshold) {
+            return 0.00;
+        }
+
         $zones = $this->delivery_zones ?? [];
         
         // Сортируем зоны по max_distance (по возрастанию)

@@ -154,9 +154,10 @@ class DeliveryCalculationService
      * Валидация адреса и расчет стоимости доставки
      * 
      * @param string $address Адрес доставки
+     * @param float $cartTotal Сумма корзины
      * @return array ['valid' => bool, 'address' => string, 'coordinates' => array, 'distance' => float, 'cost' => float, 'zone' => string] или ['valid' => false, 'error' => string]
      */
-    public function validateAddressAndCalculateCost(string $address): array
+    public function validateAddressAndCalculateCost(string $address, float $cartTotal = 0): array
     {
         // Проверяем, включена ли система расчета доставки
         if (!$this->settings->is_enabled) {
@@ -191,15 +192,8 @@ class DeliveryCalculationService
             $geocodeResult['longitude']
         );
 
-        // Расчет стоимости доставки
-        $baseCost = $this->settings->getDeliveryCost($distance);
-
-        // Проверка бесплатной доставки
-        $threshold = $this->settings->free_delivery_threshold ?? null;
-        $cost = $baseCost;
-        if ($threshold !== null && $cartTotal !== null && $cartTotal >= $threshold) {
-            $cost = 0;
-        }
+        // Расчет стоимости доставки с учетом порога бесплатной доставки
+        $cost = $this->settings->getDeliveryCost($distance, $cartTotal);
 
         // Определение зоны
         $zone = $this->getZoneName($distance);
