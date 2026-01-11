@@ -613,7 +613,7 @@ export const deliverySettingsAPI = {
     }
   },
 
-  async calculateCost(address: string): Promise<{
+  async calculateCost(address: string, cartTotal: number = 0): Promise<{
     valid: boolean;
     address?: string;
     coordinates?: { latitude: number; longitude: number };
