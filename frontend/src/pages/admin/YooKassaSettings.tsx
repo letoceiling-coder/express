@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Check, X, AlertCircle, Settings } from 'lucide-react';
+import { Loader2, Check, X, AlertCircle, Settings, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentSettingsAPI } from '@/api';
 
@@ -38,18 +38,18 @@ export function YooKassaSettings() {
       const data = await paymentSettingsAPI.getYooKassa();
       
       if (data) {
-        setFormData({
-          shop_id: data.shop_id || '',
-          secret_key: '', // Не показываем секретный ключ
-          test_shop_id: data.test_shop_id || '',
-          test_secret_key: '', // Не показываем секретный ключ
+        setFormData(prev => ({
+          shop_id: data.shop_id || prev.shop_id || '',
+          secret_key: prev.secret_key || '', // Сохраняем введенный ключ, если был
+          test_shop_id: data.test_shop_id || prev.test_shop_id || '',
+          test_secret_key: prev.test_secret_key || '', // Сохраняем введенный ключ, если был
           is_test_mode: data.is_test_mode ?? true,
           is_enabled: data.is_enabled ?? false,
-          webhook_url: data.webhook_url || '',
-          description_template: data.description_template || '',
-          merchant_name: data.merchant_name || '',
+          webhook_url: data.webhook_url || prev.webhook_url || '',
+          description_template: data.description_template || prev.description_template || '',
+          merchant_name: data.merchant_name || prev.merchant_name || '',
           auto_capture: data.auto_capture ?? true,
-        });
+        }));
       }
     } catch (error: any) {
       console.error('Error loading YooKassa settings:', error);
@@ -64,9 +64,22 @@ export function YooKassaSettings() {
     setIsLoading(true);
 
     try {
-      await paymentSettingsAPI.updateYooKassa(formData);
+      const response = await paymentSettingsAPI.updateYooKassa(formData);
       toast.success('Настройки успешно сохранены');
-      await loadSettings(); // Перезагружаем настройки после сохранения
+      
+      // Обновляем форму с сохраненными данными, но сохраняем введенные секретные ключи
+      if (response && response.data) {
+        setFormData(prev => ({
+          ...prev,
+          ...response.data,
+          // Сохраняем введенные секретные ключи, если они были заполнены
+          secret_key: prev.secret_key || '',
+          test_secret_key: prev.test_secret_key || '',
+        }));
+      } else {
+        // Если ответ без данных, перезагружаем настройки
+        await loadSettings();
+      }
     } catch (error: any) {
       console.error('Error saving YooKassa settings:', error);
       toast.error(error?.response?.data?.message || 'Ошибка при сохранении настроек');
@@ -147,20 +160,38 @@ export function YooKassaSettings() {
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="is_test_mode">Тестовый режим</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Использовать тестовые ключи для проверки
-                  </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_test_mode">Режим работы</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.is_test_mode 
+                        ? 'Тестовый режим — используются тестовые ключи'
+                        : 'Рабочий режим — используются реальные ключи для приема платежей'
+                      }
+                    </p>
+                  </div>
+                  <Switch
+                    id="is_test_mode"
+                    checked={formData.is_test_mode}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, is_test_mode: checked })
+                    }
+                  />
                 </div>
-                <Switch
-                  id="is_test_mode"
-                  checked={formData.is_test_mode}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, is_test_mode: checked })
-                  }
-                />
+                {formData.is_test_mode ? (
+                  <div className="px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                      ⚠️ Тестовый режим активен. Платежи будут тестовыми.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-xs font-medium text-green-700 dark:text-green-400">
+                      ✓ Рабочий режим активен. Платежи будут реальными.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between">
@@ -332,37 +363,92 @@ export function YooKassaSettings() {
             <CardHeader>
               <CardTitle>Тестирование подключения</CardTitle>
               <CardDescription>
-                Проверьте подключение к API ЮKassa
+                Проверьте подключение к API ЮKassa ({formData.is_test_mode ? 'тестовый режим' : 'рабочий режим'})
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Режим:</span>
+                    <span className="font-medium text-foreground">
+                      {formData.is_test_mode ? (
+                        <span className="text-yellow-600 dark:text-yellow-400">Тестовый (Sandbox)</span>
+                      ) : (
+                        <span className="text-green-600 dark:text-green-400">Рабочий (Production)</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Shop ID:</span>
+                    <span className="font-medium text-foreground">
+                      {formData.is_test_mode 
+                        ? (formData.test_shop_id || 'Не указан')
+                        : (formData.shop_id || 'Не указан')
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Secret Key:</span>
+                    <span className="font-medium text-foreground">
+                      {(formData.is_test_mode ? formData.test_secret_key : formData.secret_key) 
+                        ? '✓ Указан' 
+                        : '✗ Не указан'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleTest}
                 disabled={isTesting || !formData.is_enabled}
+                className="w-full"
               >
                 {isTesting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Тестирование...
+                    Тестирование подключения...
                   </>
                 ) : (
-                  'Тестировать подключение'
+                  <>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Тестировать подключение ({formData.is_test_mode ? 'тестовый режим' : 'рабочий режим'})
+                  </>
                 )}
               </Button>
 
               {testResult && (
                 <Alert variant={testResult.success ? 'default' : 'destructive'}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2">
                     {testResult.success ? (
-                      <Check className="h-4 w-4" />
+                      <CheckCircle2 className="h-4 w-4 mt-0.5" />
                     ) : (
-                      <X className="h-4 w-4" />
+                      <XCircle className="h-4 w-4 mt-0.5" />
                     )}
-                    <AlertDescription>
-                      {testResult.message || (testResult.success ? 'Подключение успешно' : 'Ошибка подключения')}
-                    </AlertDescription>
+                    <div className="flex-1">
+                      <AlertDescription className="font-medium">
+                        {testResult.success ? 'Подключение успешно!' : 'Ошибка подключения'}
+                      </AlertDescription>
+                      <p className="text-sm mt-1">
+                        {testResult.message || (testResult.success 
+                          ? `API ЮKassa доступен. Режим: ${formData.is_test_mode ? 'тестовый' : 'рабочий'}` 
+                          : 'Проверьте правильность Shop ID и Secret Key'
+                        )}
+                      </p>
+                      {testResult.success && formData.is_test_mode && (
+                        <p className="text-xs mt-2 text-muted-foreground">
+                          💡 Подключение работает в тестовом режиме. Для переключения на рабочий режим отключите "Тестовый режим" выше и укажите реальные ключи.
+                        </p>
+                      )}
+                      {testResult.success && !formData.is_test_mode && (
+                        <p className="text-xs mt-2 text-muted-foreground">
+                          ✅ Подключение работает в рабочем режиме. Платежи будут реальными.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </Alert>
               )}
