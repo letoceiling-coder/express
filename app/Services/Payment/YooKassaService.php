@@ -28,11 +28,23 @@ class YooKassaService
         $this->baseUrl = 'https://api.yookassa.ru/v3';
         
         // Логируем режим работы при инициализации сервиса
+        // ВАЖНО: Проверяем, что используются правильные ключи для тестового режима
+        $activeShopId = $this->settings->getActiveShopId();
+        $productionShopId = $this->settings->shop_id;
+        $testShopId = $this->settings->test_shop_id;
+        
         Log::info('YooKassaService initialized', [
             'is_test_mode' => $this->settings->is_test_mode,
             'base_url' => $this->baseUrl,
-            'shop_id' => $this->settings->getActiveShopId(),
+            'active_shop_id' => $activeShopId,
+            'production_shop_id' => $productionShopId,
+            'test_shop_id' => $testShopId,
             'has_secret_key' => !empty($this->settings->getActiveSecretKey()),
+            'warning' => $this->settings->is_test_mode && empty($testShopId) 
+                ? 'ТЕСТОВЫЙ РЕЖИМ ВКЛЮЧЕН, НО TEST_SHOP_ID НЕ ЗАПОЛНЕН! Используется продакшн shop_id.' 
+                : ($this->settings->is_test_mode && $activeShopId === $productionShopId 
+                    ? 'ТЕСТОВЫЙ РЕЖИМ ВКЛЮЧЕН, НО ИСПОЛЬЗУЕТСЯ ПРОДАКШН SHOP_ID! Это может привести к реальным платежам!'
+                    : null),
         ]);
         
         // Поддержка env переменной YUKASSA как fallback (если настройки не заданы)
@@ -55,6 +67,31 @@ class YooKassaService
 
         if (!$shopId || !$secretKey) {
             throw new \Exception('Настройки ЮКасса не заполнены');
+        }
+
+        // ВАЖНАЯ ПРОВЕРКА: Предупреждаем, если в тестовом режиме используются продакшн ключи
+        if ($this->settings->is_test_mode) {
+            $testShopId = $this->settings->test_shop_id;
+            $productionShopId = $this->settings->shop_id;
+            
+            // Если test_shop_id не заполнен ИЛИ равен продакшн shop_id - это проблема!
+            if (empty($testShopId)) {
+                Log::error('YooKassaService: ТЕСТОВЫЙ РЕЖИМ ВКЛЮЧЕН, НО TEST_SHOP_ID НЕ ЗАПОЛНЕН!', [
+                    'is_test_mode' => true,
+                    'test_shop_id' => null,
+                    'production_shop_id' => $productionShopId,
+                    'active_shop_id' => $shopId,
+                    'warning' => 'Возможно используются продакшн ключи вместо тестовых!',
+                ]);
+            } elseif ($shopId === $productionShopId) {
+                Log::error('YooKassaService: ТЕСТОВЫЙ РЕЖИМ ВКЛЮЧЕН, НО ИСПОЛЬЗУЕТСЯ ПРОДАКШН SHOP_ID!', [
+                    'is_test_mode' => true,
+                    'test_shop_id' => $testShopId,
+                    'production_shop_id' => $productionShopId,
+                    'active_shop_id' => $shopId,
+                    'warning' => 'Используется продакшн shop_id вместо тестового! Платежи будут реальными!',
+                ]);
+            }
         }
 
         $auth = base64_encode("{$shopId}:{$secretKey}");
@@ -166,6 +203,24 @@ class YooKassaService
             if ($response->successful()) {
                 $responseData = $response->json();
                 
+                // ВАЖНО: Проверяем, совпадает ли режим в ответе YooKassa с нашими настройками
+                $yooKassaTestMode = $responseData['test'] ?? false;
+                $ourTestMode = $this->settings->is_test_mode;
+                
+                // Если режимы не совпадают - это серьезная проблема!
+                if ($ourTestMode !== $yooKassaTestMode) {
+                    Log::warning('YooKassa createPayment - MODE MISMATCH!', [
+                        'our_is_test_mode' => $ourTestMode,
+                        'yookassa_test_mode' => $yooKassaTestMode,
+                        'active_shop_id' => $this->settings->getActiveShopId(),
+                        'test_shop_id' => $this->settings->test_shop_id,
+                        'production_shop_id' => $this->settings->shop_id,
+                        'warning' => $ourTestMode && !$yooKassaTestMode 
+                            ? 'ТЕСТОВЫЙ РЕЖИМ ВКЛЮЧЕН В НАСТРОЙКАХ, НО YOOKASSA ИСПОЛЬЗУЕТ ПРОДАКШН МАГАЗИН! Проверьте test_shop_id и test_secret_key в настройках.'
+                            : 'Режимы не совпадают - возможна ошибка в настройках.',
+                    ]);
+                }
+                
                 // Детальное логирование успешного ответа
                 Log::info('YooKassa createPayment success', [
                     'payment_id' => $responseData['id'] ?? null,
@@ -173,6 +228,9 @@ class YooKassaService
                     'confirmation_url' => $responseData['confirmation']['confirmation_url'] ?? null,
                     'receipt_registration' => $responseData['receipt_registration'] ?? null,
                     'metadata' => $responseData['metadata'] ?? null,
+                    'yookassa_test_mode' => $yooKassaTestMode, // Режим, указанный YooKassa в ответе
+                    'our_test_mode' => $ourTestMode, // Наш режим из настроек
+                    'mode_match' => $ourTestMode === $yooKassaTestMode,
                     'full_response_preview' => [
                         'id' => $responseData['id'] ?? null,
                         'status' => $responseData['status'] ?? null,
@@ -181,6 +239,7 @@ class YooKassaService
                         'receipt_registration' => $responseData['receipt_registration'] ?? null,
                         'captured_at' => $responseData['captured_at'] ?? null,
                         'created_at' => $responseData['created_at'] ?? null,
+                        'test' => $yooKassaTestMode, // Добавляем поле test из ответа
                     ],
                 ]);
                 return $responseData;
