@@ -91,6 +91,9 @@ export function CheckoutPage() {
     zone?: string;
     error?: string;
   } | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{ value: string; display: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressInputRef, setAddressInputRef] = useState<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
@@ -338,6 +341,77 @@ export function CheckoutPage() {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     setFormData({ ...formData, phone: formatted });
+  };
+
+  // Поиск адресов через Яндекс Suggest API (ограничено Екатеринбургом)
+  const fetchAddressSuggestions = async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      // Добавляем "Екатеринбург" к запросу для ограничения поиска
+      const searchQuery = `Екатеринбург ${query}`;
+      const url = `https://suggest-maps.yandex.ru/v1/suggest?apikey=&text=${encodeURIComponent(searchQuery)}&lang=ru_RU&types=address&results=5`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.results && Array.isArray(data.results)) {
+        const suggestions = data.results
+          .map((item: any) => ({
+            value: item.title?.text || item.subtitle?.text || '',
+            display: item.title?.text || item.subtitle?.text || '',
+          }))
+          .filter((item: any) => item.value && item.display && item.display.toLowerCase().includes('екатеринбург'));
+        
+        setAddressSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } else {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error fetching address suggestions:', error);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Обработчик изменения адреса с автокомплитом
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, address: value });
+    setDeliveryValidation(null);
+    setDeliveryCost(null);
+  };
+
+  // Debounce для автокомплита адресов
+  useEffect(() => {
+    if (!formData.address.trim() || formData.address.length < 2) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      fetchAddressSuggestions(formData.address);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [formData.address]);
+
+  // Выбор адреса из списка предложений
+  const handleAddressSelect = (address: string) => {
+    setFormData({ ...formData, address });
+    setAddressSuggestions([]);
+    setShowSuggestions(false);
+    // Триггерим расчет стоимости доставки
+    setTimeout(() => {
+      calculateDeliveryCost(address);
+    }, 100);
   };
 
   // Расчет стоимости доставки
@@ -738,19 +812,44 @@ export function CheckoutPage() {
                 <label className="mb-1.5 block text-sm text-muted-foreground">
                   Адрес доставки *
                 </label>
-                <input
-                  type="text"
-                  placeholder="г. Екатеринбург, ул., д., кв."
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className={`w-full h-11 rounded-lg border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    deliveryValidation && !deliveryValidation.valid
-                      ? 'border-destructive focus:border-destructive'
-                      : deliveryValidation?.valid
-                      ? 'border-green-500 focus:border-primary'
-                      : 'border-border focus:border-primary'
-                  }`}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="г. Екатеринбург, ул., д., кв."
+                    value={formData.address}
+                    onChange={handleAddressChange}
+                    onFocus={() => {
+                      if (addressSuggestions.length > 0) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Задержка для обработки клика по предложению
+                      setTimeout(() => setShowSuggestions(false), 200);
+                    }}
+                    className={`w-full h-11 rounded-lg border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                      deliveryValidation && !deliveryValidation.valid
+                        ? 'border-destructive focus:border-destructive'
+                        : deliveryValidation?.valid
+                        ? 'border-green-500 focus:border-primary'
+                        : 'border-border focus:border-primary'
+                    }`}
+                  />
+                  {showSuggestions && addressSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleAddressSelect(suggestion.value)}
+                          className="w-full text-left px-4 py-2 hover:bg-muted focus:bg-muted focus:outline-none text-sm"
+                        >
+                          {suggestion.display}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {isCalculatingDelivery && (
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
                     <Loader2 className="h-3 w-3 animate-spin" />
