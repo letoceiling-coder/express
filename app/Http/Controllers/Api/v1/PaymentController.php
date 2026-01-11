@@ -172,9 +172,40 @@ class PaymentController extends Controller
         ]);
 
         try {
+            DB::beginTransaction();
+            
             $payment = Payment::findOrFail($id);
-            $payment->status = $request->get('status');
+            $oldStatus = $payment->status;
+            $newStatus = $request->get('status');
+            
+            $payment->status = $newStatus;
+            
+            // Автоматически устанавливаем paid_at при статусе succeeded
+            if ($newStatus === Payment::STATUS_SUCCEEDED && !$payment->paid_at) {
+                $payment->paid_at = now();
+            }
+            
             $payment->save();
+            
+            // Обновляем статус заказа, если платеж успешен
+            if ($newStatus === Payment::STATUS_SUCCEEDED && $payment->order) {
+                $payment->order->payment_status = 'succeeded';
+                $payment->order->payment_id = (string) $payment->id;
+                if ($payment->order->status === 'new') {
+                    $payment->order->status = 'accepted';
+                }
+                $payment->order->save();
+            }
+
+            DB::commit();
+
+            Log::info('PaymentController::updateStatus - статус платежа изменен вручную', [
+                'payment_id' => $payment->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'order_id' => $payment->order_id,
+                'transaction_id' => $payment->transaction_id,
+            ]);
 
             $payment->load('order');
 
@@ -183,7 +214,12 @@ class PaymentController extends Controller
                 'message' => 'Статус платежа успешно обновлен',
             ]);
         } catch (\Exception $e) {
-            Log::error('Ошибка при изменении статуса платежа: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Ошибка при изменении статуса платежа: ' . $e->getMessage(), [
+                'payment_id' => $id,
+                'new_status' => $request->get('status'),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'message' => 'Ошибка при изменении статуса платежа',
@@ -203,6 +239,7 @@ class PaymentController extends Controller
     {
         $request->validate([
             'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'description' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
@@ -226,6 +263,57 @@ class PaymentController extends Controller
 
             DB::beginTransaction();
 
+            // Если платеж через YooKassa, создаем возврат через API
+            if ($payment->payment_provider === 'yookassa' && $payment->transaction_id) {
+                $settings = PaymentSetting::forProvider('yookassa');
+                
+                if (!$settings || !$settings->is_enabled) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Интеграция с ЮKassa отключена или не настроена',
+                    ], 400);
+                }
+
+                try {
+                    $yooKassaService = new YooKassaService($settings);
+                    
+                    $refundData = [
+                        'amount' => $refundAmount,
+                        'currency' => $payment->currency ?? 'RUB',
+                        'description' => $request->get('description') ?? 'Возврат платежа #' . ($payment->order->order_id ?? $payment->id),
+                    ];
+                    
+                    Log::info('PaymentController::refund - создание возврата через YooKassa API', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'refund_amount' => $refundAmount,
+                        'currency' => $refundData['currency'],
+                    ]);
+                    
+                    $refundResponse = $yooKassaService->createRefund($payment->transaction_id, $refundData);
+                    
+                    Log::info('PaymentController::refund - возврат создан через YooKassa API', [
+                        'payment_id' => $payment->id,
+                        'yookassa_refund_id' => $refundResponse['id'] ?? null,
+                        'refund_status' => $refundResponse['status'] ?? null,
+                    ]);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('PaymentController::refund - ошибка создания возврата через YooKassa API', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    return response()->json([
+                        'message' => 'Ошибка создания возврата через YooKassa: ' . $e->getMessage(),
+                        'error' => $e->getMessage(),
+                    ], 500);
+                }
+            }
+
+            // Обновляем статус платежа в БД
+            $oldStatus = $payment->status;
             $newRefundedAmount = (float) $payment->refunded_amount + $refundAmount;
             $payment->refunded_amount = $newRefundedAmount;
             $payment->refunded_at = now();
@@ -240,6 +328,15 @@ class PaymentController extends Controller
 
             DB::commit();
 
+            Log::info('PaymentController::refund - возврат выполнен', [
+                'payment_id' => $payment->id,
+                'old_status' => $oldStatus,
+                'new_status' => $payment->status,
+                'refund_amount' => $refundAmount,
+                'total_refunded' => $newRefundedAmount,
+                'order_id' => $payment->order_id,
+            ]);
+
             $payment->load('order');
 
             return response()->json([
@@ -248,7 +345,11 @@ class PaymentController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Ошибка при возврате платежа: ' . $e->getMessage());
+            Log::error('PaymentController::refund - ошибка возврата платежа', [
+                'payment_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'message' => 'Ошибка при возврате платежа',

@@ -354,23 +354,59 @@ class YooKassaService
     public function createRefund(string $paymentId, array $data): array
     {
         try {
-            $response = Http::withHeaders($this->getHeaders())
-                ->post("{$this->baseUrl}/refunds", [
-                    'payment_id' => $paymentId,
-                    'amount' => [
-                        'value' => number_format($data['amount'], 2, '.', ''),
-                        'currency' => $data['currency'] ?? 'RUB',
-                    ],
-                    'description' => $data['description'] ?? 'Возврат платежа',
-                ]);
+            $idempotenceKey = $this->generateIdempotenceKey();
+            
+            $refundPayload = [
+                'payment_id' => $paymentId,
+                'amount' => [
+                    'value' => number_format($data['amount'], 2, '.', ''),
+                    'currency' => $data['currency'] ?? 'RUB',
+                ],
+            ];
+            
+            if (isset($data['description'])) {
+                $refundPayload['description'] = $data['description'];
+            }
+            
+            Log::info('YooKassa createRefund request', [
+                'payment_id' => $paymentId,
+                'refund_amount' => $data['amount'],
+                'currency' => $data['currency'] ?? 'RUB',
+                'idempotence_key' => $idempotenceKey,
+            ]);
+            
+            $response = Http::withHeaders($this->getHeaders($idempotenceKey))
+                ->post("{$this->baseUrl}/refunds", $refundPayload);
 
             if ($response->successful()) {
-                return $response->json();
+                $responseData = $response->json();
+                
+                Log::info('YooKassa createRefund success', [
+                    'payment_id' => $paymentId,
+                    'refund_id' => $responseData['id'] ?? null,
+                    'refund_status' => $responseData['status'] ?? null,
+                    'refund_amount' => $responseData['amount'] ?? null,
+                ]);
+                
+                return $responseData;
             }
 
-            throw new \Exception('Ошибка создания возврата: ' . $response->body());
+            $errorBody = $response->body();
+            $errorJson = $response->json();
+            
+            Log::error('YooKassa createRefund error', [
+                'status' => $response->status(),
+                'body' => $errorBody,
+                'error_json' => $errorJson,
+                'payment_id' => $paymentId,
+            ]);
+
+            throw new \Exception('Ошибка создания возврата: ' . $errorBody);
         } catch (\Exception $e) {
-            Log::error('YooKassa createRefund error: ' . $e->getMessage());
+            Log::error('YooKassa createRefund error: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'refund_amount' => $data['amount'] ?? null,
+            ]);
             throw $e;
         }
     }

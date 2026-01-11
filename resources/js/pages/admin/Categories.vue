@@ -66,6 +66,7 @@
             <table class="w-full">
                 <thead class="bg-muted/50">
                     <tr>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground w-10"></th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Изображение</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Название</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Описание</th>
@@ -75,7 +76,26 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                    <tr v-for="category in filteredCategories" :key="category.id">
+                    <tr 
+                        v-for="(category, index) in filteredCategories" 
+                        :key="category.id"
+                        :draggable="true"
+                        @dragstart="handleDragStart($event, index)"
+                        @dragover.prevent="handleDragOver($event, index)"
+                        @dragleave="handleDragLeave($event)"
+                        @drop.prevent="handleDrop($event, index)"
+                        @dragend="handleDragEnd"
+                        :class="{
+                            'opacity-50': draggedIndex === index,
+                            'bg-blue-50 dark:bg-blue-900/20': draggedOverIndex === index
+                        }"
+                        class="cursor-move transition-colors"
+                    >
+                        <td class="px-6 py-4 w-10">
+                            <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                            </svg>
+                        </td>
                         <td class="px-6 py-4">
                             <img
                                 v-if="category.image?.url"
@@ -148,6 +168,8 @@ export default {
             searchQuery: '',
             statusFilter: '',
             sortBy: 'sort_order',
+            draggedIndex: null,
+            draggedOverIndex: null,
         };
     },
     computed: {
@@ -196,7 +218,17 @@ export default {
             try {
                 const response = await categoriesAPI.getAll();
                 // Гарантируем, что categories всегда массив
-                this.categories = Array.isArray(response.data) ? response.data : [];
+                let categories = Array.isArray(response.data) ? response.data : [];
+                
+                // Сортируем по sort_order
+                categories.sort((a, b) => {
+                    const orderA = a.sort_order || 0;
+                    const orderB = b.sort_order || 0;
+                    if (orderA !== orderB) return orderA - orderB;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                this.categories = categories;
             } catch (error) {
                 this.error = error.message || 'Ошибка загрузки категорий';
                 this.categories = []; // В случае ошибки устанавливаем пустой массив
@@ -215,6 +247,77 @@ export default {
             } catch (error) {
                 alert(error.message || 'Ошибка удаления категории');
             }
+        },
+        
+        handleDragStart(event, index) {
+            this.draggedIndex = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/html', event.target);
+        },
+        
+        handleDragOver(event, index) {
+            event.preventDefault();
+            this.draggedOverIndex = index;
+        },
+        
+        handleDragLeave(event) {
+            // Проверяем, что курсор действительно покинул элемент
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                this.draggedOverIndex = null;
+            }
+        },
+        
+        async handleDrop(event, dropIndex) {
+            event.preventDefault();
+            
+            if (this.draggedIndex === null || this.draggedIndex === dropIndex) {
+                this.draggedIndex = null;
+                this.draggedOverIndex = null;
+                return;
+            }
+
+            // Создаем копию массива категорий
+            const categories = [...this.categories];
+            const draggedCategory = categories[this.draggedIndex];
+            
+            // Удаляем элемент из старой позиции
+            categories.splice(this.draggedIndex, 1);
+            
+            // Вставляем элемент в новую позицию
+            categories.splice(dropIndex, 0, draggedCategory);
+            
+            // Обновляем sort_order для всех категорий
+            const updatedCategories = categories.map((cat, index) => ({
+                ...cat,
+                sort_order: index,
+            }));
+            
+            // Обновляем локальное состояние сразу для плавности UI
+            this.categories = updatedCategories;
+            this.draggedIndex = null;
+            this.draggedOverIndex = null;
+
+            try {
+                // Отправляем обновленный порядок на сервер
+                await categoriesAPI.updatePositions(
+                    updatedCategories.map(cat => ({
+                        id: cat.id,
+                        sort_order: cat.sort_order || 0,
+                    }))
+                );
+                // Показываем уведомление об успехе (можно использовать toast если доступен)
+                console.log('Порядок категорий обновлен');
+            } catch (error) {
+                console.error('Failed to update positions:', error);
+                alert('Ошибка при сохранении порядка категорий');
+                // Откатываем изменения при ошибке
+                await this.loadCategories();
+            }
+        },
+        
+        handleDragEnd() {
+            this.draggedIndex = null;
+            this.draggedOverIndex = null;
         },
     },
 };

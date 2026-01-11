@@ -18,8 +18,24 @@ export function useProducts(categoryId?: string) {
         productsAPI.getAll(categoryId),
       ]);
       
-      setCategories(categoriesData);
-      setProducts(productsData);
+      // Сортируем категории по sortOrder
+      const sortedCategories = [...categoriesData].sort((a, b) => {
+        const orderA = a.sortOrder || 0;
+        const orderB = b.sortOrder || 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+      
+      // Сортируем товары по sortOrder
+      const sortedProducts = [...productsData].sort((a, b) => {
+        const orderA = a.sortOrder || 0;
+        const orderB = b.sortOrder || 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+      
+      setCategories(sortedCategories);
+      setProducts(sortedProducts);
     } catch (err) {
       console.error('Failed to load products:', err);
       setError('Ошибка загрузки данных');

@@ -56,6 +56,10 @@ Route::prefix('v1')->group(function () {
     // Публичный роут для создания платежа через ЮКасса (из MiniApp)
     Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
         ->name('payments.yookassa.create.public');
+    
+    // Публичный вебхук от YooKassa (без авторизации, так как YooKassa отправляет уведомления напрямую)
+    Route::post('webhooks/yookassa', [PaymentSettingsController::class, 'webhookYooKassa'])
+        ->name('webhooks.yookassa.public');
 });
 
 // Защищённые роуты
@@ -92,12 +96,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
         Route::patch('categories/{category}', [CategoryController::class, 'update']);
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+        Route::post('categories/update-positions', [CategoryController::class, 'updatePositions'])->name('categories.update-positions');
         
         // Products (POST, PUT, DELETE - GET обрабатывается публичными роутами)
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::patch('products/{product}', [ProductController::class, 'update']);
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+        Route::post('products/update-positions', [ProductController::class, 'updatePositions'])->name('products.update-positions');
         
         // Product History
         Route::get('products/{id}/history', [ProductHistoryController::class, 'index'])
@@ -172,8 +178,6 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payment-settings.yookassa.update');
         Route::post('payment-settings/yookassa/test', [PaymentSettingsController::class, 'testYooKassa'])
             ->name('payment-settings.yookassa.test');
-        Route::post('payment-settings/yookassa/webhook', [PaymentSettingsController::class, 'webhookYooKassa'])
-            ->name('payment-settings.yookassa.webhook');
         
         // Telegram MiniApp
         Route::post('telegram/validate-init-data', [TelegramController::class, 'validateInitData'])

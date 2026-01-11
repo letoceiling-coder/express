@@ -195,6 +195,24 @@ export const categoriesAPI = {
         }
         return { data: true };
     },
+
+    // Обновить позиции категорий
+    async updatePositions(categories) {
+        try {
+            const response = await axios.post(
+                `${API_BASE}/categories/update-positions`,
+                { categories },
+                {
+                    headers: getAuthHeaders(),
+                    withCredentials: true,
+                }
+            );
+            return { data: response.data };
+        } catch (error) {
+            console.error('Categories updatePositions error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.message || 'Ошибка обновления позиций категорий');
+        }
+    },
 };
 
 // ============================================

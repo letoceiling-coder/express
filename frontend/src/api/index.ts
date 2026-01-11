@@ -88,9 +88,19 @@ export const categoriesAPI = {
     return categories.map((cat: any) => ({
       id: String(cat.id),
       name: cat.name,
+      sortOrder: cat.sort_order || 0,
+      isActive: cat.is_active !== false,
       createdAt: new Date(cat.created_at),
       updatedAt: new Date(cat.updated_at),
     }));
+  },
+
+  async updatePositions(categories: Array<{ id: string; sort_order: number }>): Promise<void> {
+    await apiRequest('/categories/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    });
   },
 };
 
@@ -136,9 +146,18 @@ export const productsAPI = {
       webpUrl: product.image?.webp_url || undefined,
       imageVariants: product.image?.variants || undefined,
       isWeightProduct: product.is_weight_product || false,
+      sortOrder: product.sort_order || 0,
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
     }));
+  },
+
+  async updatePositions(products: Array<{ id: string; sort_order: number }>): Promise<void> {
+    await apiRequest('/products/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products }),
+    });
   },
 
   async getById(id: string): Promise<Product | null> {
@@ -158,6 +177,7 @@ export const productsAPI = {
             webpUrl: product.image?.webp_url || undefined,
             imageVariants: product.image?.variants || undefined,
             isWeightProduct: product.is_weight_product || false,
+            sortOrder: product.sort_order || 0,
             createdAt: new Date(product.created_at),
             updatedAt: new Date(product.updated_at),
           };

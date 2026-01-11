@@ -2,6 +2,8 @@
 export interface Category {
   id: string;
   name: string;
+  sortOrder?: number;
+  isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -186,4 +186,60 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Обновить позиции товаров (drag & drop)
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updatePositions(Request $request)
+    {
+        $request->validate([
+            'products' => 'required|array|min:1',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.sort_order' => 'required|integer|min:0'
+        ], [
+            'products.required' => 'Массив товаров обязателен',
+            'products.array' => 'Товары должны быть переданы в виде массива',
+            'products.*.id.required' => 'ID товара обязателен',
+            'products.*.id.exists' => 'Товар с указанным ID не найден',
+            'products.*.sort_order.required' => 'Порядок сортировки обязателен',
+            'products.*.sort_order.integer' => 'Порядок сортировки должен быть целым числом'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($request->products as $productData) {
+                Product::where('id', $productData['id'])->update([
+                    'sort_order' => $productData['sort_order']
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Product positions updated', [
+                'count' => count($request->products),
+                'products' => $request->products
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Позиции товаров успешно обновлены'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Product positions update error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка обновления позиций: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

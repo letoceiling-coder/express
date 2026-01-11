@@ -31,6 +31,17 @@ export function CatalogPage() {
       }
       groups[product.categoryId].push(product);
     });
+    
+    // Сортируем товары в каждой категории по sortOrder
+    Object.keys(groups).forEach((categoryId) => {
+      groups[categoryId].sort((a, b) => {
+        const orderA = a.sortOrder || 0;
+        const orderB = b.sortOrder || 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+    });
+    
     return groups;
   }, [activeCategory, products]);
 

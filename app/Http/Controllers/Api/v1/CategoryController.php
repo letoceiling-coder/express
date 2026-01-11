@@ -160,4 +160,60 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Обновить позиции категорий (drag & drop)
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updatePositions(Request $request)
+    {
+        $request->validate([
+            'categories' => 'required|array|min:1',
+            'categories.*.id' => 'required|exists:categories,id',
+            'categories.*.sort_order' => 'required|integer|min:0'
+        ], [
+            'categories.required' => 'Массив категорий обязателен',
+            'categories.array' => 'Категории должны быть переданы в виде массива',
+            'categories.*.id.required' => 'ID категории обязателен',
+            'categories.*.id.exists' => 'Категория с указанным ID не найдена',
+            'categories.*.sort_order.required' => 'Порядок сортировки обязателен',
+            'categories.*.sort_order.integer' => 'Порядок сортировки должен быть целым числом'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($request->categories as $categoryData) {
+                Category::where('id', $categoryData['id'])->update([
+                    'sort_order' => $categoryData['sort_order']
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Category positions updated', [
+                'count' => count($request->categories),
+                'categories' => $request->categories
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Позиции категорий успешно обновлены'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Category positions update error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка обновления позиций: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
