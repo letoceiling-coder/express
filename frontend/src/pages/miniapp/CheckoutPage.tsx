@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Loader2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
-import { ordersAPI, paymentMethodsAPI, paymentAPI } from '@/api';
+import { ordersAPI, paymentMethodsAPI, paymentAPI, deliverySettingsAPI } from '@/api';
 
 // Функция форматирования телефона с маской
 const formatPhone = (value: string): string => {
@@ -82,6 +82,15 @@ export function CheckoutPage() {
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPastOrders, setIsLoadingPastOrders] = useState(false);
+  const [deliveryCost, setDeliveryCost] = useState<number | null>(null);
+  const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
+  const [deliveryValidation, setDeliveryValidation] = useState<{
+    valid: boolean;
+    address?: string;
+    distance?: number;
+    zone?: string;
+    error?: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
@@ -331,7 +340,59 @@ export function CheckoutPage() {
     setFormData({ ...formData, phone: formatted });
   };
 
-  const validateStep = (currentStep: Step): boolean => {
+  // Расчет стоимости доставки
+  const calculateDeliveryCost = async (address: string) => {
+    if (!address.trim() || formData.deliveryType !== 'courier') {
+      setDeliveryCost(null);
+      setDeliveryValidation(null);
+      return;
+    }
+
+    setIsCalculatingDelivery(true);
+    try {
+      const result = await deliverySettingsAPI.calculateCost(address);
+      if (result.valid) {
+        setDeliveryCost(result.cost || null);
+        setDeliveryValidation({
+          valid: true,
+          address: result.address,
+          distance: result.distance,
+          zone: result.zone,
+        });
+      } else {
+        setDeliveryCost(null);
+        setDeliveryValidation({
+          valid: false,
+          error: result.error || 'Ошибка валидации адреса',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error calculating delivery cost:', error);
+      setDeliveryCost(null);
+      setDeliveryValidation({
+        valid: false,
+        error: 'Ошибка при расчете стоимости доставки',
+      });
+    } finally {
+      setIsCalculatingDelivery(false);
+    }
+  };
+
+  // Debounce для расчета стоимости доставки
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.deliveryType === 'courier' && formData.address.trim()) {
+        calculateDeliveryCost(formData.address);
+      } else {
+        setDeliveryCost(null);
+        setDeliveryValidation(null);
+      }
+    }, 1000); // Задержка 1 секунда после ввода
+
+    return () => clearTimeout(timer);
+  }, [formData.address, formData.deliveryType]);
+
+  const validateStep = async (currentStep: Step): Promise<boolean> => {
     if (currentStep === 1) {
       const phoneDigits = getPhoneDigits(formData.phone);
       if (phoneDigits.length < 11) {
@@ -340,9 +401,43 @@ export function CheckoutPage() {
       }
     }
     if (currentStep === 2) {
-      if (formData.deliveryType === 'courier' && !formData.address.trim()) {
-        toast.error('Введите адрес доставки');
-        return false;
+      if (formData.deliveryType === 'courier') {
+        if (!formData.address.trim()) {
+          toast.error('Введите адрес доставки');
+          return false;
+        }
+        
+        // Проверяем валидность адреса
+        if (deliveryValidation && !deliveryValidation.valid) {
+          toast.error(deliveryValidation.error || 'Адрес не найден. Проверьте правильность адреса');
+          return false;
+        }
+        
+        // Если еще не рассчитано, делаем расчет
+        if (deliveryValidation === null && !isCalculatingDelivery) {
+          setIsCalculatingDelivery(true);
+          try {
+            const result = await deliverySettingsAPI.calculateCost(formData.address);
+            if (!result.valid) {
+              toast.error(result.error || 'Адрес не найден. Проверьте правильность адреса');
+              setIsCalculatingDelivery(false);
+              return false;
+            }
+            setDeliveryCost(result.cost || null);
+            setDeliveryValidation({
+              valid: true,
+              address: result.address,
+              distance: result.distance,
+              zone: result.zone,
+            });
+          } catch (error: any) {
+            toast.error('Ошибка при проверке адреса');
+            setIsCalculatingDelivery(false);
+            return false;
+          } finally {
+            setIsCalculatingDelivery(false);
+          }
+        }
       }
       // Время доставки теперь необязательное
     }
@@ -356,7 +451,7 @@ export function CheckoutPage() {
   };
 
   const handleNext = async () => {
-    if (validateStep(step)) {
+    if (await validateStep(step)) {
       // Если переходим на шаг 3 (способ оплаты), загружаем информацию о скидке
       if (step === 2 && formData.paymentMethod) {
         try {
@@ -408,7 +503,8 @@ export function CheckoutPage() {
     try {
       // Подготовка данных заказа
       const phoneDigits = getPhoneDigits(formData.phone);
-      const finalAmount = discountInfo?.final_amount || totalAmount;
+      const deliveryCostFinal = formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0;
+      const finalAmount = (discountInfo?.final_amount || totalAmount) + deliveryCostFinal;
       
       // Формируем строку времени доставки
       let deliveryTimeStr: string | undefined;
@@ -429,9 +525,10 @@ export function CheckoutPage() {
       const orderData = {
         phone: phoneDigits,
         name: formData.name || undefined,
-        deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : formData.address,
+        deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : (deliveryValidation?.address || formData.address),
         deliveryTime: deliveryTimeStr,
         deliveryType: formData.deliveryType,
+        deliveryCost: deliveryCostFinal,
         comment: formData.comment || undefined,
         paymentMethod: formData.paymentMethod?.code || null,
         items: items.map(item => ({
@@ -637,7 +734,7 @@ export function CheckoutPage() {
             </div>
 
             {formData.deliveryType === 'courier' && (
-              <div>
+              <div className="space-y-2">
                 <label className="mb-1.5 block text-sm text-muted-foreground">
                   Адрес доставки *
                 </label>
@@ -646,8 +743,41 @@ export function CheckoutPage() {
                   placeholder="г. Екатеринбург, ул., д., кв."
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`w-full h-11 rounded-lg border bg-background px-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                    deliveryValidation && !deliveryValidation.valid
+                      ? 'border-destructive focus:border-destructive'
+                      : deliveryValidation?.valid
+                      ? 'border-green-500 focus:border-primary'
+                      : 'border-border focus:border-primary'
+                  }`}
                 />
+                {isCalculatingDelivery && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Проверка адреса...
+                  </p>
+                )}
+                {deliveryValidation && !deliveryValidation.valid && (
+                  <p className="text-xs text-destructive">{deliveryValidation.error}</p>
+                )}
+                {deliveryValidation?.valid && deliveryCost !== null && (
+                  <div className="space-y-1">
+                    {deliveryValidation.address && deliveryValidation.address !== formData.address && (
+                      <p className="text-xs text-muted-foreground">
+                        Найден адрес: {deliveryValidation.address}
+                      </p>
+                    )}
+                    {deliveryValidation.distance && (
+                      <p className="text-xs text-muted-foreground">
+                        Расстояние: {deliveryValidation.distance} км
+                        {deliveryValidation.zone && ` (${deliveryValidation.zone})`}
+                      </p>
+                    )}
+                    <p className="text-sm font-semibold text-primary">
+                      Стоимость доставки: {deliveryCost.toLocaleString('ru-RU')} ₽
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -892,10 +1022,20 @@ export function CheckoutPage() {
                   </span>
                 </div>
                 {formData.deliveryType === 'courier' && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Адрес</span>
-                    <span className="text-foreground text-right max-w-[200px]">{formData.address}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Адрес</span>
+                      <span className="text-foreground text-right max-w-[200px]">
+                        {deliveryValidation?.address || formData.address}
+                      </span>
+                    </div>
+                    {deliveryCost !== null && deliveryCost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Стоимость доставки</span>
+                        <span className="text-foreground">{deliveryCost.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Время доставки</span>

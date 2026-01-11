@@ -587,6 +587,58 @@ export const paymentSettingsAPI = {
   },
 };
 
+// Delivery Settings API
+export const deliverySettingsAPI = {
+  async getSettings(): Promise<any | null> {
+    try {
+      const response = await apiRequest('/delivery-settings');
+      return response.data || null;
+    } catch (error: any) {
+      console.error('DeliverySettings API - getSettings error:', error);
+      throw error;
+    }
+  },
+
+  async updateSettings(data: any): Promise<any> {
+    try {
+      const response = await apiRequest('/delivery-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('DeliverySettings API - updateSettings error:', error);
+      throw error;
+    }
+  },
+
+  async calculateCost(address: string): Promise<{
+    valid: boolean;
+    address?: string;
+    coordinates?: { latitude: number; longitude: number };
+    distance?: number;
+    cost?: number;
+    zone?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await apiRequest('/delivery/calculate-cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      return response.data || { valid: false, error: 'Неизвестная ошибка' };
+    } catch (error: any) {
+      console.error('DeliverySettings API - calculateCost error:', error);
+      return {
+        valid: false,
+        error: error.response?.data?.error || 'Ошибка при расчете стоимости доставки',
+      };
+    }
+  },
+};
+
 // Payment API
 export const paymentAPI = {
   async createYooKassaPayment(orderId: number, amount: number, returnUrl: string, description?: string, telegramId?: number, email?: string): Promise<any> {

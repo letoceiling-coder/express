@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\v1\OrderController;
 use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\PaymentMethodController;
 use App\Http\Controllers\Api\v1\PaymentSettingsController;
+use App\Http\Controllers\Api\v1\DeliverySettingsController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
@@ -56,6 +57,10 @@ Route::prefix('v1')->group(function () {
     // Публичный роут для создания платежа через ЮКасса (из MiniApp)
     Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
         ->name('payments.yookassa.create.public');
+    
+    // Публичный роут для расчета стоимости доставки (из MiniApp)
+    Route::post('delivery/calculate-cost', [DeliverySettingsController::class, 'calculateCost'])
+        ->name('delivery.calculate-cost.public');
     
     // Публичный вебхук от YooKassa (без авторизации, так как YooKassa отправляет уведомления напрямую)
     Route::post('webhooks/yookassa', [PaymentSettingsController::class, 'webhookYooKassa'])
@@ -178,6 +183,12 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payment-settings.yookassa.update');
         Route::post('payment-settings/yookassa/test', [PaymentSettingsController::class, 'testYooKassa'])
             ->name('payment-settings.yookassa.test');
+        
+        // Delivery Settings
+        Route::get('delivery-settings', [DeliverySettingsController::class, 'getSettings'])
+            ->name('delivery-settings.get');
+        Route::put('delivery-settings', [DeliverySettingsController::class, 'updateSettings'])
+            ->name('delivery-settings.update');
         
         // Telegram MiniApp
         Route::post('telegram/validate-init-data', [TelegramController::class, 'validateInitData'])

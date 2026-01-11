@@ -100,6 +100,7 @@ class OrderController extends Controller
                 'delivery_address' => $request->get('delivery_address'),
                 'delivery_time' => $request->get('delivery_time'),
                 'delivery_type' => $request->get('delivery_type', 'courier'), // По умолчанию курьер
+                'delivery_cost' => $request->get('delivery_cost', 0),
                 'comment' => $request->get('comment'),
                 'total_amount' => $request->get('total_amount'),
                 'original_amount' => $request->get('original_amount'),
