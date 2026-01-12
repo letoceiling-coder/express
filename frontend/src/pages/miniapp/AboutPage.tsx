@@ -24,7 +24,6 @@ export function AboutPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const [showFullBullets, setShowFullBullets] = useState(false);
   const [phoneCopied, setPhoneCopied] = useState(false);
 
   useEffect(() => {
@@ -160,39 +159,63 @@ export function AboutPage() {
           <h1 className="text-2xl font-bold text-foreground">{data.title}</h1>
         )}
 
-        {/* Phone */}
-        {data.phone && (
-          <div className="flex items-center gap-3">
-            <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-            <a
-              href={`tel:${data.phone.replace(/\s/g, '')}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handlePhoneClick(data.phone!);
-              }}
-              className="text-primary underline-offset-4 hover:underline touch-feedback flex-1"
-            >
-              {data.phone}
-            </a>
-            <button
-              onClick={() => handleCopyPhone(data.phone!)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted touch-feedback transition-colors"
-              aria-label="Скопировать номер телефона"
-            >
-              {phoneCopied ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-          </div>
-        )}
+        {/* Quick Actions - 3 buttons in a row */}
+        {(data.phone || data.address || data.support_telegram_url) && (
+          <div className="grid grid-cols-3 gap-2">
+            {/* Phone Button */}
+            {data.phone && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePhoneClick(data.phone!);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+                aria-label="Позвонить"
+              >
+                <div className="relative">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyPhone(data.phone!);
+                    }}
+                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border border-border"
+                    aria-label="Скопировать номер"
+                  >
+                    {phoneCopied ? (
+                      <Check className="h-2.5 w-2.5 text-green-500" />
+                    ) : (
+                      <Copy className="h-2.5 w-2.5 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+                <span className="text-xs text-foreground text-center leading-tight">Телефон</span>
+              </button>
+            )}
 
-        {/* Address */}
-        {data.address && (
-          <div className="flex items-start gap-3">
-            <MapPin className="h-5 w-5 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <p className="text-foreground leading-relaxed">{data.address}</p>
+            {/* Address/Map Button */}
+            {data.address && data.yandex_maps_url && (
+              <button
+                onClick={() => handleMapsClick(data.yandex_maps_url!)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+                aria-label="Открыть карту"
+              >
+                <MapPin className="h-5 w-5 text-primary" />
+                <span className="text-xs text-foreground text-center leading-tight">Адрес</span>
+              </button>
+            )}
+
+            {/* Support Button */}
+            {data.support_telegram_url && (
+              <button
+                onClick={() => handleSupportClick(data.support_telegram_url!)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+                aria-label="Поддержка"
+              >
+                <MessageCircle className="h-5 w-5 text-primary" />
+                <span className="text-xs text-foreground text-center leading-tight">Поддержка</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -225,68 +248,17 @@ export function AboutPage() {
           </div>
         )}
 
-        {/* Bullets */}
+        {/* Info Cards - 3 cards from bullets */}
         {data.bullets && data.bullets.length > 0 && (
-          <div className="space-y-2">
-            <ul className="space-y-2">
-              {(showFullBullets ? data.bullets : data.bullets.slice(0, 4)).map((bullet, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
-                  <span className="text-foreground leading-relaxed">{bullet}</span>
-                </li>
-              ))}
-            </ul>
-            {data.bullets.length > 4 && (
-              <button
-                onClick={() => setShowFullBullets(!showFullBullets)}
-                className="flex items-center gap-1 text-primary hover:underline text-sm font-medium touch-feedback"
+          <div className="grid gap-3">
+            {data.bullets.slice(0, 3).map((bullet, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-border bg-card p-4"
               >
-                {showFullBullets ? (
-                  <>
-                    <ChevronUp className="h-4 w-4" />
-                    Скрыть
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4" />
-                    Показать больше
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Yandex Maps Link */}
-        {data.yandex_maps_url && (
-          <button
-            onClick={() => handleMapsClick(data.yandex_maps_url!)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground touch-feedback"
-          >
-            <ExternalLink className="h-5 w-5" />
-            Открыть в Яндекс.Картах
-          </button>
-        )}
-
-        {/* Support Block */}
-        {data.support_telegram_url && (
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              <MessageCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-2">
-                <h3 className="font-semibold text-foreground">Поддержка</h3>
-                <p className="text-sm text-muted-foreground">
-                  Если что-то не работает — напишите в Telegram
-                </p>
-                <button
-                  onClick={() => handleSupportClick(data.support_telegram_url!)}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground touch-feedback hover:opacity-90 transition-opacity"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Написать в поддержку
-                </button>
+                <p className="text-sm text-foreground leading-relaxed">{bullet}</p>
               </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
