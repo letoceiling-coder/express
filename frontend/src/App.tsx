@@ -20,6 +20,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminOrders } from "./pages/admin/AdminOrders";
 import { AdminProducts } from "./pages/admin/AdminProducts";
 import { AdminCategories } from "./pages/admin/AdminCategories";
+import { AdminAbout } from "./pages/admin/AdminAbout";
 import { YooKassaSettings } from "./pages/admin/YooKassaSettings";
 import { DeliverySettings } from "./pages/admin/DeliverySettings";
 
