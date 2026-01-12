@@ -9,6 +9,7 @@ use App\Services\DeliveryCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DeliverySettingsController extends Controller
@@ -185,6 +186,110 @@ class DeliverySettingsController extends Controller
             return response()->json([
                 'valid' => false,
                 'error' => 'Ошибка при расчете стоимости доставки',
+            ], 500);
+        }
+    }
+
+    /**
+     * Получить подсказки адресов через Яндекс Suggest API
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getAddressSuggestions(Request $request): JsonResponse
+    {
+        $request->validate([
+            'query' => ['required', 'string', 'min:2', 'max:500'],
+            'city' => ['nullable', 'string', 'max:100'],
+        ], [
+            'query.required' => 'Запрос обязателен',
+            'query.string' => 'Запрос должен быть строкой',
+            'query.min' => 'Запрос должен содержать минимум 2 символа',
+            'query.max' => 'Запрос слишком длинный',
+            'city.string' => 'Город должен быть строкой',
+        ]);
+
+        try {
+            $settings = DeliverySetting::getSettings();
+            
+            // Проверяем наличие API ключа
+            if (empty($settings->yandex_geocoder_api_key)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'API ключ не настроен',
+                    'suggestions' => [],
+                ], 400);
+            }
+
+            $query = trim($request->input('query'));
+            $city = $request->input('city', 'Екатеринбург');
+            
+            // Формируем поисковый запрос
+            $searchQuery = $city && mb_strpos(mb_strtolower($query), mb_strtolower($city)) === false
+                ? "{$city}, {$query}"
+                : $query;
+
+            // Запрос к Яндекс Suggest API
+            $apiKey = $settings->yandex_geocoder_api_key;
+            $suggestUrl = 'https://suggest-maps.yandex.ru/v1/suggest';
+            
+            $response = Http::timeout(5)->get($suggestUrl, [
+                'apikey' => $apiKey,
+                'text' => $searchQuery,
+                'lang' => 'ru_RU',
+                'types' => 'address',
+                'results' => 10,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Yandex Suggest API error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Ошибка при получении подсказок',
+                    'suggestions' => [],
+                ], 500);
+            }
+
+            $data = $response->json();
+            $suggestions = [];
+
+            if (isset($data['results']) && is_array($data['results'])) {
+                $cityLower = mb_strtolower($city);
+                
+                foreach ($data['results'] as $item) {
+                    $title = $item['title']['text'] ?? '';
+                    $subtitle = $item['subtitle']['text'] ?? '';
+                    $fullAddress = $title . ($subtitle ? ', ' . $subtitle : '');
+                    
+                    // Фильтруем только адреса, содержащие указанный город
+                    if ($fullAddress && mb_strpos(mb_strtolower($fullAddress), $cityLower) !== false) {
+                        $suggestions[] = [
+                            'value' => $fullAddress,
+                            'display' => $title,
+                            'subtitle' => $subtitle,
+                        ];
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'suggestions' => array_slice($suggestions, 0, 10), // Ограничиваем до 10 результатов
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Ошибка при получении подсказок адресов: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при получении подсказок',
+                'suggestions' => [],
             ], 500);
         }
     }

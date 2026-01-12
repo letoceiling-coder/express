@@ -665,6 +665,28 @@ export const deliverySettingsAPI = {
       };
     }
   },
+
+  async getAddressSuggestions(query: string, city?: string): Promise<{
+    success: boolean;
+    suggestions: Array<{ value: string; display: string; subtitle?: string }>;
+    error?: string;
+  }> {
+    try {
+      const response = await apiRequest('/delivery/address-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, city }),
+      });
+      return response || { success: false, suggestions: [] };
+    } catch (error: any) {
+      console.error('DeliverySettings API - getAddressSuggestions error:', error);
+      return {
+        success: false,
+        suggestions: [],
+        error: error.response?.data?.error || 'Ошибка при получении подсказок',
+      };
+    }
+  },
 };
 
 // About Page API

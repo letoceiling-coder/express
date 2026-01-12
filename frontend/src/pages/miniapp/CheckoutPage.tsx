@@ -382,7 +382,7 @@ export function CheckoutPage() {
     setFormData({ ...formData, phone: formatted });
   };
 
-  // Поиск адресов через Яндекс Suggest API (ограничено Екатеринбургом)
+  // Поиск адресов через backend API (Яндекс Suggest API)
   const fetchAddressSuggestions = async (query: string) => {
     if (!query.trim() || query.length < 2) {
       setAddressSuggestions([]);
@@ -391,21 +391,13 @@ export function CheckoutPage() {
     }
 
     try {
-      // Добавляем город по умолчанию к запросу для ограничения поиска
-      const searchQuery = `${defaultCity} ${query}`;
-      const url = `https://suggest-maps.yandex.ru/v1/suggest?apikey=&text=${encodeURIComponent(searchQuery)}&lang=ru_RU&types=address&results=5`;
+      const result = await deliverySettingsAPI.getAddressSuggestions(query, defaultCity);
       
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.results && Array.isArray(data.results)) {
-        const cityLower = defaultCity.toLowerCase();
-        const suggestions = data.results
-          .map((item: any) => ({
-            value: item.title?.text || item.subtitle?.text || '',
-            display: item.title?.text || item.subtitle?.text || '',
-          }))
-          .filter((item: any) => item.value && item.display && item.display.toLowerCase().includes(cityLower));
+      if (result.success && result.suggestions) {
+        const suggestions = result.suggestions.map((item) => ({
+          value: item.value,
+          display: item.display || item.value,
+        }));
         
         setAddressSuggestions(suggestions);
         setShowSuggestions(suggestions.length > 0);

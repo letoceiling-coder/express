@@ -63,6 +63,10 @@ Route::prefix('v1')->group(function () {
     Route::post('delivery/calculate-cost', [DeliverySettingsController::class, 'calculateCost'])
         ->name('delivery.calculate-cost.public');
     
+    // Публичный роут для получения подсказок адресов (из MiniApp)
+    Route::post('delivery/address-suggestions', [DeliverySettingsController::class, 'getAddressSuggestions'])
+        ->name('delivery.address-suggestions.public');
+    
     // Публичный роут для страницы "О нас"
     Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
     
