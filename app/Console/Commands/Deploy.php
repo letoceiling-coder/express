@@ -120,7 +120,8 @@ class Deploy extends Command
             return;
         }
 
-        $process = Process::run('npm run build:all');
+        // Увеличиваем таймаут до 5 минут (300 секунд) для сборки фронтенда
+        $process = Process::timeout(300)->run('npm run build:all');
 
         if (!$process->successful()) {
             throw new \Exception("Ошибка сборки фронтенда:\n" . $process->errorOutput());
