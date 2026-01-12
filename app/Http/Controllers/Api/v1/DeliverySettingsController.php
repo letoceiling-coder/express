@@ -233,23 +233,57 @@ class DeliverySettingsController extends Controller
             $apiKey = $settings->yandex_geocoder_api_key;
             $suggestUrl = 'https://suggest-maps.yandex.ru/v1/suggest';
             
-            $response = Http::timeout(5)->get($suggestUrl, [
+            $params = [
                 'apikey' => $apiKey,
                 'text' => $searchQuery,
                 'lang' => 'ru_RU',
                 'types' => 'address',
                 'results' => 10,
+            ];
+            
+            Log::info('Yandex Suggest API request', [
+                'url' => $suggestUrl,
+                'query' => $searchQuery,
+                'has_api_key' => !empty($apiKey),
+                'api_key_length' => strlen($apiKey ?? ''),
             ]);
+            
+            $response = Http::timeout(5)->get($suggestUrl, $params);
 
             if (!$response->successful()) {
+                $errorBody = $response->body();
+                $errorData = [];
+                
+                // Пытаемся распарсить JSON ответ с ошибкой
+                if (!empty($errorBody)) {
+                    $decoded = json_decode($errorBody, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $errorData = $decoded;
+                    }
+                }
+                
                 Log::error('Yandex Suggest API error', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'status_text' => $response->reason(),
+                    'body' => $errorBody,
+                    'error_data' => $errorData,
+                    'headers' => $response->headers(),
+                    'query' => $searchQuery,
                 ]);
+                
+                // Более информативное сообщение об ошибке
+                $errorMessage = 'Ошибка при получении подсказок';
+                if ($response->status() === 403) {
+                    $errorMessage = 'Доступ запрещен. Проверьте API ключ и его права доступа к Suggest API';
+                } elseif ($response->status() === 401) {
+                    $errorMessage = 'Неверный API ключ';
+                } elseif ($response->status() === 429) {
+                    $errorMessage = 'Превышен лимит запросов к API';
+                }
                 
                 return response()->json([
                     'success' => false,
-                    'error' => 'Ошибка при получении подсказок',
+                    'error' => $errorMessage,
                     'suggestions' => [],
                 ], 500);
             }

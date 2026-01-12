@@ -393,7 +393,7 @@ export function CheckoutPage() {
     try {
       const result = await deliverySettingsAPI.getAddressSuggestions(query, defaultCity);
       
-      if (result.success && result.suggestions) {
+      if (result.success && result.suggestions && result.suggestions.length > 0) {
         const suggestions = result.suggestions.map((item) => ({
           value: item.value,
           display: item.display || item.value,
@@ -402,6 +402,10 @@ export function CheckoutPage() {
         setAddressSuggestions(suggestions);
         setShowSuggestions(suggestions.length > 0);
       } else {
+        // Если есть ошибка, логируем её, но не показываем пользователю
+        if (result.error) {
+          console.warn('Address suggestions error:', result.error);
+        }
         setAddressSuggestions([]);
         setShowSuggestions(false);
       }
