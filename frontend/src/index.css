@@ -127,6 +127,11 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
+
+  /* Sonner toast positioning - top center with safe area */
+  [data-sonner-toaster][data-y-position="top"] {
+    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+  }
 }
 
 @layer utilities {

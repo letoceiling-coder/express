@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
-import { Loader2, Phone, MapPin, ExternalLink, Copy, Check, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Phone, MapPin, Copy, Check, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { aboutAPI } from '@/api';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { openTelegramLink } from '@/lib/telegram';
