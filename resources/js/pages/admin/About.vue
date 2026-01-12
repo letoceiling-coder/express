@@ -197,15 +197,29 @@
                 </form>
             </div>
         </div>
+
+        <!-- MediaSelector Modal -->
+        <MediaSelector
+            :open="showImageSelector"
+            :multiple="false"
+            :allowedTypes="['photo']"
+            :currentSelection="form.cover_image_url ? [{ url: form.cover_image_url }] : []"
+            @close="showImageSelector = false"
+            @select="handleImageSelected"
+        />
     </div>
 </template>
 
 <script>
 import { apiGet, apiPut } from '../../utils/api.js';
 import { handleApiError, getErrorMessage } from '../../utils/errors.js';
+import MediaSelector from '../../components/admin/MediaSelector.vue';
 
 export default {
     name: 'About',
+    components: {
+        MediaSelector,
+    },
     data() {
         return {
             data: null,
@@ -221,6 +235,7 @@ export default {
             loading: false,
             saving: false,
             error: null,
+            showImageSelector: false,
         };
     },
     mounted() {
