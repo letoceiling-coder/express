@@ -308,7 +308,8 @@ class ProductController extends Controller
             }
 
             // Получаем все товары с изображениями
-            $products = Product::with(['image', 'gallery'])->get();
+            // gallery - это accessor, не отношение, поэтому не используем with()
+            $products = Product::with(['image'])->get();
             $imageCount = 0;
 
             foreach ($products as $product) {
@@ -330,9 +331,10 @@ class ProductController extends Controller
                     }
                 }
 
-                // Галерея
-                if ($product->gallery && $product->gallery->count() > 0) {
-                    foreach ($product->gallery as $galleryImage) {
+                // Галерея (получаем через accessor)
+                $gallery = $product->gallery; // Это вызовет getGalleryAttribute()
+                if ($gallery && $gallery->count() > 0) {
+                    foreach ($gallery as $galleryImage) {
                         if ($galleryImage->path) {
                             $imagePath = public_path($galleryImage->path);
                             if (file_exists($imagePath) && is_file($imagePath)) {
