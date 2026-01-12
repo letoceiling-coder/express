@@ -160,7 +160,7 @@ export function AboutPage() {
         )}
 
         {/* Quick Actions - 3 buttons in a row */}
-        {(data.phone || data.address || data.support_telegram_url) && (
+        {(data.phone || data.address || data.yandex_maps_url || data.support_telegram_url) && (
           <div className="grid grid-cols-3 gap-2">
             {/* Phone Button */}
             {data.phone && (
@@ -194,9 +194,12 @@ export function AboutPage() {
             )}
 
             {/* Address/Map Button */}
-            {data.address && data.yandex_maps_url && (
+            {(data.address || data.yandex_maps_url) && (
               <button
-                onClick={() => handleMapsClick(data.yandex_maps_url!)}
+                onClick={() => {
+                  const mapsUrl = data.yandex_maps_url || 'https://yandex.ru/maps/-/CLRQaBlB';
+                  handleMapsClick(mapsUrl);
+                }}
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
                 aria-label="Открыть карту"
               >
@@ -206,16 +209,17 @@ export function AboutPage() {
             )}
 
             {/* Support Button */}
-            {data.support_telegram_url && (
-              <button
-                onClick={() => handleSupportClick(data.support_telegram_url!)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
-                aria-label="Поддержка"
-              >
-                <MessageCircle className="h-5 w-5 text-primary" />
-                <span className="text-xs text-foreground text-center leading-tight">Поддержка</span>
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const supportUrl = data.support_telegram_url || 'https://t.me/+79826824368';
+                handleSupportClick(supportUrl);
+              }}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+              aria-label="Поддержка"
+            >
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <span className="text-xs text-foreground text-center leading-tight">Поддержка</span>
+            </button>
           </div>
         )}
 
