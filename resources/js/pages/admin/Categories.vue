@@ -5,13 +5,37 @@
                 <h1 class="text-2xl font-bold text-foreground">Категории</h1>
                 <p class="text-muted-foreground mt-1">Управление категориями товаров</p>
             </div>
-            <router-link
-                to="/categories/create"
-                class="h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 inline-flex items-center gap-2"
-            >
-                <span>+</span>
-                <span>Создать категорию</span>
-            </router-link>
+            <div class="flex items-center gap-2">
+                <button
+                    @click="handleExportCsv"
+                    class="h-10 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 inline-flex items-center gap-2"
+                    :disabled="exporting"
+                >
+                    <span v-if="exporting">...</span>
+                    <span v-else>📥 CSV</span>
+                </button>
+                <button
+                    @click="handleExportExcel"
+                    class="h-10 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+                    :disabled="exporting"
+                >
+                    <span v-if="exporting">...</span>
+                    <span v-else>📥 Excel</span>
+                </button>
+                <button
+                    @click="showImportDialog = true"
+                    class="h-10 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 inline-flex items-center gap-2"
+                >
+                    <span>📤 Импорт</span>
+                </button>
+                <router-link
+                    to="/categories/create"
+                    class="h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 inline-flex items-center gap-2"
+                >
+                    <span>+</span>
+                    <span>Создать категорию</span>
+                </router-link>
+            </div>
         </div>
 
         <!-- Поиск и фильтры -->
@@ -152,6 +176,53 @@
                 <p class="text-muted-foreground">Категории не найдены</p>
             </div>
         </div>
+
+        <!-- Диалог импорта -->
+        <div
+            v-if="showImportDialog"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            @click.self="showImportDialog = false"
+        >
+            <div class="bg-card rounded-lg border border-border p-6 max-w-md w-full mx-4">
+                <h2 class="text-xl font-bold text-foreground mb-4">Импорт категорий</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-medium text-foreground mb-2 block">
+                            Файл (CSV или Excel)
+                        </label>
+                        <input
+                            ref="importFileInput"
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            class="w-full h-10 px-3 rounded-lg border border-input bg-background"
+                            @change="handleFileSelect"
+                        />
+                    </div>
+                    <div v-if="importError" class="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                        <p class="text-destructive text-sm">{{ importError }}</p>
+                    </div>
+                    <div v-if="importSuccess" class="bg-green-100 border border-green-300 rounded-lg p-3">
+                        <p class="text-green-800 text-sm">{{ importSuccess }}</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-6">
+                    <button
+                        @click="showImportDialog = false"
+                        class="flex-1 h-10 px-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        @click="handleImport"
+                        class="flex-1 h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                        :disabled="importing || !selectedFile"
+                    >
+                        <span v-if="importing">Импорт...</span>
+                        <span v-else>Импортировать</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -170,6 +241,12 @@ export default {
             sortBy: 'sort_order',
             draggedIndex: null,
             draggedOverIndex: null,
+            exporting: false,
+            showImportDialog: false,
+            selectedFile: null,
+            importing: false,
+            importError: null,
+            importSuccess: null,
         };
     },
     computed: {
@@ -318,6 +395,70 @@ export default {
         handleDragEnd() {
             this.draggedIndex = null;
             this.draggedOverIndex = null;
+        },
+
+        async handleExportCsv() {
+            this.exporting = true;
+            try {
+                await categoriesAPI.exportCsv();
+                alert('Экспорт в CSV выполнен успешно');
+            } catch (error) {
+                alert(error.message || 'Ошибка экспорта в CSV');
+            } finally {
+                this.exporting = false;
+            }
+        },
+
+        async handleExportExcel() {
+            this.exporting = true;
+            try {
+                await categoriesAPI.exportExcel();
+                alert('Экспорт в Excel выполнен успешно');
+            } catch (error) {
+                alert(error.message || 'Ошибка экспорта в Excel');
+            } finally {
+                this.exporting = false;
+            }
+        },
+
+        handleFileSelect(event) {
+            this.selectedFile = event.target.files[0] || null;
+            this.importError = null;
+            this.importSuccess = null;
+        },
+
+        async handleImport() {
+            if (!this.selectedFile) {
+                this.importError = 'Выберите файл для импорта';
+                return;
+            }
+
+            this.importing = true;
+            this.importError = null;
+            this.importSuccess = null;
+
+            try {
+                const result = await categoriesAPI.import(this.selectedFile);
+                
+                this.importSuccess = result.message || 'Категории успешно импортированы';
+                
+                // Перезагружаем список категорий
+                await this.loadCategories();
+                
+                // Закрываем диалог через 2 секунды
+                setTimeout(() => {
+                    this.showImportDialog = false;
+                    this.selectedFile = null;
+                    if (this.$refs.importFileInput) {
+                        this.$refs.importFileInput.value = '';
+                    }
+                    this.importSuccess = null;
+                }, 2000);
+            } catch (error) {
+                this.importError = error.message || 'Ошибка импорта категорий';
+            } finally {
+                this.importing = false;
+            }
         },
     },
 };

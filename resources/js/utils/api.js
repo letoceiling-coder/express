@@ -213,6 +213,69 @@ export const categoriesAPI = {
             throw new Error(error.response?.data?.message || 'Ошибка обновления позиций категорий');
         }
     },
+
+    // Экспорт категорий в CSV
+    async exportCsv() {
+        const token = localStorage.getItem('token');
+        const url = `${API_BASE}/categories/export/csv`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка экспорта в CSV');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `categories_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
+    // Экспорт категорий в Excel
+    async exportExcel() {
+        const token = localStorage.getItem('token');
+        const url = `${API_BASE}/categories/export/excel`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка экспорта в Excel');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `categories_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
+    // Импорт категорий
+    async import(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await apiPost('/categories/import', formData);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка импорта категорий');
+        }
+        return response.json();
+    },
 };
 
 // ============================================
@@ -316,6 +379,76 @@ export const productsAPI = {
         const response = await apiGet(`/products/${id}/history`, params);
         if (!response.ok) {
             throw new Error('Ошибка загрузки истории');
+        }
+        return response.json();
+    },
+
+    // Экспорт товаров в CSV
+    async exportCsv() {
+        const token = localStorage.getItem('token');
+        const url = `${API_BASE}/products/export/csv`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
+        
+        // Добавляем токен в заголовки через fetch
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка экспорта в CSV');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        link.href = blobUrl;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
+    // Экспорт товаров в Excel
+    async exportExcel() {
+        const token = localStorage.getItem('token');
+        const url = `${API_BASE}/products/export/excel`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `products_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Добавляем токен в заголовки через fetch
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка экспорта в Excel');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        link.href = blobUrl;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
+    // Импорт товаров
+    async import(file, imagesArchive = null) {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (imagesArchive) {
+            formData.append('images_archive', imagesArchive);
+        }
+        
+        const response = await apiPost('/products/import', formData);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка импорта товаров');
         }
         return response.json();
     },
