@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Check, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Check, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { aboutPageAPI } from '@/api';
 
@@ -164,13 +164,27 @@ export function AdminAbout() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="cover_image_url">URL обложки</Label>
-                <Input
-                  id="cover_image_url"
-                  placeholder="/upload/..."
-                  value={formData.cover_image_url}
-                  onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-                  className="mt-1"
-                />
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="cover_image_url"
+                    placeholder="/upload/..."
+                    value={formData.cover_image_url}
+                    onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.open('/admin/media', '_blank')}
+                    className="whitespace-nowrap"
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Медиа
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Выберите изображение из медиа-библиотеки или введите URL вручную
+                </p>
                 {formData.cover_image_url && (
                   <div className="mt-3">
                     <img

@@ -69,14 +69,23 @@
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 URL обложки
                             </label>
-                            <input
-                                v-model="form.cover_image_url"
-                                type="text"
-                                placeholder="/upload/..."
-                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            />
+                            <div class="flex gap-2">
+                                <input
+                                    v-model="form.cover_image_url"
+                                    type="text"
+                                    placeholder="/upload/..."
+                                    class="flex-1 h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                />
+                                <button
+                                    type="button"
+                                    @click="showImageSelector = true"
+                                    class="h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 whitespace-nowrap"
+                                >
+                                    Выбрать
+                                </button>
+                            </div>
                             <p class="text-xs text-muted-foreground mt-1">
-                                Загрузите изображение через Медиа-библиотеку и вставьте URL сюда
+                                Выберите изображение из медиа-библиотеки или введите URL вручную
                             </p>
                             <img
                                 v-if="form.cover_image_url"
@@ -274,6 +283,13 @@ export default {
         },
         handleRemoveBullet(index) {
             this.form.bullets.splice(index, 1);
+        },
+        handleImageSelected(selectedFiles) {
+            if (selectedFiles && selectedFiles.length > 0) {
+                const selectedFile = selectedFiles[0];
+                this.form.cover_image_url = selectedFile.url || selectedFile.path || '';
+            }
+            this.showImageSelector = false;
         },
     },
 };
