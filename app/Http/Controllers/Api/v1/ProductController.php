@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
 use App\Exports\ProductsExport;
+use App\Exports\ProductsZipExport;
 use App\Imports\ProductsImport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -293,14 +294,6 @@ class ProductController extends Controller
                 mkdir($tempDir, 0755, true);
             }
 
-            // Экспортируем CSV
-            $csvFileName = 'products_' . date('Y-m-d') . '.csv';
-            $csvPath = $tempDir . '/' . $csvFileName;
-            
-            $writer = \Maatwebsite\Excel\Facades\Excel::raw(new ProductsExport, \Maatwebsite\Excel\Excel::CSV);
-            // Добавляем UTF-8 BOM
-            file_put_contents($csvPath, "\xEF\xBB\xBF" . $writer);
-
             // Создаем папку для изображений
             $imagesDir = $tempDir . '/images';
             if (!file_exists($imagesDir)) {
@@ -311,12 +304,16 @@ class ProductController extends Controller
             // gallery - это accessor, не отношение, поэтому не используем with()
             $products = Product::with(['image'])->get();
             $imageCount = 0;
+            $imagePathMap = []; // Маппинг media_id => 'images/filename.jpg'
 
             foreach ($products as $product) {
                 // Главное изображение
-                if ($product->image && $product->image->path) {
-                    $imagePath = public_path($product->image->path);
-                    if (file_exists($imagePath) && is_file($imagePath)) {
+                if ($product->image) {
+                    $metadata = $product->image->metadata ? json_decode($product->image->metadata, true) : [];
+                    $imagePath = $metadata['path'] ?? ($product->image->disk . '/' . $product->image->name);
+                    $fullImagePath = public_path($imagePath);
+                    
+                    if (file_exists($fullImagePath) && is_file($fullImagePath)) {
                         $imageName = $product->image->original_name ?? $product->image->name;
                         // Если имя файла уже используется, добавляем ID товара
                         $destPath = $imagesDir . '/' . $imageName;
@@ -326,8 +323,27 @@ class ProductController extends Controller
                             $imageName = $name . '_' . $product->id . '.' . $ext;
                             $destPath = $imagesDir . '/' . $imageName;
                         }
-                        copy($imagePath, $destPath);
-                        $imageCount++;
+                        
+                        if (copy($fullImagePath, $destPath)) {
+                            $imagePathMap[$product->image->id] = 'images/' . $imageName;
+                            $imageCount++;
+                            Log::debug('Изображение скопировано', [
+                                'from' => $fullImagePath,
+                                'to' => $destPath,
+                                'zip_path' => 'images/' . $imageName
+                            ]);
+                        } else {
+                            Log::warning('Не удалось скопировать изображение', [
+                                'from' => $fullImagePath,
+                                'to' => $destPath
+                            ]);
+                        }
+                    } else {
+                        Log::warning('Файл изображения не найден', [
+                            'path' => $fullImagePath,
+                            'product_id' => $product->id,
+                            'image_id' => $product->image->id
+                        ]);
                     }
                 }
 
@@ -335,25 +351,56 @@ class ProductController extends Controller
                 $gallery = $product->gallery; // Это вызовет getGalleryAttribute()
                 if ($gallery && $gallery->count() > 0) {
                     foreach ($gallery as $galleryImage) {
-                        if ($galleryImage->path) {
-                            $imagePath = public_path($galleryImage->path);
-                            if (file_exists($imagePath) && is_file($imagePath)) {
-                                $imageName = $galleryImage->original_name ?? $galleryImage->name;
-                                // Если имя файла уже используется, добавляем ID товара и media
+                        $metadata = $galleryImage->metadata ? json_decode($galleryImage->metadata, true) : [];
+                        $imagePath = $metadata['path'] ?? ($galleryImage->disk . '/' . $galleryImage->name);
+                        $fullImagePath = public_path($imagePath);
+                        
+                        if (file_exists($fullImagePath) && is_file($fullImagePath)) {
+                            $imageName = $galleryImage->original_name ?? $galleryImage->name;
+                            // Если имя файла уже используется, добавляем ID товара и media
+                            $destPath = $imagesDir . '/' . $imageName;
+                            if (file_exists($destPath)) {
+                                $ext = pathinfo($imageName, PATHINFO_EXTENSION);
+                                $name = pathinfo($imageName, PATHINFO_FILENAME);
+                                $imageName = $name . '_' . $product->id . '_' . $galleryImage->id . '.' . $ext;
                                 $destPath = $imagesDir . '/' . $imageName;
-                                if (file_exists($destPath)) {
-                                    $ext = pathinfo($imageName, PATHINFO_EXTENSION);
-                                    $name = pathinfo($imageName, PATHINFO_FILENAME);
-                                    $imageName = $name . '_' . $product->id . '_' . $galleryImage->id . '.' . $ext;
-                                    $destPath = $imagesDir . '/' . $imageName;
-                                }
-                                copy($imagePath, $destPath);
-                                $imageCount++;
                             }
+                            
+                            if (copy($fullImagePath, $destPath)) {
+                                $imagePathMap[$galleryImage->id] = 'images/' . $imageName;
+                                $imageCount++;
+                                Log::debug('Изображение галереи скопировано', [
+                                    'from' => $fullImagePath,
+                                    'to' => $destPath,
+                                    'zip_path' => 'images/' . $imageName
+                                ]);
+                            } else {
+                                Log::warning('Не удалось скопировать изображение галереи', [
+                                    'from' => $fullImagePath,
+                                    'to' => $destPath
+                                ]);
+                            }
+                        } else {
+                            Log::warning('Файл изображения галереи не найден', [
+                                'path' => $fullImagePath,
+                                'product_id' => $product->id,
+                                'image_id' => $galleryImage->id
+                            ]);
                         }
                     }
                 }
             }
+
+            // Экспортируем CSV с правильными путями к изображениям
+            $csvFileName = 'products_' . date('Y-m-d') . '.csv';
+            $csvPath = $tempDir . '/' . $csvFileName;
+            
+            $zipExport = new ProductsZipExport();
+            $zipExport->setImagePathMap($imagePathMap);
+            
+            $writer = \Maatwebsite\Excel\Facades\Excel::raw($zipExport, \Maatwebsite\Excel\Excel::CSV);
+            // Добавляем UTF-8 BOM
+            file_put_contents($csvPath, "\xEF\xBB\xBF" . $writer);
 
             // Создаем ZIP архив
             $zipFileName = 'products_' . date('Y-m-d') . '.zip';
@@ -365,10 +412,18 @@ class ProductController extends Controller
                 mkdir($zipDir, 0755, true);
             }
             
+            Log::info('Создание ZIP архива', [
+                'csv_path' => $csvPath,
+                'images_dir' => $imagesDir,
+                'image_count' => $imageCount,
+                'zip_path' => $zipPath
+            ]);
+            
             $zip = new \ZipArchive();
             if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
                 // Добавляем CSV файл
                 $zip->addFile($csvPath, $csvFileName);
+                Log::debug('CSV файл добавлен в ZIP', ['file' => $csvFileName]);
                 
                 // Добавляем папку с изображениями
                 if ($imageCount > 0) {
@@ -380,18 +435,43 @@ class ProductController extends Controller
                         \RecursiveIteratorIterator::SELF_FIRST
                     );
                     
+                    $addedFiles = 0;
                     foreach ($iterator as $file) {
                         if ($file->isFile()) {
                             $filePath = $file->getRealPath();
                             // Получаем относительный путь от imagesDir
                             $relativePath = str_replace($imagesDir . DIRECTORY_SEPARATOR, '', $filePath);
                             // Добавляем с префиксом images/
-                            $zip->addFile($filePath, 'images/' . str_replace(DIRECTORY_SEPARATOR, '/', $relativePath));
+                            $zipPathInArchive = 'images/' . str_replace(DIRECTORY_SEPARATOR, '/', $relativePath);
+                            
+                            if ($zip->addFile($filePath, $zipPathInArchive)) {
+                                $addedFiles++;
+                                Log::debug('Изображение добавлено в ZIP', [
+                                    'file' => $zipPathInArchive,
+                                    'size' => filesize($filePath)
+                                ]);
+                            } else {
+                                Log::warning('Не удалось добавить изображение в ZIP', [
+                                    'file' => $filePath,
+                                    'zip_path' => $zipPathInArchive
+                                ]);
+                            }
                         }
                     }
+                    
+                    Log::info('Изображения добавлены в ZIP', [
+                        'added_files' => $addedFiles,
+                        'expected_count' => $imageCount
+                    ]);
+                } else {
+                    Log::warning('Нет изображений для добавления в ZIP');
                 }
                 
                 $zip->close();
+                Log::info('ZIP архив создан успешно', [
+                    'zip_path' => $zipPath,
+                    'zip_size' => file_exists($zipPath) ? filesize($zipPath) : 0
+                ]);
             } else {
                 throw new \Exception('Не удалось создать ZIP архив');
             }

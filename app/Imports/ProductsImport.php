@@ -203,8 +203,14 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation
             // Обработка главного изображения
             $imageUrl = $row['изображение_url'] ?? $row['image_url'] ?? $row['изображение'] ?? $row['image'] ?? null;
             if ($imageUrl) {
+                // Убираем префикс images/ если есть (для ZIP импорта)
+                $imageName = basename($imageUrl);
+                if (strpos($imageUrl, 'images/') === 0 || strpos($imageUrl, 'images\\') === 0) {
+                    $imageName = basename($imageUrl);
+                }
+                
                 // Сначала проверяем, есть ли файл в архиве
-                $archiveImagePath = $this->findImageInArchive(basename($imageUrl));
+                $archiveImagePath = $this->findImageInArchive($imageName);
                 if ($archiveImagePath) {
                     $imageId = $this->createMediaFromFile($archiveImagePath);
                 } else {
@@ -225,8 +231,14 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation
                 foreach ($urls as $url) {
                     $url = trim($url);
                     if (!empty($url)) {
+                        // Убираем префикс images/ если есть (для ZIP импорта)
+                        $imageName = basename($url);
+                        if (strpos($url, 'images/') === 0 || strpos($url, 'images\\') === 0) {
+                            $imageName = basename($url);
+                        }
+                        
                         // Сначала проверяем, есть ли файл в архиве
-                        $archiveImagePath = $this->findImageInArchive(basename($url));
+                        $archiveImagePath = $this->findImageInArchive($imageName);
                         if ($archiveImagePath) {
                             $mediaId = $this->createMediaFromFile($archiveImagePath);
                         } else {
