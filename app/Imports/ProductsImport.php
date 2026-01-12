@@ -115,23 +115,37 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation
             return null;
         }
 
-        // Ищем файл рекурсивно
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->extractedImagesPath)
-        );
+        // Сначала проверяем папку images/ (стандартная структура экспорта)
+        $imagesFolder = $this->extractedImagesPath . '/images';
+        $searchPaths = [];
+        
+        if (file_exists($imagesFolder) && is_dir($imagesFolder)) {
+            $searchPaths[] = $imagesFolder;
+        }
+        
+        // Также ищем в корне архива (для обратной совместимости)
+        $searchPaths[] = $this->extractedImagesPath;
 
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $fileName = $file->getFilename();
-                // Сравниваем без учета расширения
-                $imageNameWithoutExt = pathinfo($imageName, PATHINFO_FILENAME);
-                $fileNameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
-                
-                if (strcasecmp($imageNameWithoutExt, $fileNameWithoutExt) === 0) {
-                    // Проверяем, что это изображение
-                    $extension = strtolower($file->getExtension());
-                    if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
-                        return $file->getRealPath();
+        // Ищем файл в указанных путях
+        foreach ($searchPaths as $searchPath) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($searchPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $fileName = $file->getFilename();
+                    // Сравниваем без учета расширения
+                    $imageNameWithoutExt = pathinfo($imageName, PATHINFO_FILENAME);
+                    $fileNameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
+                    
+                    if (strcasecmp($imageNameWithoutExt, $fileNameWithoutExt) === 0) {
+                        // Проверяем, что это изображение
+                        $extension = strtolower($file->getExtension());
+                        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                            return $file->getRealPath();
+                        }
                     }
                 }
             }

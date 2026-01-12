@@ -372,16 +372,21 @@ class ProductController extends Controller
                 
                 // Добавляем папку с изображениями
                 if ($imageCount > 0) {
+                    // Сначала добавляем саму папку images (пустую директорию)
+                    $zip->addEmptyDir('images');
+                    
                     $iterator = new \RecursiveIteratorIterator(
-                        new \RecursiveDirectoryIterator($imagesDir),
+                        new \RecursiveDirectoryIterator($imagesDir, \RecursiveDirectoryIterator::SKIP_DOTS),
                         \RecursiveIteratorIterator::SELF_FIRST
                     );
                     
                     foreach ($iterator as $file) {
                         if ($file->isFile()) {
                             $filePath = $file->getRealPath();
-                            $relativePath = 'images/' . substr($filePath, strlen($imagesDir) + 1);
-                            $zip->addFile($filePath, $relativePath);
+                            // Получаем относительный путь от imagesDir
+                            $relativePath = str_replace($imagesDir . DIRECTORY_SEPARATOR, '', $filePath);
+                            // Добавляем с префиксом images/
+                            $zip->addFile($filePath, 'images/' . str_replace(DIRECTORY_SEPARATOR, '/', $relativePath));
                         }
                     }
                 }
