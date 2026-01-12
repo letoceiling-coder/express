@@ -101,6 +101,12 @@ class AdminMenu
                 'roles' => ['admin', 'manager'],
             ],
             [
+                'title' => 'О нас',
+                'route' => 'admin.about',
+                'icon' => 'info',
+                'roles' => ['admin', 'manager'],
+            ],
+            [
                 'title' => 'Уведомления',
                 'route' => 'admin.notifications',
                 'icon' => 'bell',

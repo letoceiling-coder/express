@@ -220,6 +220,12 @@ const routes = [
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Медиа' },
             },
             {
+                path: 'about',
+                name: 'admin.about',
+                component: () => import('./pages/admin/About.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'О нас' },
+            },
+            {
                 path: 'notifications',
                 name: 'admin.notifications',
                 component: () => import('./pages/admin/Notifications.vue'),
