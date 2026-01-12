@@ -427,6 +427,7 @@
 <script>
 import axios from 'axios';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Broadcasts',
@@ -691,7 +692,7 @@ export default {
         },
         async previewBroadcast() {
             if (!this.form.bot_id) {
-                alert('Выберите бота');
+                await swal.warning('Выберите бота');
                 return;
             }
 
@@ -712,7 +713,7 @@ export default {
                 const response = await axios.post('/api/v1/broadcasts/preview', payload);
                 this.previewResult = response.data.data;
             } catch (error) {
-                alert(error.response?.data?.message || 'Ошибка предпросмотра');
+                await swal.error(error.response?.data?.message || 'Ошибка предпросмотра');
                 console.error('Error previewing broadcast:', error);
             } finally {
                 this.previewing = false;

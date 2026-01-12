@@ -228,6 +228,7 @@
 
 <script>
 import { categoriesAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Categories',
@@ -314,15 +315,23 @@ export default {
             }
         },
         async handleDelete(category) {
-            if (!confirm(`Вы уверены, что хотите удалить категорию "${category.name}"?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить категорию "${category.name}"?`,
+                'Удаление категории',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await categoriesAPI.delete(category.id);
                 await this.loadCategories();
+                await swal.success('Категория успешно удалена');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления категории');
+                await swal.error(error.message || 'Ошибка удаления категории');
             }
         },
         
@@ -382,11 +391,11 @@ export default {
                         sort_order: cat.sort_order || 0,
                     }))
                 );
-                // Показываем уведомление об успехе (можно использовать toast если доступен)
+                // Порядок категорий обновлен успешно
                 console.log('Порядок категорий обновлен');
             } catch (error) {
                 console.error('Failed to update positions:', error);
-                alert('Ошибка при сохранении порядка категорий');
+                await swal.error('Ошибка при сохранении порядка категорий');
                 // Откатываем изменения при ошибке
                 await this.loadCategories();
             }
@@ -401,9 +410,9 @@ export default {
             this.exporting = true;
             try {
                 await categoriesAPI.exportCsv();
-                alert('Экспорт в CSV выполнен успешно');
+                await swal.success('Экспорт в CSV выполнен успешно');
             } catch (error) {
-                alert(error.message || 'Ошибка экспорта в CSV');
+                await swal.error(error.message || 'Ошибка экспорта в CSV');
             } finally {
                 this.exporting = false;
             }
@@ -413,9 +422,9 @@ export default {
             this.exporting = true;
             try {
                 await categoriesAPI.exportExcel();
-                alert('Экспорт в Excel выполнен успешно');
+                await swal.success('Экспорт в Excel выполнен успешно');
             } catch (error) {
-                alert(error.message || 'Ошибка экспорта в Excel');
+                await swal.error(error.message || 'Ошибка экспорта в Excel');
             } finally {
                 this.exporting = false;
             }

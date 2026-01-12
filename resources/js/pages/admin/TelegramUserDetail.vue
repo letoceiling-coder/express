@@ -218,6 +218,7 @@
 
 <script>
 import axios from 'axios';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'TelegramUserDetail',
@@ -286,7 +287,7 @@ export default {
                 await axios.post(`/api/v1/telegram-users/${this.user.id}/${endpoint}`);
                 await this.loadUser();
             } catch (error) {
-                alert(error.response?.data?.message || 'Ошибка при изменении статуса');
+                await swal.error(error.response?.data?.message || 'Ошибка при изменении статуса');
                 console.error('Error toggling block:', error);
             } finally {
                 this.togglingBlock = false;
@@ -298,9 +299,9 @@ export default {
             try {
                 await axios.post(`/api/v1/telegram-users/${this.user.id}/sync`);
                 await this.loadUser();
-                alert('Пользователь успешно синхронизирован');
+                await swal.success('Пользователь успешно синхронизирован');
             } catch (error) {
-                alert(error.response?.data?.message || 'Ошибка синхронизации');
+                await swal.error(error.response?.data?.message || 'Ошибка синхронизации');
                 console.error('Error syncing user:', error);
             } finally {
                 this.syncing = false;
@@ -312,9 +313,9 @@ export default {
             try {
                 await axios.get(`/api/v1/telegram-users/${this.user.id}/statistics`);
                 await this.loadUser();
-                alert('Статистика обновлена');
+                await swal.success('Статистика обновлена');
             } catch (error) {
-                alert(error.response?.data?.message || 'Ошибка обновления статистики');
+                await swal.error(error.response?.data?.message || 'Ошибка обновления статистики');
                 console.error('Error refreshing statistics:', error);
             } finally {
                 this.refreshingStats = false;

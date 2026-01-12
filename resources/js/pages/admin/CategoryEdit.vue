@@ -140,6 +140,7 @@
 <script>
 import { categoriesAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'CategoryEdit',
@@ -205,7 +206,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления категории');
+                    await swal.error(error.message || 'Ошибка обновления категории');
                 }
             } finally {
                 this.loading = false;

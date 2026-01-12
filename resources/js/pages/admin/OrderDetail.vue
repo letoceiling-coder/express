@@ -243,6 +243,7 @@
 <script>
 import { ordersAPI, deliveriesAPI, paymentsAPI } from '../../utils/api.js';
 import OrderStatusHistory from '../../components/admin/OrderStatusHistory.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'OrderDetail',
@@ -316,9 +317,9 @@ export default {
                 const id = this.$route.params.id;
                 await ordersAPI.update(id, this.form);
                 await this.loadOrder();
-                alert('Заказ успешно обновлен');
+                await swal.success('Заказ успешно обновлен');
             } catch (error) {
-                alert(error.message || 'Ошибка обновления заказа');
+                await swal.error(error.message || 'Ошибка обновления заказа');
             } finally {
                 this.saving = false;
             }

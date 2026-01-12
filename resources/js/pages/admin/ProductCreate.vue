@@ -368,6 +368,7 @@
 <script>
 import { productsAPI, categoriesAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ProductCreate',
@@ -437,7 +438,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания товара');
+                    await swal.error(error.message || 'Ошибка создания товара');
                 }
             } finally {
                 this.loading = false;

@@ -175,6 +175,7 @@
 
 <script>
 import { returnsAPI, ordersAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ReturnCreate',
@@ -274,7 +275,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания возврата');
+                    await swal.error(error.message || 'Ошибка создания возврата');
                 }
             } finally {
                 this.loading = false;

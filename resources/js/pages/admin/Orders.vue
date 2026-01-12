@@ -156,6 +156,7 @@
 
 <script>
 import { ordersAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Orders',
@@ -230,7 +231,7 @@ export default {
                 await ordersAPI.updateStatus(orderId, newStatus);
                 await this.loadOrders();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadOrders(); // Перезагружаем для отката изменений
             }
         },

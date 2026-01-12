@@ -207,7 +207,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания платежа');
+                    await swal.error(error.message || 'Ошибка создания платежа');
                 }
             } finally {
                 this.loading = false;

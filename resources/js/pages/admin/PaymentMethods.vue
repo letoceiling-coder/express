@@ -154,6 +154,7 @@
 
 <script>
 import { apiGet, apiDelete } from '@/utils/api';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'PaymentMethods',
@@ -232,15 +233,23 @@ export default {
             }
         },
         async handleDelete(id) {
-            if (!confirm('Вы уверены, что хотите удалить этот способ оплаты?')) {
+            const result = await swal.confirm(
+                'Вы уверены, что хотите удалить этот способ оплаты?',
+                'Удаление способа оплаты',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await apiDelete(`/payment-methods/${id}`);
                 this.methods = this.methods.filter(m => m.id !== id);
+                await swal.success('Способ оплаты успешно удален');
             } catch (err) {
-                alert(err.response?.data?.message || 'Ошибка удаления способа оплаты');
+                await swal.error(err.response?.data?.message || 'Ошибка удаления способа оплаты');
             }
         },
     },

@@ -90,6 +90,7 @@
 
 <script>
 import Media from '../../pages/admin/Media.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'MediaSelector',
@@ -142,7 +143,7 @@ export default {
         handleFileSelected(file) {
             // Проверяем тип файла
             if (this.allowedTypes && !this.allowedTypes.includes(file.type)) {
-                alert(`Тип файла "${file.type}" не разрешен. Разрешенные типы: ${this.allowedTypes.join(', ')}`);
+                swal.warning(`Тип файла "${file.type}" не разрешен. Разрешенные типы: ${this.allowedTypes.join(', ')}`);
                 return;
             }
 

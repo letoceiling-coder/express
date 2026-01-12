@@ -64,7 +64,7 @@ class DeliveryCalculationService
      * Валидация и геокодинг адреса
      * 
      * @param string $address Адрес
-     * @return array|null ['latitude' => float, 'longitude' => float, 'formatted_address' => string] или null при ошибке
+     * @return array|null ['latitude' => float, 'longitude' => float, 'formatted_address' => string] или null при ошибке, или ['error' => string, 'error_code' => string] при ошибке API
      */
     public function geocodeAddress(string $address): ?array
     {
@@ -87,10 +87,33 @@ class DeliveryCalculationService
             ]);
 
             if (!$response->successful()) {
+                $errorBody = $response->body();
+                $errorData = [];
+                
+                // Пытаемся распарсить JSON ответ с ошибкой
+                if (!empty($errorBody)) {
+                    $decoded = json_decode($errorBody, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $errorData = $decoded;
+                    }
+                }
+                
                 Log::error('Yandex Geocoder API error', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'status_text' => $response->reason(),
+                    'body' => $errorBody,
+                    'error_data' => $errorData,
+                    'address' => $address,
                 ]);
+                
+                // Если это ошибка авторизации, возвращаем специальный результат
+                if ($response->status() === 403 || $response->status() === 401) {
+                    return [
+                        'error' => 'API ключ неверный или не имеет прав доступа. Проверьте настройки API ключа в админ-панели.',
+                        'error_code' => 'invalid_api_key',
+                    ];
+                }
+                
                 return null;
             }
 
@@ -239,6 +262,15 @@ class DeliveryCalculationService
             return [
                 'valid' => false,
                 'error' => 'Адрес не найден. Проверьте правильность адреса',
+            ];
+        }
+        
+        // Проверяем, есть ли ошибка в результате геокодирования
+        if (isset($geocodeResult['error'])) {
+            return [
+                'valid' => false,
+                'error' => $geocodeResult['error'],
+                'error_code' => $geocodeResult['error_code'] ?? null,
             ];
         }
 

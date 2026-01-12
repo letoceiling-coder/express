@@ -391,6 +391,7 @@
 <script>
 import { productsAPI, categoriesAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ProductEdit',
@@ -514,7 +515,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления товара');
+                    await swal.error(error.message || 'Ошибка обновления товара');
                 }
             } finally {
                 this.loading = false;

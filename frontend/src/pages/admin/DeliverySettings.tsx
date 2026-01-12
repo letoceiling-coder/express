@@ -79,7 +79,19 @@ export function DeliverySettings() {
         yandex_geocoder_api_key: formData.yandex_geocoder_api_key || undefined,
       };
 
-      await deliverySettingsAPI.updateSettings(submitData);
+      const response = await deliverySettingsAPI.updateSettings(submitData);
+      
+      // Обновляем координаты в форме из ответа сервера (они могли быть перегеокодированы)
+      const updatedData = response?.data || response;
+      if (updatedData) {
+        setFormData((prev) => ({
+          ...prev,
+          origin_latitude: updatedData.origin_latitude ? String(updatedData.origin_latitude) : prev.origin_latitude,
+          origin_longitude: updatedData.origin_longitude ? String(updatedData.origin_longitude) : prev.origin_longitude,
+          origin_address: updatedData.origin_address || prev.origin_address,
+        }));
+      }
+      
       toast.success('Настройки доставки успешно сохранены');
     } catch (error: any) {
       console.error('Error saving delivery settings:', error);

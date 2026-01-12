@@ -220,6 +220,7 @@
 
 <script>
 import { paymentsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Payments',
@@ -297,7 +298,7 @@ export default {
                 await paymentsAPI.updateStatus(paymentId, newStatus);
                 await this.loadPayments();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadPayments();
             }
         },
@@ -319,22 +320,31 @@ export default {
                 this.selectedPaymentForRefund = null;
                 this.refundAmount = null;
                 await this.loadPayments();
+                await swal.success('Возврат платежа выполнен');
             } catch (error) {
-                alert(error.message || 'Ошибка возврата платежа');
+                await swal.error(error.message || 'Ошибка возврата платежа');
             } finally {
                 this.refunding = false;
             }
         },
         async handleDelete(payment) {
-            if (!confirm(`Вы уверены, что хотите удалить платеж для заказа #${payment.order?.order_id || payment.order_id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить платеж для заказа #${payment.order?.order_id || payment.order_id}?`,
+                'Удаление платежа',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await paymentsAPI.delete(payment.id);
                 await this.loadPayments();
+                await swal.success('Платеж успешно удален');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления платежа');
+                await swal.error(error.message || 'Ошибка удаления платежа');
             }
         },
         getPaymentMethodLabel(method) {

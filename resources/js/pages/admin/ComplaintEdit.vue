@@ -279,6 +279,7 @@
 <script>
 import { complaintsAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ComplaintEdit',
@@ -362,13 +363,13 @@ export default {
                 this.form.attachments = this.selectedAttachments.map(a => a.id);
                 await complaintsAPI.update(id, this.form);
                 await this.loadComplaint();
-                alert('Претензия успешно обновлена');
+                await swal.success('Претензия успешно обновлена');
             } catch (error) {
                 const errorData = error.response?.data || {};
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления претензии');
+                    await swal.error(error.message || 'Ошибка обновления претензии');
                 }
             } finally {
                 this.loading = false;
@@ -384,7 +385,7 @@ export default {
                 this.newComment = '';
                 await this.loadComplaint();
             } catch (error) {
-                alert(error.message || 'Ошибка добавления комментария');
+                await swal.error(error.message || 'Ошибка добавления комментария');
             } finally {
                 this.addingComment = false;
             }

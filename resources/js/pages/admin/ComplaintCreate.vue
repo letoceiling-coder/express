@@ -218,6 +218,7 @@
 <script>
 import { complaintsAPI, ordersAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ComplaintCreate',
@@ -296,7 +297,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания претензии');
+                    await swal.error(error.message || 'Ошибка создания претензии');
                 }
             } finally {
                 this.loading = false;

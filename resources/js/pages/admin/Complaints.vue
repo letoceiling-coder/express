@@ -185,6 +185,7 @@
 
 <script>
 import { complaintsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Complaints',
@@ -266,20 +267,28 @@ export default {
                 await complaintsAPI.updateStatus(complaintId, newStatus);
                 await this.loadComplaints();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadComplaints();
             }
         },
         async handleDelete(complaint) {
-            if (!confirm(`Вы уверены, что хотите удалить претензию #${complaint.id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить претензию #${complaint.id}?`,
+                'Удаление претензии',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await complaintsAPI.delete(complaint.id);
                 await this.loadComplaints();
+                await swal.success('Претензия успешно удалена');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления претензии');
+                await swal.error(error.message || 'Ошибка удаления претензии');
             }
         },
         getTypeLabel(type) {

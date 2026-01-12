@@ -225,6 +225,7 @@
 
 <script>
 import { returnsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ReturnEdit',
@@ -282,13 +283,13 @@ export default {
                 const id = this.$route.params.id;
                 await returnsAPI.update(id, this.form);
                 await this.loadReturn();
-                alert('Возврат успешно обновлен');
+                await swal.success('Возврат успешно обновлен');
             } catch (error) {
                 const errorData = error.response?.data || {};
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления возврата');
+                    await swal.error(error.message || 'Ошибка обновления возврата');
                 }
             } finally {
                 this.loading = false;
@@ -302,9 +303,9 @@ export default {
             try {
                 await returnsAPI.approve(this.returnItem.id);
                 await this.loadReturn();
-                alert('Возврат одобрен');
+                await swal.success('Возврат одобрен');
             } catch (error) {
-                alert(error.message || 'Ошибка одобрения возврата');
+                await swal.error(error.message || 'Ошибка одобрения возврата');
             }
         },
         handleReject() {
@@ -320,9 +321,9 @@ export default {
                 this.showRejectModal = false;
                 this.rejectReason = '';
                 await this.loadReturn();
-                alert('Возврат отклонен');
+                await swal.success('Возврат отклонен');
             } catch (error) {
-                alert(error.message || 'Ошибка отклонения возврата');
+                await swal.error(error.message || 'Ошибка отклонения возврата');
             } finally {
                 this.rejecting = false;
             }

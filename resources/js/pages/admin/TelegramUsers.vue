@@ -180,6 +180,7 @@
 
 <script>
 import axios from 'axios';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'TelegramUsers',
@@ -272,7 +273,7 @@ export default {
                 await axios.post(`/api/v1/telegram-users/${user.id}/${endpoint}`);
                 await this.loadUsers();
             } catch (error) {
-                alert(error.response?.data?.message || 'Ошибка при изменении статуса');
+                await swal.error(error.response?.data?.message || 'Ошибка при изменении статуса');
                 console.error('Error toggling block:', error);
             } finally {
                 this.togglingBlock = null;

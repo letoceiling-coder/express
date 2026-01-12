@@ -124,6 +124,7 @@
 <script>
 import { categoriesAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'CategoryCreate',
@@ -165,7 +166,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания категории');
+                    await swal.error(error.message || 'Ошибка создания категории');
                 }
             } finally {
                 this.loading = false;

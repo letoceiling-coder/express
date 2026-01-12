@@ -247,6 +247,7 @@
 
 <script>
 import { deliverySettingsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'DeliverySettings',
@@ -336,8 +337,14 @@ export default {
                 const response = await deliverySettingsAPI.updateSettings(submitData);
                 this.settings = response.data?.data || response.data;
                 
+                // Обновляем координаты в форме из ответа сервера (они могли быть перегеокодированы)
+                if (this.settings) {
+                    this.form.origin_latitude = this.settings.origin_latitude ? String(this.settings.origin_latitude) : '';
+                    this.form.origin_longitude = this.settings.origin_longitude ? String(this.settings.origin_longitude) : '';
+                }
+                
                 // Показываем успешное сообщение
-                alert('Настройки доставки успешно сохранены');
+                await swal.success('Настройки доставки успешно сохранены');
                 
                 // Обновляем сохраненный ключ
                 if (this.form.yandex_geocoder_api_key) {

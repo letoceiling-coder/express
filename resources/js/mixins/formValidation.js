@@ -2,6 +2,7 @@
  * Mixin для валидации форм в Vue компонентах
  */
 import { parseServerErrors } from '../utils/validation.js';
+import swal from '../utils/swal.js';
 
 export default {
     data() {
@@ -73,7 +74,7 @@ export default {
             
             // Если есть общая ошибка, показываем её
             if (this.errors._general) {
-                alert(this.errors._general);
+                swal.error(this.errors._general);
                 delete this.errors._general;
             }
         },

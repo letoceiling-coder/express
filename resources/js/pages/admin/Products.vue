@@ -256,6 +256,7 @@
 
 <script>
 import { productsAPI, categoriesAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Products',
@@ -351,15 +352,23 @@ export default {
             }
         },
         async handleDelete(product) {
-            if (!confirm(`Вы уверены, что хотите удалить товар "${product.name}"?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить товар "${product.name}"?`,
+                'Удаление товара',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await productsAPI.delete(product.id);
                 await this.loadProducts();
+                await swal.success('Товар успешно удален');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления товара');
+                await swal.error(error.message || 'Ошибка удаления товара');
             }
         },
 
@@ -367,9 +376,9 @@ export default {
             this.exporting = true;
             try {
                 await productsAPI.exportCsv();
-                alert('Экспорт в CSV выполнен успешно');
+                await swal.success('Экспорт в CSV выполнен успешно');
             } catch (error) {
-                alert(error.message || 'Ошибка экспорта в CSV');
+                await swal.error(error.message || 'Ошибка экспорта в CSV');
             } finally {
                 this.exporting = false;
             }
@@ -379,9 +388,9 @@ export default {
             this.exporting = true;
             try {
                 await productsAPI.exportExcel();
-                alert('Экспорт в Excel выполнен успешно');
+                await swal.success('Экспорт в Excel выполнен успешно');
             } catch (error) {
-                alert(error.message || 'Ошибка экспорта в Excel');
+                await swal.error(error.message || 'Ошибка экспорта в Excel');
             } finally {
                 this.exporting = false;
             }

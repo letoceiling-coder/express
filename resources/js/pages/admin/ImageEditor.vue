@@ -316,6 +316,7 @@ import { ref, watch, computed } from 'vue'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import { apiPost, apiPut } from '../../utils/api'
+import swal from '../../utils/swal.js'
 
 export default {
   name: 'ImageEditor',
@@ -484,7 +485,7 @@ export default {
         handleClose()
       } catch (err) {
         console.error('[ImageEditor] Error saving image:', err)
-        alert(err.message || 'Ошибка сохранения изображения')
+        await swal.error(err.message || 'Ошибка сохранения изображения')
       } finally {
         saving.value = false
       }

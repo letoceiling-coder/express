@@ -185,6 +185,7 @@
 <script>
 import { reviewsAPI, ordersAPI, productsAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ReviewCreate',
@@ -268,7 +269,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания отзыва');
+                    await swal.error(error.message || 'Ошибка создания отзыва');
                 }
             } finally {
                 this.loading = false;

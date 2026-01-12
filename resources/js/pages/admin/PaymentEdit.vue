@@ -214,6 +214,7 @@
 
 <script>
 import { paymentsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'PaymentEdit',
@@ -273,13 +274,13 @@ export default {
                 const id = this.$route.params.id;
                 await paymentsAPI.update(id, this.form);
                 await this.loadPayment();
-                alert('Платеж успешно обновлен');
+                await swal.success('Платеж успешно обновлен');
             } catch (error) {
                 const errorData = error.response?.data || {};
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления платежа');
+                    await swal.error(error.message || 'Ошибка обновления платежа');
                 }
             } finally {
                 this.loading = false;
@@ -298,9 +299,9 @@ export default {
                 this.showRefundModal = false;
                 this.refundAmount = null;
                 await this.loadPayment();
-                alert('Возврат платежа выполнен');
+                await swal.success('Возврат платежа выполнен');
             } catch (error) {
-                alert(error.message || 'Ошибка возврата платежа');
+                await swal.error(error.message || 'Ошибка возврата платежа');
             } finally {
                 this.refunding = false;
             }

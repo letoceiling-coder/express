@@ -214,6 +214,7 @@
 import { apiGet, apiPut } from '../../utils/api.js';
 import { handleApiError, getErrorMessage } from '../../utils/errors.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'About',
@@ -278,17 +279,17 @@ export default {
                 const result = await response.json();
                 
                 if (response.ok) {
-                    alert('Страница "О нас" успешно сохранена');
+                    await swal.success('Страница "О нас" успешно сохранена');
                     this.data = result.data;
                 } else {
                     const errorMsg = result.message || 'Ошибка при сохранении';
                     this.error = errorMsg;
-                    alert('Ошибка при сохранении: ' + errorMsg);
+                    await swal.error('Ошибка при сохранении: ' + errorMsg);
                 }
             } catch (error) {
                 console.error('Error saving about page:', error);
                 this.error = error.message || 'Ошибка при сохранении данных';
-                alert('Ошибка при сохранении: ' + this.error);
+                await swal.error('Ошибка при сохранении: ' + this.error);
             } finally {
                 this.saving = false;
             }

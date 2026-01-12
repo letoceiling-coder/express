@@ -167,6 +167,7 @@
 
 <script>
 import { deliveriesAPI, ordersAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Deliveries',
@@ -244,20 +245,28 @@ export default {
                 await deliveriesAPI.updateStatus(deliveryId, newStatus);
                 await this.loadDeliveries();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadDeliveries();
             }
         },
         async handleDelete(delivery) {
-            if (!confirm(`Вы уверены, что хотите удалить доставку для заказа #${delivery.order?.order_id || delivery.order_id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить доставку для заказа #${delivery.order?.order_id || delivery.order_id}?`,
+                'Удаление доставки',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await deliveriesAPI.delete(delivery.id);
                 await this.loadDeliveries();
+                await swal.success('Доставка успешно удалена');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления доставки');
+                await swal.error(error.message || 'Ошибка удаления доставки');
             }
         },
         getDeliveryTypeLabel(type) {

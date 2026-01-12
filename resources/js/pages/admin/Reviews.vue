@@ -182,6 +182,7 @@
 
 <script>
 import { reviewsAPI, productsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Reviews',
@@ -273,20 +274,28 @@ export default {
                 await reviewsAPI.updateStatus(reviewId, newStatus);
                 await this.loadReviews();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadReviews();
             }
         },
         async handleDelete(review) {
-            if (!confirm(`Вы уверены, что хотите удалить отзыв #${review.id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить отзыв #${review.id}?`,
+                'Удаление отзыва',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await reviewsAPI.delete(review.id);
                 await this.loadReviews();
+                await swal.success('Отзыв успешно удален');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления отзыва');
+                await swal.error(error.message || 'Ошибка удаления отзыва');
             }
         },
         getStatusClass(status) {

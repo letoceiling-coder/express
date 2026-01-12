@@ -75,6 +75,11 @@ class DeliverySettingsController extends Controller
                 }
             }
             
+            // Проверяем, изменился ли адрес начала доставки (до обновления модели)
+            $oldAddress = trim($settings->origin_address ?? '');
+            $newAddress = isset($validated['origin_address']) ? trim($validated['origin_address']) : '';
+            $addressChanged = !empty($newAddress) && $newAddress !== $oldAddress;
+            
             // Обновляем настройки
             $settings->fill($validated);
             
@@ -83,11 +88,22 @@ class DeliverySettingsController extends Controller
                 $settings->yandex_geocoder_api_key = $existingApiKey;
             }
             
-            // Если обновлен адрес начала доставки, попробуем получить координаты
-            if (isset($validated['origin_address']) && !empty(trim($validated['origin_address']))) {
-                // Если координаты не были переданы вручную, пытаемся геокодировать адрес
-                if (!isset($validated['origin_latitude']) || !isset($validated['origin_longitude']) 
-                    || !$validated['origin_latitude'] || !$validated['origin_longitude']) {
+            // Если адрес изменился, всегда геокодируем его (игнорируя старые координаты)
+            if ($addressChanged) {
+                Log::info('Адрес начала доставки изменился, выполняется геокодирование', [
+                    'old_address' => $oldAddress,
+                    'new_address' => $newAddress,
+                ]);
+                // Удаляем старые координаты перед геокодированием
+                $settings->origin_latitude = null;
+                $settings->origin_longitude = null;
+                $this->geocodeOriginAddress($settings);
+            } elseif (!empty($newAddress)) {
+                // Если адрес не изменился, но координаты не были переданы или пустые, пытаемся геокодировать
+                if (empty($settings->origin_latitude) || empty($settings->origin_longitude)) {
+                    Log::info('Координаты отсутствуют, выполняется геокодирование адреса', [
+                        'address' => $newAddress,
+                    ]);
                     $this->geocodeOriginAddress($settings);
                 }
             }
@@ -127,9 +143,16 @@ class DeliverySettingsController extends Controller
             $calculationService = new DeliveryCalculationService($settings);
             $result = $calculationService->geocodeAddress($settings->origin_address);
             
-            if ($result) {
+            if ($result && !isset($result['error'])) {
                 $settings->origin_latitude = $result['latitude'];
                 $settings->origin_longitude = $result['longitude'];
+            } elseif ($result && isset($result['error'])) {
+                // Логируем ошибку API ключа, но не прерываем сохранение настроек
+                Log::warning('Не удалось получить координаты для адреса начала доставки из-за ошибки API', [
+                    'address' => $settings->origin_address,
+                    'error' => $result['error'],
+                    'error_code' => $result['error_code'] ?? null,
+                ]);
             }
         } catch (\Exception $e) {
             Log::warning('Не удалось получить координаты для адреса начала доставки', [
@@ -159,6 +182,16 @@ class DeliverySettingsController extends Controller
 
         try {
             $settings = DeliverySetting::getSettings();
+            
+            // Проверяем наличие API ключа
+            if (empty($settings->yandex_geocoder_api_key)) {
+                return response()->json([
+                    'valid' => false,
+                    'error' => 'API ключ Яндекс.Геокодера не настроен. Пожалуйста, настройте API ключ в разделе "Настройки доставки" в админ-панели.',
+                    'error_code' => 'api_key_not_set',
+                ], 400);
+            }
+            
             $calculationService = new DeliveryCalculationService($settings);
             
             $cartTotal = $request->input('cart_total', 0);
@@ -175,17 +208,26 @@ class DeliverySettingsController extends Controller
                     'coordinates' => $result['coordinates'],
                 ]);
             } else {
+                // Определяем HTTP статус код в зависимости от типа ошибки
+                $statusCode = 400;
+                if (isset($result['error_code']) && $result['error_code'] === 'invalid_api_key') {
+                    $statusCode = 500; // Ошибка конфигурации
+                }
+                
                 return response()->json([
                     'valid' => false,
                     'error' => $result['error'] ?? 'Ошибка валидации адреса',
-                ], 400);
+                    'error_code' => $result['error_code'] ?? null,
+                ], $statusCode);
             }
         } catch (\Exception $e) {
-            Log::error('Ошибка при расчете стоимости доставки: ' . $e->getMessage());
+            Log::error('Ошибка при расчете стоимости доставки: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
             
             return response()->json([
                 'valid' => false,
-                'error' => 'Ошибка при расчете стоимости доставки',
+                'error' => 'Ошибка при расчете стоимости доставки: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -273,17 +315,23 @@ class DeliverySettingsController extends Controller
                 
                 // Более информативное сообщение об ошибке
                 $errorMessage = 'Ошибка при получении подсказок';
+                $errorCode = null;
+                
                 if ($response->status() === 403) {
-                    $errorMessage = 'Доступ запрещен. Проверьте API ключ и его права доступа к Suggest API';
+                    $errorMessage = 'API ключ неверный или не имеет прав доступа к Suggest API. Проверьте правильность API ключа в настройках доставки. Убедитесь, что ключ имеет доступ к JavaScript API и HTTP Геокодер.';
+                    $errorCode = 'invalid_api_key';
                 } elseif ($response->status() === 401) {
-                    $errorMessage = 'Неверный API ключ';
+                    $errorMessage = 'Неверный API ключ. Проверьте правильность ключа в настройках доставки.';
+                    $errorCode = 'invalid_api_key';
                 } elseif ($response->status() === 429) {
-                    $errorMessage = 'Превышен лимит запросов к API';
+                    $errorMessage = 'Превышен лимит запросов к API. Попробуйте позже.';
+                    $errorCode = 'rate_limit_exceeded';
                 }
                 
                 return response()->json([
                     'success' => false,
                     'error' => $errorMessage,
+                    'error_code' => $errorCode,
                     'suggestions' => [],
                 ], 500);
             }

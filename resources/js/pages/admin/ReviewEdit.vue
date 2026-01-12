@@ -197,6 +197,7 @@
 <script>
 import { reviewsAPI } from '../../utils/api.js';
 import MediaSelector from '../../components/admin/MediaSelector.vue';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'ReviewEdit',
@@ -262,13 +263,13 @@ export default {
                 this.form.photos = this.selectedPhotos.map(p => p.id);
                 await reviewsAPI.update(id, this.form);
                 await this.loadReview();
-                alert('Отзыв успешно обновлен');
+                await swal.success('Отзыв успешно обновлен');
             } catch (error) {
                 const errorData = error.response?.data || {};
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления отзыва');
+                    await swal.error(error.message || 'Ошибка обновления отзыва');
                 }
             } finally {
                 this.loading = false;

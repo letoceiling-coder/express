@@ -310,6 +310,7 @@
 
 <script>
 import { paymentSettingsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'PaymentSettingsYooKassa',
@@ -537,12 +538,13 @@ export default {
                 this.testing = false;
             }
         },
-        copyWebhookUrl() {
-            navigator.clipboard.writeText(this.webhookUrl).then(() => {
-                alert('URL вебхука скопирован в буфер обмена');
-            }).catch(() => {
-                alert('Не удалось скопировать URL');
-            });
+        async copyWebhookUrl() {
+            try {
+                await navigator.clipboard.writeText(this.webhookUrl);
+                await swal.success('URL вебхука скопирован в буфер обмена');
+            } catch (error) {
+                await swal.error('Не удалось скопировать URL');
+            }
         },
     },
 };

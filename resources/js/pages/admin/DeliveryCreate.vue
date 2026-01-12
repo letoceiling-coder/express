@@ -181,6 +181,7 @@
 
 <script>
 import { deliveriesAPI, ordersAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'DeliveryCreate',
@@ -235,7 +236,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка создания доставки');
+                    await swal.error(error.message || 'Ошибка создания доставки');
                 }
             } finally {
                 this.loading = false;

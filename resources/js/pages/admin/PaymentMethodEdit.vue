@@ -213,6 +213,7 @@
 
 <script>
 import { apiGet, apiPut } from '@/utils/api';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'PaymentMethodEdit',
@@ -292,7 +293,7 @@ export default {
                 if (err.response?.data?.errors) {
                     this.errors = err.response.data.errors;
                 } else {
-                    alert(err.response?.data?.message || 'Ошибка сохранения способа оплаты');
+                    await swal.error(err.response?.data?.message || 'Ошибка сохранения способа оплаты');
                 }
             } finally {
                 this.loading = false;

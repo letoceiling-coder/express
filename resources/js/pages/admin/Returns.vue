@@ -220,6 +220,7 @@
 
 <script>
 import { returnsAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'Returns',
@@ -297,20 +298,28 @@ export default {
                 await returnsAPI.updateStatus(returnId, newStatus);
                 await this.loadReturns();
             } catch (error) {
-                alert(error.message || 'Ошибка изменения статуса');
+                await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadReturns();
             }
         },
         async handleApprove(returnItem) {
-            if (!confirm(`Вы уверены, что хотите одобрить возврат #${returnItem.id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите одобрить возврат #${returnItem.id}?`,
+                'Одобрение возврата',
+                'Одобрить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await returnsAPI.approve(returnItem.id);
                 await this.loadReturns();
+                await swal.success('Возврат успешно одобрен');
             } catch (error) {
-                alert(error.message || 'Ошибка одобрения возврата');
+                await swal.error(error.message || 'Ошибка одобрения возврата');
             }
         },
         handleReject(returnItem) {
@@ -328,22 +337,31 @@ export default {
                 this.selectedReturnForReject = null;
                 this.rejectReason = '';
                 await this.loadReturns();
+                await swal.success('Возврат успешно отклонен');
             } catch (error) {
-                alert(error.message || 'Ошибка отклонения возврата');
+                await swal.error(error.message || 'Ошибка отклонения возврата');
             } finally {
                 this.rejecting = false;
             }
         },
         async handleDelete(returnItem) {
-            if (!confirm(`Вы уверены, что хотите удалить возврат #${returnItem.id}?`)) {
+            const result = await swal.confirm(
+                `Вы уверены, что хотите удалить возврат #${returnItem.id}?`,
+                'Удаление возврата',
+                'Удалить',
+                'Отмена'
+            );
+
+            if (!result.isConfirmed) {
                 return;
             }
 
             try {
                 await returnsAPI.delete(returnItem.id);
                 await this.loadReturns();
+                await swal.success('Возврат успешно удален');
             } catch (error) {
-                alert(error.message || 'Ошибка удаления возврата');
+                await swal.error(error.message || 'Ошибка удаления возврата');
             }
         },
         getReasonLabel(reason) {

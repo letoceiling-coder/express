@@ -188,6 +188,7 @@
 
 <script>
 import { deliveriesAPI } from '../../utils/api.js';
+import swal from '../../utils/swal.js';
 
 export default {
     name: 'DeliveryEdit',
@@ -257,7 +258,7 @@ export default {
                 if (errorData.errors) {
                     this.errors = errorData.errors;
                 } else {
-                    alert(error.message || 'Ошибка обновления доставки');
+                    await swal.error(error.message || 'Ошибка обновления доставки');
                 }
             } finally {
                 this.loading = false;
