@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "letoceiling-coder/telegram": "^1.0",
         "maatwebsite/excel": "^3.1",
+        "maennchen/zipstream-php": "^3.1.2",
         "yoomoney/yookassa-sdk-php": "*"
     },
     "require-dev": {
