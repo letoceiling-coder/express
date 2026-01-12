@@ -32,6 +32,7 @@ class DeliverySettingsRequest extends FormRequest
             'delivery_zones.*.max_distance' => ['nullable', 'numeric', 'min:0'],
             'delivery_zones.*.cost' => ['required_with:delivery_zones', 'numeric', 'min:0'],
             'is_enabled' => ['nullable', 'boolean'],
+            'min_delivery_order_total_rub' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
@@ -50,6 +51,8 @@ class DeliverySettingsRequest extends FormRequest
             'delivery_zones.*.max_distance.min' => 'Максимальное расстояние не может быть отрицательным',
             'delivery_zones.*.cost.required_with' => 'Стоимость доставки обязательна',
             'delivery_zones.*.cost.min' => 'Стоимость доставки не может быть отрицательной',
+            'min_delivery_order_total_rub.numeric' => 'Минимальный заказ для доставки должен быть числом',
+            'min_delivery_order_total_rub.min' => 'Минимальный заказ для доставки не может быть отрицательным',
         ];
     }
 }

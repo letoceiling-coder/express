@@ -59,6 +59,24 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
+            // Проверка минимального заказа для доставки
+            if ($request->get('delivery_type') === 'courier') {
+                $deliverySettings = \App\Models\DeliverySetting::getSettings();
+                $minDeliveryTotal = $deliverySettings->min_delivery_order_total_rub ?? 3000;
+                $totalAmount = (float) $request->get('total_amount');
+                
+                if ($totalAmount < $minDeliveryTotal) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Минимальный заказ на доставку — {$minDeliveryTotal} ₽. Добавьте товаров еще на " . number_format($minDeliveryTotal - $totalAmount, 2, '.', '') . " ₽",
+                        'error' => 'min_delivery_order_total',
+                        'min_amount' => $minDeliveryTotal,
+                        'current_amount' => $totalAmount,
+                        'required_amount' => $minDeliveryTotal - $totalAmount,
+                    ], 422);
+                }
+            }
+
             // Генерируем order_id если не указан
             if (!$request->has('order_id') || empty($request->get('order_id'))) {
                 $now = now();

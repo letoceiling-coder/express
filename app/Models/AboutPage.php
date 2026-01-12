@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $description
  * @property array|null $bullets
  * @property string|null $yandex_maps_url
+ * @property string|null $support_telegram_url
  * @property string|null $cover_image_url
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
@@ -39,6 +40,7 @@ class AboutPage extends Model
         'description',
         'bullets',
         'yandex_maps_url',
+        'support_telegram_url',
         'cover_image_url',
     ];
 
@@ -75,6 +77,7 @@ class AboutPage extends Model
                     'Также возможен самовывоз из нашего магазина: поселок Исток, ул. Главная, дом 15.',
                 ],
                 'yandex_maps_url' => null,
+                'support_telegram_url' => 'https://t.me/+79826824368',
                 'cover_image_url' => null,
             ]);
         }

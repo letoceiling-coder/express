@@ -18,6 +18,7 @@ export function AdminAbout() {
     description: '',
     bullets: [] as string[],
     yandex_maps_url: '',
+    support_telegram_url: '',
     cover_image_url: '',
   });
 
@@ -38,6 +39,7 @@ export function AdminAbout() {
           description: data.description || '',
           bullets: data.bullets && Array.isArray(data.bullets) ? data.bullets : [],
           yandex_maps_url: data.yandex_maps_url || '',
+          support_telegram_url: data.support_telegram_url || '',
           cover_image_url: data.cover_image_url || '',
         });
       }
@@ -284,6 +286,32 @@ export function AdminAbout() {
                   onChange={(e) => setFormData({ ...formData, yandex_maps_url: e.target.value })}
                   className="mt-1"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Support Telegram */}
+          <Card className="border-0 bg-white dark:bg-slate-800 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-slate-800 dark:text-slate-100">Поддержка</CardTitle>
+              <CardDescription>
+                Ссылка на Telegram для поддержки клиентов
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label htmlFor="support_telegram_url">URL Telegram поддержки</Label>
+                <Input
+                  id="support_telegram_url"
+                  type="url"
+                  placeholder="https://t.me/+79826824368"
+                  value={formData.support_telegram_url}
+                  onChange={(e) => setFormData({ ...formData, support_telegram_url: e.target.value })}
+                  className="mt-1"
+                />
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ссылка будет отображаться в блоке "Поддержка" на странице "О нас"
+                </p>
               </div>
             </CardContent>
           </Card>

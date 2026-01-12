@@ -183,14 +183,20 @@ export function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
+  const [minDeliveryOrderTotal, setMinDeliveryOrderTotal] = useState<number>(3000);
 
   // Загрузка настроек доставки для получения города по умолчанию
   useEffect(() => {
     const loadDeliverySettings = async () => {
       try {
         const settings = await deliverySettingsAPI.getSettings();
-        if (settings && settings.default_city) {
-          setDefaultCity(settings.default_city);
+        if (settings) {
+          if (settings.default_city) {
+            setDefaultCity(settings.default_city);
+          }
+          if (settings.min_delivery_order_total_rub !== undefined) {
+            setMinDeliveryOrderTotal(settings.min_delivery_order_total_rub);
+          }
         }
       } catch (error) {
         console.error('Error loading delivery settings:', error);
@@ -502,6 +508,11 @@ export function CheckoutPage() {
             setIsCalculatingDelivery(false);
           }
         }
+        // Проверка минимальной суммы для доставки
+        if (totalAmount < minDeliveryOrderTotal) {
+          toast.error(`Минимальный заказ на доставку — ${minDeliveryOrderTotal.toLocaleString('ru-RU')} ₽. Добавьте товаров еще на ${(minDeliveryOrderTotal - totalAmount).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽`);
+          return false;
+        }
       }
       // Время доставки теперь необязательное
     }
@@ -799,6 +810,30 @@ export function CheckoutPage() {
 
             {formData.deliveryType === 'courier' && (
               <div className="space-y-2">
+                {/* Проверка минимальной суммы для доставки */}
+                {totalAmount < minDeliveryOrderTotal && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-destructive">
+                      Минимальный заказ на доставку — {minDeliveryOrderTotal.toLocaleString('ru-RU')} ₽
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Добавьте товаров еще на{' '}
+                      <span className="font-semibold text-foreground">
+                        {(minDeliveryOrderTotal - totalAmount).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽
+                      </span>
+                    </p>
+                    <button
+                      onClick={() => {
+                        setFormData({ ...formData, deliveryType: 'pickup' });
+                        toast.info('Переключено на самовывоз');
+                      }}
+                      className="text-sm text-primary hover:underline font-medium touch-feedback"
+                    >
+                      Переключиться на самовывоз
+                    </button>
+                  </div>
+                )}
+                
                 <label className="mb-1.5 block text-sm text-muted-foreground">
                   Адрес доставки *
                 </label>
@@ -1205,7 +1240,19 @@ export function CheckoutPage() {
           {step < 3 ? (
             <button
               onClick={handleNext}
-              className="flex-1 h-11 rounded-lg bg-primary font-semibold text-primary-foreground touch-feedback"
+              disabled={
+                step === 2 &&
+                formData.deliveryType === 'courier' &&
+                totalAmount < minDeliveryOrderTotal
+              }
+              className={cn(
+                "flex-1 h-11 rounded-lg font-semibold touch-feedback",
+                step === 2 &&
+                formData.deliveryType === 'courier' &&
+                totalAmount < minDeliveryOrderTotal
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-primary-foreground"
+              )}
             >
               Далее
             </button>

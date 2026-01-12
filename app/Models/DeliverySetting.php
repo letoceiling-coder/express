@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property float|null $origin_longitude
  * @property array|null $delivery_zones
  * @property bool $is_enabled
+ * @property float $min_delivery_order_total_rub
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -40,6 +41,7 @@ class DeliverySetting extends Model
         'free_delivery_threshold',
         'delivery_zones',
         'is_enabled',
+        'min_delivery_order_total_rub',
     ];
 
     /**
@@ -53,6 +55,7 @@ class DeliverySetting extends Model
         'delivery_zones' => 'array',
         'is_enabled' => 'boolean',
         'free_delivery_threshold' => 'decimal:2',
+        'min_delivery_order_total_rub' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -78,6 +81,7 @@ class DeliverySetting extends Model
                     ['max_distance' => null, 'cost' => 1000], // свыше 12 км
                 ],
                 'is_enabled' => false, // По умолчанию выключено до настройки
+                'min_delivery_order_total_rub' => 3000,
             ]);
         }
         

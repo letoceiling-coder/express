@@ -29,6 +29,7 @@ export function DeliverySettings() {
       { max_distance: null, cost: 1000 },
     ] as DeliveryZone[],
     is_enabled: false,
+    min_delivery_order_total_rub: 3000,
   });
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function DeliverySettings() {
               ? data.delivery_zones
               : prev.delivery_zones,
             is_enabled: data.is_enabled !== undefined ? data.is_enabled : prev.is_enabled,
+            min_delivery_order_total_rub: data.min_delivery_order_total_rub !== undefined ? data.min_delivery_order_total_rub : (prev.min_delivery_order_total_rub ?? 3000),
           };
         });
       }
@@ -308,6 +310,38 @@ export function DeliverySettings() {
                 <Label htmlFor="is_enabled" className="cursor-pointer">
                   {formData.is_enabled ? 'Включено' : 'Выключено'}
                 </Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Minimum Delivery Order Total */}
+          <Card className="border-0 bg-white dark:bg-slate-800 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-slate-800 dark:text-slate-100">Минимальный заказ</CardTitle>
+              <CardDescription>
+                Минимальная сумма заказа для оформления доставки курьером
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label htmlFor="min_delivery_order_total_rub">Минимальный заказ для доставки (₽) *</Label>
+                <Input
+                  id="min_delivery_order_total_rub"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="3000"
+                  value={formData.min_delivery_order_total_rub}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    min_delivery_order_total_rub: parseFloat(e.target.value) || 0 
+                  })}
+                  className="mt-1"
+                  required
+                />
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Минимальная сумма заказа для оформления доставки курьером. На самовывоз не влияет.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -31,7 +31,7 @@
                     <span v-else>📦 ZIP + фото</span>
                 </button>
                 <button
-                    @click="showImportDialog = true"
+                    @click="openImportDialog"
                     class="h-10 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 inline-flex items-center gap-2"
                 >
                     <span>📤 Импорт</span>
@@ -416,10 +416,35 @@ export default {
             }
         },
 
-        handleFileSelect(event) {
-            this.selectedFile = event.target.files[0] || null;
+        openImportDialog() {
+            // Сбрасываем состояние при открытии диалога
+            this.selectedFile = null;
             this.importError = null;
             this.importSuccess = null;
+            this.showImportDialog = true;
+            
+            // Очищаем поля ввода файлов
+            this.$nextTick(() => {
+                if (this.$refs.importFileInput) {
+                    this.$refs.importFileInput.value = '';
+                }
+                if (this.$refs.imagesArchiveInput) {
+                    this.$refs.imagesArchiveInput.value = '';
+                }
+            });
+        },
+
+        handleFileSelect(event) {
+            const file = event.target.files?.[0] || null;
+            this.selectedFile = file;
+            this.importError = null;
+            this.importSuccess = null;
+            
+            if (file) {
+                console.log('Файл выбран:', file.name, file.size);
+            } else {
+                console.log('Файл не выбран');
+            }
         },
 
         async handleImport() {

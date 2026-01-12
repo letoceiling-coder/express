@@ -32,6 +32,7 @@ class AboutPageController extends Controller
                 'description' => $page->description,
                 'bullets' => $page->bullets ?? [],
                 'yandex_maps_url' => $page->yandex_maps_url,
+                'support_telegram_url' => $page->support_telegram_url,
                 'cover_image_url' => $page->cover_image_url,
             ],
         ]);
@@ -57,6 +58,7 @@ class AboutPageController extends Controller
                 'description' => $page->description,
                 'bullets' => $page->bullets ?? [],
                 'yandex_maps_url' => $page->yandex_maps_url,
+                'support_telegram_url' => $page->support_telegram_url,
                 'cover_image_url' => $page->cover_image_url,
             ],
         ]);
@@ -80,6 +82,7 @@ class AboutPageController extends Controller
             'bullets' => 'nullable|array',
             'bullets.*' => 'string|max:1000',
             'yandex_maps_url' => 'nullable|url|max:500',
+            'support_telegram_url' => 'nullable|url|max:500',
             'cover_image_url' => 'nullable|string|max:500',
         ], [
             'title.required' => 'Название компании обязательно',
@@ -89,6 +92,8 @@ class AboutPageController extends Controller
             'address.string' => 'Адрес должен быть строкой',
             'yandex_maps_url.url' => 'URL Яндекс.Карт должен быть валидным URL',
             'yandex_maps_url.max' => 'URL Яндекс.Карт не должен превышать 500 символов',
+            'support_telegram_url.url' => 'URL Telegram поддержки должен быть валидным URL',
+            'support_telegram_url.max' => 'URL Telegram поддержки не должен превышать 500 символов',
             'cover_image_url.string' => 'URL обложки должен быть строкой',
             'cover_image_url.max' => 'URL обложки не должен превышать 500 символов',
         ]);
@@ -132,6 +137,7 @@ class AboutPageController extends Controller
                     'description' => $page->description,
                     'bullets' => $page->bullets ?? [],
                     'yandex_maps_url' => $page->yandex_maps_url,
+                    'support_telegram_url' => $page->support_telegram_url,
                     'cover_image_url' => $page->cover_image_url,
                 ],
                 'message' => 'Страница "О нас" успешно обновлена',
