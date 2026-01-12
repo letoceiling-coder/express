@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
+use App\Exports\ProductsExport;
+use App\Imports\ProductsImport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProductController extends Controller
 {
@@ -239,6 +243,85 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка обновления позиций: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Экспорт товаров в CSV
+     * 
+     * @return BinaryFileResponse
+     */
+    public function exportCsv(): BinaryFileResponse
+    {
+        $fileName = 'products_' . date('Y-m-d_His') . '.csv';
+        return Excel::download(new ProductsExport, $fileName, \Maatwebsite\Excel\Excel::CSV, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Экспорт товаров в Excel
+     * 
+     * @return BinaryFileResponse
+     */
+    public function exportExcel(): BinaryFileResponse
+    {
+        $fileName = 'products_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new ProductsExport, $fileName);
+    }
+
+    /**
+     * Импорт товаров из CSV/Excel с поддержкой загрузки фото
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,xlsx,xls|max:10240', // Максимум 10MB
+            'images_archive' => 'nullable|file|mimes:zip|max:51200', // Максимум 50MB для архива с изображениями
+        ], [
+            'file.required' => 'Файл обязателен для загрузки',
+            'file.file' => 'Загруженный файл не является файлом',
+            'file.mimes' => 'Файл должен быть в формате CSV или Excel',
+            'file.max' => 'Размер файла не должен превышать 10MB',
+            'images_archive.mimes' => 'Архив с изображениями должен быть в формате ZIP',
+            'images_archive.max' => 'Размер архива с изображениями не должен превышать 50MB',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $imagesArchive = $request->file('images_archive');
+            
+            $import = new ProductsImport($imagesArchive);
+            
+            Excel::import($import, $file);
+
+            $errors = $import->getErrors();
+            $message = 'Товары успешно импортированы';
+            if (!empty($errors)) {
+                $message .= '. Ошибки: ' . implode(', ', array_slice($errors, 0, 5));
+                if (count($errors) > 5) {
+                    $message .= ' и еще ' . (count($errors) - 5) . ' ошибок';
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'errors' => $errors,
+                'errors_count' => count($errors),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при импорте товаров: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при импорте товаров: ' . $e->getMessage(),
             ], 500);
         }
     }

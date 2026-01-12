@@ -110,6 +110,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('categories/{category}', [CategoryController::class, 'update']);
         Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
         Route::post('categories/update-positions', [CategoryController::class, 'updatePositions'])->name('categories.update-positions');
+        Route::get('categories/export/csv', [CategoryController::class, 'exportCsv'])->name('categories.export.csv');
+        Route::get('categories/export/excel', [CategoryController::class, 'exportExcel'])->name('categories.export.excel');
+        Route::post('categories/import', [CategoryController::class, 'import'])->name('categories.import');
         
         // Products (POST, PUT, DELETE - GET обрабатывается публичными роутами)
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
@@ -117,6 +120,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('products/{product}', [ProductController::class, 'update']);
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
         Route::post('products/update-positions', [ProductController::class, 'updatePositions'])->name('products.update-positions');
+        Route::get('products/export/csv', [ProductController::class, 'exportCsv'])->name('products.export.csv');
+        Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
+        Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
         
         // Product History
         Route::get('products/{id}/history', [ProductHistoryController::class, 'index'])

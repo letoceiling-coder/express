@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CategoryRequest;
 use App\Models\Category;
+use App\Exports\CategoriesExport;
+use App\Imports\CategoriesImport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CategoryController extends Controller
 {
@@ -213,6 +217,69 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка обновления позиций: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Экспорт категорий в CSV
+     * 
+     * @return BinaryFileResponse
+     */
+    public function exportCsv(): BinaryFileResponse
+    {
+        $fileName = 'categories_' . date('Y-m-d_His') . '.csv';
+        return Excel::download(new CategoriesExport, $fileName, \Maatwebsite\Excel\Excel::CSV, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Экспорт категорий в Excel
+     * 
+     * @return BinaryFileResponse
+     */
+    public function exportExcel(): BinaryFileResponse
+    {
+        $fileName = 'categories_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new CategoriesExport, $fileName);
+    }
+
+    /**
+     * Импорт категорий из CSV/Excel
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,xlsx,xls|max:10240', // Максимум 10MB
+        ], [
+            'file.required' => 'Файл обязателен для загрузки',
+            'file.file' => 'Загруженный файл не является файлом',
+            'file.mimes' => 'Файл должен быть в формате CSV или Excel',
+            'file.max' => 'Размер файла не должен превышать 10MB',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $import = new CategoriesImport();
+            
+            Excel::import($import, $file);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Категории успешно импортированы',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при импорте категорий: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при импорте категорий: ' . $e->getMessage(),
             ], 500);
         }
     }
