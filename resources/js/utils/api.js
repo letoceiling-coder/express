@@ -437,6 +437,34 @@ export const productsAPI = {
         window.URL.revokeObjectURL(blobUrl);
     },
 
+    // Экспорт товаров в ZIP с фото
+    async exportZip() {
+        const token = localStorage.getItem('token');
+        const url = `${API_BASE}/products/export/zip`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `products_${new Date().toISOString().split('T')[0]}.zip`;
+        
+        // Добавляем токен в заголовки через fetch
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Ошибка экспорта в ZIP');
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        link.href = blobUrl;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
     // Импорт товаров
     async import(file, imagesArchive = null) {
         const formData = new FormData();

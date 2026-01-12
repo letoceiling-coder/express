@@ -7,8 +7,12 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
-class ProductsExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class ProductsExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithCustomValueBinder
 {
     /**
      * @return \Illuminate\Support\Collection
@@ -89,6 +93,20 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $product->created_at->format('Y-m-d H:i:s'),
             $product->updated_at->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Привязка значений для правильной обработки данных
+     */
+    public function bindValue(Cell $cell, $value)
+    {
+        // Для длинных текстовых полей используем строковый тип
+        if (in_array($cell->getColumn(), ['D', 'E'])) { // Описание, Краткое описание
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+        
+        return parent::bindValue($cell, $value);
     }
 }
 

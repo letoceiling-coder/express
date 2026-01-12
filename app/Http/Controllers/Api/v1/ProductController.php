@@ -254,10 +254,19 @@ class ProductController extends Controller
      */
     public function exportCsv(): BinaryFileResponse
     {
-        $fileName = 'products_' . date('Y-m-d_His') . '.csv';
-        return Excel::download(new ProductsExport, $fileName, \Maatwebsite\Excel\Excel::CSV, [
-            'Content-Type' => 'text/csv',
-        ]);
+        $fileName = 'products_' . date('Y-m-d') . '.csv';
+        
+        // Создаем временный файл с UTF-8 BOM для правильного отображения в Excel
+        $tempFile = tempnam(sys_get_temp_dir(), 'products_export_');
+        $writer = \Maatwebsite\Excel\Facades\Excel::raw(new ProductsExport, \Maatwebsite\Excel\Excel::CSV);
+        
+        // Добавляем UTF-8 BOM в начало файла
+        file_put_contents($tempFile, "\xEF\xBB\xBF" . $writer);
+        
+        return response()->download($tempFile, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
@@ -267,8 +276,166 @@ class ProductController extends Controller
      */
     public function exportExcel(): BinaryFileResponse
     {
-        $fileName = 'products_' . date('Y-m-d_His') . '.xlsx';
+        $fileName = 'products_' . date('Y-m-d') . '.xlsx';
         return Excel::download(new ProductsExport, $fileName);
+    }
+
+    /**
+     * Экспорт товаров в ZIP с фото
+     * 
+     * @return BinaryFileResponse|JsonResponse
+     */
+    public function exportZip()
+    {
+        try {
+            $tempDir = storage_path('app/temp/export_' . time());
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            // Экспортируем CSV
+            $csvFileName = 'products_' . date('Y-m-d') . '.csv';
+            $csvPath = $tempDir . '/' . $csvFileName;
+            
+            $writer = \Maatwebsite\Excel\Facades\Excel::raw(new ProductsExport, \Maatwebsite\Excel\Excel::CSV);
+            // Добавляем UTF-8 BOM
+            file_put_contents($csvPath, "\xEF\xBB\xBF" . $writer);
+
+            // Создаем папку для изображений
+            $imagesDir = $tempDir . '/images';
+            if (!file_exists($imagesDir)) {
+                mkdir($imagesDir, 0755, true);
+            }
+
+            // Получаем все товары с изображениями
+            $products = Product::with(['image', 'gallery'])->get();
+            $imageCount = 0;
+
+            foreach ($products as $product) {
+                // Главное изображение
+                if ($product->image && $product->image->path) {
+                    $imagePath = public_path($product->image->path);
+                    if (file_exists($imagePath) && is_file($imagePath)) {
+                        $imageName = $product->image->original_name ?? $product->image->name;
+                        // Если имя файла уже используется, добавляем ID товара
+                        $destPath = $imagesDir . '/' . $imageName;
+                        if (file_exists($destPath)) {
+                            $ext = pathinfo($imageName, PATHINFO_EXTENSION);
+                            $name = pathinfo($imageName, PATHINFO_FILENAME);
+                            $imageName = $name . '_' . $product->id . '.' . $ext;
+                            $destPath = $imagesDir . '/' . $imageName;
+                        }
+                        copy($imagePath, $destPath);
+                        $imageCount++;
+                    }
+                }
+
+                // Галерея
+                if ($product->gallery && $product->gallery->count() > 0) {
+                    foreach ($product->gallery as $galleryImage) {
+                        if ($galleryImage->path) {
+                            $imagePath = public_path($galleryImage->path);
+                            if (file_exists($imagePath) && is_file($imagePath)) {
+                                $imageName = $galleryImage->original_name ?? $galleryImage->name;
+                                // Если имя файла уже используется, добавляем ID товара и media
+                                $destPath = $imagesDir . '/' . $imageName;
+                                if (file_exists($destPath)) {
+                                    $ext = pathinfo($imageName, PATHINFO_EXTENSION);
+                                    $name = pathinfo($imageName, PATHINFO_FILENAME);
+                                    $imageName = $name . '_' . $product->id . '_' . $galleryImage->id . '.' . $ext;
+                                    $destPath = $imagesDir . '/' . $imageName;
+                                }
+                                copy($imagePath, $destPath);
+                                $imageCount++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Создаем ZIP архив
+            $zipFileName = 'products_' . date('Y-m-d') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipFileName);
+            
+            // Убеждаемся, что директория существует
+            $zipDir = dirname($zipPath);
+            if (!file_exists($zipDir)) {
+                mkdir($zipDir, 0755, true);
+            }
+            
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
+                // Добавляем CSV файл
+                $zip->addFile($csvPath, $csvFileName);
+                
+                // Добавляем папку с изображениями
+                if ($imageCount > 0) {
+                    $iterator = new \RecursiveIteratorIterator(
+                        new \RecursiveDirectoryIterator($imagesDir),
+                        \RecursiveIteratorIterator::SELF_FIRST
+                    );
+                    
+                    foreach ($iterator as $file) {
+                        if ($file->isFile()) {
+                            $filePath = $file->getRealPath();
+                            $relativePath = 'images/' . substr($filePath, strlen($imagesDir) + 1);
+                            $zip->addFile($filePath, $relativePath);
+                        }
+                    }
+                }
+                
+                $zip->close();
+            } else {
+                throw new \Exception('Не удалось создать ZIP архив');
+            }
+
+            // Удаляем временную директорию
+            $this->deleteDirectory($tempDir);
+
+            return response()->download($zipPath, $zipFileName, [
+                'Content-Type' => 'application/zip',
+            ])->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при экспорте товаров в ZIP: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Удаляем временную директорию в случае ошибки
+            if (isset($tempDir) && file_exists($tempDir)) {
+                $this->deleteDirectory($tempDir);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при экспорте товаров в ZIP: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Рекурсивное удаление директории
+     */
+    private function deleteDirectory(string $dir): bool
+    {
+        if (!file_exists($dir)) {
+            return true;
+        }
+
+        if (!is_dir($dir)) {
+            return unlink($dir);
+        }
+
+        foreach (scandir($dir) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+
+            if (!$this->deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) {
+                return false;
+            }
+        }
+
+        return rmdir($dir);
     }
 
     /**

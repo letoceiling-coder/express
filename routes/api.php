@@ -122,6 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('products/update-positions', [ProductController::class, 'updatePositions'])->name('products.update-positions');
         Route::get('products/export/csv', [ProductController::class, 'exportCsv'])->name('products.export.csv');
         Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
+        Route::get('products/export/zip', [ProductController::class, 'exportZip'])->name('products.export.zip');
         Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
         
         // Product History

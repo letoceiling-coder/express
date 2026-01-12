@@ -23,6 +23,14 @@
                     <span v-else>📥 Excel</span>
                 </button>
                 <button
+                    @click="handleExportZip"
+                    class="h-10 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 inline-flex items-center gap-2"
+                    :disabled="exporting"
+                >
+                    <span v-if="exporting">...</span>
+                    <span v-else>📦 ZIP + фото</span>
+                </button>
+                <button
                     @click="showImportDialog = true"
                     class="h-10 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 inline-flex items-center gap-2"
                 >
@@ -391,6 +399,18 @@ export default {
                 await swal.success('Экспорт в Excel выполнен успешно');
             } catch (error) {
                 await swal.error(error.message || 'Ошибка экспорта в Excel');
+            } finally {
+                this.exporting = false;
+            }
+        },
+
+        async handleExportZip() {
+            this.exporting = true;
+            try {
+                await productsAPI.exportZip();
+                await swal.success('Экспорт в ZIP с фото выполнен успешно');
+            } catch (error) {
+                await swal.error(error.message || 'Ошибка экспорта в ZIP');
             } finally {
                 this.exporting = false;
             }

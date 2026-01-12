@@ -41,20 +41,67 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation
     private function extractImagesArchive(): void
     {
         try {
-            $zip = new \ZipArchive();
-            if ($zip->open($this->imagesArchive->getRealPath()) === true) {
-                $extractPath = storage_path('app/temp/import_images_' . time());
-                if (!file_exists($extractPath)) {
-                    mkdir($extractPath, 0755, true);
-                }
-                
-                $zip->extractTo($extractPath);
-                $zip->close();
-                
-                $this->extractedImagesPath = $extractPath;
+            $zipPath = $this->imagesArchive->getRealPath();
+            if (!file_exists($zipPath)) {
+                throw new \Exception('Файл архива не найден');
             }
+
+            $zip = new \ZipArchive();
+            $result = $zip->open($zipPath);
+            
+            if ($result !== true) {
+                $errorMessages = [
+                    \ZipArchive::ER_OK => 'Нет ошибок',
+                    \ZipArchive::ER_MULTIDISK => 'Многодисковый ZIP архив не поддерживается',
+                    \ZipArchive::ER_RENAME => 'Ошибка переименования временного файла',
+                    \ZipArchive::ER_CLOSE => 'Ошибка закрытия ZIP архива',
+                    \ZipArchive::ER_SEEK => 'Ошибка поиска',
+                    \ZipArchive::ER_READ => 'Ошибка чтения',
+                    \ZipArchive::ER_WRITE => 'Ошибка записи',
+                    \ZipArchive::ER_CRC => 'Ошибка CRC',
+                    \ZipArchive::ER_ZIPCLOSED => 'ZIP архив закрыт',
+                    \ZipArchive::ER_NOENT => 'Файл не найден',
+                    \ZipArchive::ER_EXISTS => 'Файл уже существует',
+                    \ZipArchive::ER_OPEN => 'Не удалось открыть файл',
+                    \ZipArchive::ER_TMPOPEN => 'Ошибка создания временного файла',
+                    \ZipArchive::ER_ZLIB => 'Ошибка Zlib',
+                    \ZipArchive::ER_MEMORY => 'Ошибка памяти',
+                    \ZipArchive::ER_CHANGED => 'Запись была изменена',
+                    \ZipArchive::ER_COMPNOTSUPP => 'Метод сжатия не поддерживается',
+                    \ZipArchive::ER_EOF => 'Неожиданный конец файла',
+                    \ZipArchive::ER_INVAL => 'Неверный аргумент',
+                    \ZipArchive::ER_NOZIP => 'Не ZIP архив',
+                    \ZipArchive::ER_INTERNAL => 'Внутренняя ошибка',
+                    \ZipArchive::ER_INCONS => 'Несогласованность ZIP архива',
+                    \ZipArchive::ER_REMOVE => 'Не удалось удалить файл',
+                    \ZipArchive::ER_DELETED => 'Запись была удалена',
+                ];
+                
+                $errorMsg = $errorMessages[$result] ?? 'Неизвестная ошибка (код: ' . $result . ')';
+                throw new \Exception('Не удалось открыть ZIP архив: ' . $errorMsg);
+            }
+            
+            $extractPath = storage_path('app/temp/import_images_' . time());
+            if (!file_exists($extractPath)) {
+                mkdir($extractPath, 0755, true);
+            }
+            
+            if (!$zip->extractTo($extractPath)) {
+                $zip->close();
+                throw new \Exception('Не удалось извлечь файлы из архива');
+            }
+            
+            $zip->close();
+            $this->extractedImagesPath = $extractPath;
+            
+            Log::info('ZIP архив успешно извлечен', [
+                'path' => $extractPath,
+                'files_count' => count(glob($extractPath . '/**/*', GLOB_BRACE))
+            ]);
         } catch (\Exception $e) {
-            Log::error('Ошибка при извлечении архива с изображениями: ' . $e->getMessage());
+            Log::error('Ошибка при извлечении архива с изображениями: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             $this->errors[] = 'Не удалось извлечь архив с изображениями: ' . $e->getMessage();
         }
     }
