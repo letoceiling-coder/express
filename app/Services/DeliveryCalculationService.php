@@ -151,6 +151,64 @@ class DeliveryCalculationService
     }
 
     /**
+     * Проверка, что адрес содержит конкретную улицу/дом, а не только город/регион
+     * 
+     * @param string $originalAddress Исходный адрес, введенный пользователем
+     * @param string $formattedAddress Отформатированный адрес от геокодера
+     * @return bool true если адрес определен (содержит улицу/дом), false если только город/регион
+     */
+    protected function isAddressDetailed(string $originalAddress, string $formattedAddress): bool
+    {
+        $formattedLower = mb_strtolower(trim($formattedAddress));
+        $formattedNormalized = trim($formattedAddress);
+        
+        // Проверяем, содержит ли отформатированный адрес указания на улицу/дом
+        $streetIndicators = [
+            'ул.', 'улица', 'ул ',
+            'проспект', 'пр.', 'пр ',
+            'переулок', 'пер.', 'пер ',
+            'бульвар', 'бул.', 'бул ',
+            'площадь', 'пл.', 'пл ',
+            'дом', 'д.', 'д ',
+            'строение', 'стр.', 'стр ',
+            'корпус', 'корп.', 'корп ',
+        ];
+        
+        $hasStreetIndicator = false;
+        foreach ($streetIndicators as $indicator) {
+            if (mb_strpos($formattedLower, $indicator) !== false) {
+                $hasStreetIndicator = true;
+                break;
+            }
+        }
+        
+        // Если есть указание на улицу/дом - адрес определен
+        if ($hasStreetIndicator) {
+            return true;
+        }
+        
+        // Проверяем, содержит ли отформатированный адрес только паттерн "Россия, ... область, ..."
+        // Это означает, что адрес не определен (только город/регион)
+        // Примеры: "Россия, Свердловская область, Екатеринбург"
+        $regionPatterns = [
+            '/^россия,\s*[^,]+\s*область,\s*[^,]+$/ui',
+            '/^российская\s+федерация,\s*[^,]+\s*область,\s*[^,]+$/ui',
+            '/^россия,\s*[^,]+\s*край,\s*[^,]+$/ui',
+            '/^российская\s+федерация,\s*[^,]+\s*край,\s*[^,]+$/ui',
+        ];
+        
+        foreach ($regionPatterns as $pattern) {
+            if (preg_match($pattern, $formattedNormalized)) {
+                // Это только город/регион - адрес не определен
+                return false;
+            }
+        }
+        
+        // Если не соответствует паттерну только города/региона - считаем адрес определенным
+        return true;
+    }
+
+    /**
      * Валидация адреса и расчет стоимости доставки
      * 
      * @param string $address Адрес доставки
@@ -181,6 +239,14 @@ class DeliveryCalculationService
             return [
                 'valid' => false,
                 'error' => 'Адрес не найден. Проверьте правильность адреса',
+            ];
+        }
+
+        // Проверяем, что адрес определен (содержит улицу/дом, а не только город/регион)
+        if (!$this->isAddressDetailed($address, $geocodeResult['formatted_address'])) {
+            return [
+                'valid' => false,
+                'error' => 'Адрес не определен',
             ];
         }
 
