@@ -14,6 +14,7 @@ import { OrderDetailPage } from "./pages/miniapp/OrderDetailPage";
 import { ProductDetailPage } from "./pages/miniapp/ProductDetailPage";
 import { AboutPage } from "./pages/miniapp/AboutPage";
 import { CallPage } from "./pages/miniapp/CallPage";
+import { SearchPage } from "./pages/miniapp/SearchPage";
 
 // Admin Pages
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -38,6 +39,7 @@ const App = () => (
         <Routes>
           {/* Mini App Routes (Light Theme by default) */}
           <Route path="/" element={<CatalogPage />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/product/:productId" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />

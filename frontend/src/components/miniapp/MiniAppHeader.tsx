@@ -1,4 +1,4 @@
-import { ChevronLeft, ShoppingCart, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, ShoppingCart, Sun, Moon, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import { useTheme } from '@/hooks/useTheme';
@@ -8,6 +8,7 @@ interface MiniAppHeaderProps {
   title?: string;
   showBack?: boolean;
   showCart?: boolean;
+  showSearch?: boolean;
   showThemeToggle?: boolean;
   className?: string;
 }
@@ -15,7 +16,8 @@ interface MiniAppHeaderProps {
 export function MiniAppHeader({ 
   title = "Свой Хлеб", 
   showBack = false, 
-  showCart = true, 
+  showCart = true,
+  showSearch = false,
   showThemeToggle = true,
   className 
 }: MiniAppHeaderProps) {
@@ -51,6 +53,15 @@ export function MiniAppHeader({
       <h1 className="text-lg font-semibold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-1 min-w-[80px] justify-end">
+        {showSearch && (
+          <button
+            onClick={() => navigate('/search')}
+            className="flex h-10 w-10 items-center justify-center rounded-lg touch-feedback -mr-2"
+            aria-label="Поиск"
+          >
+            <Search className="h-6 w-6 text-foreground" />
+          </button>
+        )}
         {showCart && (
           <button
             onClick={() => navigate('/cart')}
