@@ -40,23 +40,8 @@ export function OrderCard({ order, onClick, onCancel, onPayment }: OrderCardProp
       return;
     }
 
-    try {
-      const user = getTelegramUser();
-      const telegramId = user?.id;
-      
-      // Получаем ID заказа из базы (нужно найти заказ по orderId)
-      // Для упрощения, используем orderId напрямую, но в реальности нужен API endpoint
-      const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
-      
-      toast.info('Создание платежа...');
-      
-      // Используем существующий API для создания платежа
-      // Нужно будет добавить метод для получения payment link по orderId
-      navigate(`/orders/${order.orderId}?action=pay`);
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast.error('Ошибка при создании платежа');
-    }
+    // Переходим на страницу заказа с параметром action=pay
+    navigate(`/orders/${order.orderId}?action=pay`);
   };
 
   const handleCancelClick = async (e: React.MouseEvent) => {

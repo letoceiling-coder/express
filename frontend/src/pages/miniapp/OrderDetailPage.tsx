@@ -4,12 +4,16 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useOrders } from '@/hooks/useOrders';
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order } from '@/types';
+import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order, isOrderUnpaid } from '@/types';
 import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { openTelegramLink } from '@/lib/telegram';
+import { openTelegramLink, hapticFeedback } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { toast } from 'sonner';
+import { paymentAPI } from '@/api';
+import { ordersAPI } from '@/api';
+import { getTelegramUser } from '@/lib/telegram';
+import { Button } from '@/components/ui/button';
 
 export function OrderDetailPage() {
   const { orderId } = useParams();
@@ -20,6 +24,8 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentError, setShowPaymentError] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -27,6 +33,8 @@ export function OrderDetailPage() {
       
       // Проверяем параметры URL для обработки возврата с оплаты
       const paymentStatus = searchParams.get('payment');
+      const action = searchParams.get('action');
+      
       if (paymentStatus === 'success') {
         setShowPaymentSuccess(true);
         toast.success('Оплата успешно выполнена!');
@@ -45,6 +53,15 @@ export function OrderDetailPage() {
         console.log('OrderDetailPage - Found order in cache:', cachedOrder.orderId);
         setOrder(cachedOrder);
         setLoading(false);
+        
+        // Если есть action=pay, запускаем оплату
+        if (action === 'pay') {
+          navigate(`/orders/${orderId}`, { replace: true });
+          handlePayment(cachedOrder);
+        } else if (action === 'cancel') {
+          navigate(`/orders/${orderId}`, { replace: true });
+          handleCancel(cachedOrder);
+        }
         return;
       }
       
@@ -54,9 +71,119 @@ export function OrderDetailPage() {
       const data = await getOrderById(orderId);
       setOrder(data);
       setLoading(false);
+      
+      // Если есть action=pay, запускаем оплату
+      if (action === 'pay' && data) {
+        navigate(`/orders/${orderId}`, { replace: true });
+        handlePayment(data);
+      } else if (action === 'cancel' && data) {
+        navigate(`/orders/${orderId}`, { replace: true });
+        handleCancel(data);
+      }
     };
     fetchOrder();
   }, [orderId, getOrderById, orders, searchParams, navigate]);
+
+  const handlePayment = async (orderData?: Order) => {
+    const currentOrder = orderData || order;
+    if (!currentOrder) return;
+
+    // Проверяем, что заказ неоплачен
+    if (!isOrderUnpaid(currentOrder)) {
+      toast.error('Заказ уже оплачен или отменен');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    hapticFeedback('light');
+
+    try {
+      const user = getTelegramUser();
+      const telegramId = user?.id;
+
+      // Получаем email из Telegram WebApp для отправки квитанции
+      const telegramEmail = window.Telegram?.WebApp?.initDataUnsafe?.user?.email;
+
+      // Создаем платеж через ЮKassa
+      const returnUrl = `${window.location.origin}/orders/${currentOrder.orderId}?payment=success`;
+      toast.info('Создание платежа...');
+
+      const paymentData = await paymentAPI.createYooKassaPayment(
+        Number(currentOrder.id),
+        currentOrder.totalAmount,
+        returnUrl,
+        `Оплата заказа #${currentOrder.orderId}`,
+        telegramId,
+        telegramEmail
+      );
+
+      // Получаем URL для оплаты
+      const confirmationUrl =
+        paymentData?.data?.confirmation_url ||
+        paymentData?.data?.yookassa_payment?.confirmation?.confirmation_url ||
+        paymentData?.yookassa_payment?.confirmation?.confirmation_url ||
+        paymentData?.confirmation_url;
+
+      if (confirmationUrl) {
+        // Проверяем тестовый режим
+        const isTestMode = paymentData?.data?.is_test_mode ?? false;
+        if (isTestMode) {
+          toast.info('Тестовый режим: используется тестовая среда YooKassa', {
+            duration: 3000,
+          });
+        }
+
+        // Переходим на страницу оплаты
+        window.location.href = confirmationUrl;
+        toast.success('Переход к оплате...');
+      } else {
+        console.error('Confirmation URL not found in response:', paymentData);
+        toast.error('Ошибка: URL для оплаты не получен');
+      }
+    } catch (error: any) {
+      console.error('Ошибка при создании платежа:', error);
+      toast.error('Ошибка при создании платежа. Попробуйте позже.');
+      setShowPaymentError(true);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleCancel = async (orderData?: Order) => {
+    const currentOrder = orderData || order;
+    if (!currentOrder) return;
+
+    // Проверяем, что заказ неоплачен
+    if (!isOrderUnpaid(currentOrder)) {
+      toast.error('Заказ уже оплачен или отменен');
+      return;
+    }
+
+    // Подтверждение отмены
+    if (!window.confirm('Вы уверены, что хотите отменить этот заказ?')) {
+      return;
+    }
+
+    setIsCancelling(true);
+    hapticFeedback('light');
+
+    try {
+      toast.info('Отмена заказа...');
+      await ordersAPI.cancelOrder(currentOrder.orderId);
+      toast.success('Заказ успешно отменен');
+      
+      // Обновляем заказ
+      const updatedOrder = await getOrderById(currentOrder.orderId);
+      if (updatedOrder) {
+        setOrder(updatedOrder);
+      }
+    } catch (error: any) {
+      console.error('Ошибка при отмене заказа:', error);
+      toast.error(error?.message || 'Ошибка при отмене заказа');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -170,7 +297,13 @@ export function OrderDetailPage() {
                 {formatDate(order.createdAt)}
               </p>
             </div>
-            <StatusBadge status={order.status} size="lg" />
+            {isOrderUnpaid(order) ? (
+              <span className="inline-flex items-center rounded-full bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive">
+                Ожидает оплаты
+              </span>
+            ) : (
+              <StatusBadge status={order.status} size="lg" />
+            )}
           </div>
         </div>
 
@@ -290,22 +423,44 @@ export function OrderDetailPage() {
 
       {/* Bottom Actions */}
       <div className="fixed bottom-14 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm p-4 safe-area-bottom">
-        <div className="flex gap-3">
-          <button
-            onClick={handleContactSupport}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 font-semibold text-foreground touch-feedback"
-          >
-            <Headphones className="h-5 w-5" />
-            Поддержка
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground touch-feedback"
-          >
-            <ShoppingBag className="h-5 w-5" />
-            В каталог
-          </button>
-        </div>
+        {isOrderUnpaid(order) ? (
+          // Кнопки для неоплаченных заказов
+          <div className="flex gap-3">
+            <Button
+              onClick={handleCancel}
+              disabled={isCancelling || isProcessingPayment}
+              variant="outline"
+              className="flex-1"
+            >
+              {isCancelling ? 'Отмена...' : 'Отменить заказ'}
+            </Button>
+            <Button
+              onClick={() => handlePayment()}
+              disabled={isProcessingPayment || isCancelling}
+              className="flex-1 bg-primary text-primary-foreground"
+            >
+              {isProcessingPayment ? 'Создание платежа...' : 'Оплатить'}
+            </Button>
+          </div>
+        ) : (
+          // Кнопки для оплаченных заказов
+          <div className="flex gap-3">
+            <button
+              onClick={handleContactSupport}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 font-semibold text-foreground touch-feedback"
+            >
+              <Headphones className="h-5 w-5" />
+              Поддержка
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground touch-feedback"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              В каталог
+            </button>
+          </div>
+        )}
       </div>
 
       <BottomNavigation />
