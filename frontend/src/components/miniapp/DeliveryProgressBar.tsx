@@ -27,18 +27,21 @@ export function DeliveryProgressBar({
   return (
     <div
       className={cn(
-        'sticky top-[104px] z-30 bg-background border-b border-border pointer-events-none',
+        'fixed left-0 right-0 z-40 pointer-events-none',
         className
       )}
+      style={{
+        bottom: 'calc(56px + env(safe-area-inset-bottom, 0px) + 8px)',
+      }}
     >
-      <div className="mx-4 my-2 bg-card border border-border rounded-lg p-3 pointer-events-none">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-foreground">
+      <div className="mx-4 bg-card border border-border rounded-lg px-3 py-2 pointer-events-none">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-medium text-foreground">
             {isComplete
               ? 'Доставка доступна'
               : `Ещё ${formatNumber(remaining)} ₽ до доставки`}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] text-muted-foreground">
             {formatNumber(cartTotal)} / {formatNumber(minDeliveryTotal)} ₽
           </span>
         </div>
