@@ -630,10 +630,10 @@ class OrderController extends Controller
                 }
             }
 
-            // Проверяем, что заказ может быть отменен
-            if (in_array($order->status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {
+            // Проверяем, что заказ не уже отменен
+            if ($order->status === Order::STATUS_CANCELLED) {
                 return response()->json([
-                    'message' => 'Заказ уже доставлен или отменен',
+                    'message' => 'Заказ уже отменен',
                 ], 400);
             }
 
