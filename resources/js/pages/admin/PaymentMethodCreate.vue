@@ -90,6 +90,33 @@
                     </div>
                 </div>
 
+                <!-- Доступность -->
+                <div class="space-y-4 pt-6 border-t border-border">
+                    <h2 class="text-lg font-semibold text-foreground">Доступность оплаты</h2>
+                    
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input
+                                v-model="form.available_for_delivery"
+                                type="checkbox"
+                                class="w-4 h-4 rounded border-input"
+                            />
+                            <span class="text-sm font-medium text-foreground">Доступен при доставке</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input
+                                v-model="form.available_for_pickup"
+                                type="checkbox"
+                                class="w-4 h-4 rounded border-input"
+                            />
+                            <span class="text-sm font-medium text-foreground">Доступен при самовывозе</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Настройки скидки -->
                 <div class="space-y-4 pt-6 border-t border-border">
                     <h2 class="text-lg font-semibold text-foreground">Настройки скидки</h2>
@@ -213,6 +240,8 @@ export default {
                 description: '',
                 is_enabled: true,
                 is_default: false,
+                available_for_delivery: true,
+                available_for_pickup: true,
                 sort_order: 0,
                 discount_type: 'none',
                 discount_value: null,

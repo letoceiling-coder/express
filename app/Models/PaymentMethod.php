@@ -36,6 +36,8 @@ class PaymentMethod extends Model
         'description',
         'is_enabled',
         'is_default',
+        'available_for_delivery',
+        'available_for_pickup',
         'sort_order',
         'discount_type',
         'discount_value',
@@ -48,6 +50,8 @@ class PaymentMethod extends Model
     protected $casts = [
         'is_enabled' => 'boolean',
         'is_default' => 'boolean',
+        'available_for_delivery' => 'boolean',
+        'available_for_pickup' => 'boolean',
         'sort_order' => 'integer',
         'discount_value' => 'decimal:2',
         'min_cart_amount' => 'decimal:2',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { useCartStore } from '@/store/cartStore';
@@ -298,17 +298,6 @@ export function CheckoutPage() {
       try {
         const methods = await paymentMethodsAPI.getAll();
         setPaymentMethods(methods);
-        
-        // Автоматически выбираем способ оплаты по умолчанию (только если не самовывоз)
-        if (formData.deliveryType !== 'pickup') {
-          const defaultMethod = methods.find((m: any) => m.isDefault);
-          if (defaultMethod && !formData.paymentMethod) {
-            setFormData(prev => ({
-              ...prev,
-              paymentMethod: defaultMethod,
-            }));
-          }
-        }
       } catch (error) {
         console.error('CheckoutPage - Failed to load payment methods:', error);
         toast.error('Не удалось загрузить способы оплаты');
@@ -318,39 +307,6 @@ export function CheckoutPage() {
     };
     loadPaymentMethods();
   }, []);
-
-  // Автоматический выбор способа оплаты "наличные" при выборе самовывоза
-  useEffect(() => {
-    if (formData.deliveryType === 'pickup' && paymentMethods.length > 0) {
-      // Ищем способ оплаты "наличные" по коду "cash"
-      const cashMethod = paymentMethods.find((method: any) => method.code === 'cash');
-      
-      if (cashMethod) {
-        // Загружаем полную информацию о способе оплаты с расчетом скидки
-        paymentMethodsAPI.getById(cashMethod.id, totalAmount)
-          .then((methodInfo) => {
-            if (methodInfo) {
-              setFormData(prev => ({
-                ...prev,
-                paymentMethod: methodInfo,
-              }));
-            } else {
-              setFormData(prev => ({
-                ...prev,
-                paymentMethod: cashMethod,
-              }));
-            }
-          })
-          .catch((error) => {
-            console.error('Failed to load cash payment method details:', error);
-            setFormData(prev => ({
-              ...prev,
-              paymentMethod: cashMethod,
-            }));
-          });
-      }
-    }
-  }, [formData.deliveryType, paymentMethods, totalAmount]);
 
   // Расчет скидки при изменении способа оплаты или суммы корзины
   useEffect(() => {
@@ -387,6 +343,48 @@ export function CheckoutPage() {
     
     calculateDiscount();
   }, [formData.paymentMethod?.id, totalAmount]);
+
+  // Фильтрация способов оплаты по доступности
+  const availablePaymentMethods = useMemo(() => {
+    if (formData.deliveryType === 'pickup') {
+      return paymentMethods.filter((method: any) => method.availableForPickup !== false);
+    } else {
+      return paymentMethods.filter((method: any) => method.availableForDelivery !== false);
+    }
+  }, [paymentMethods, formData.deliveryType]);
+
+  // Автоматический выбор доступного способа оплаты при изменении типа доставки
+  useEffect(() => {
+    if (availablePaymentMethods.length > 0 && !formData.paymentMethod) {
+      // Ищем способ оплаты по умолчанию
+      const defaultMethod = availablePaymentMethods.find((m: any) => m.isDefault);
+      if (defaultMethod) {
+        setFormData(prev => ({
+          ...prev,
+          paymentMethod: defaultMethod,
+        }));
+      } else {
+        // Выбираем первый доступный способ оплаты
+        setFormData(prev => ({
+          ...prev,
+          paymentMethod: availablePaymentMethods[0],
+        }));
+      }
+    } else if (formData.paymentMethod) {
+      // Проверяем, что выбранный способ оплаты доступен для текущего типа доставки
+      const isCurrentMethodAvailable = availablePaymentMethods.some((m: any) => m.id === formData.paymentMethod?.id);
+      if (!isCurrentMethodAvailable) {
+        // Выбираем первый доступный способ оплаты
+        const defaultMethod = availablePaymentMethods.find((m: any) => m.isDefault) || availablePaymentMethods[0];
+        if (defaultMethod) {
+          setFormData(prev => ({
+            ...prev,
+            paymentMethod: defaultMethod,
+          }));
+        }
+      }
+    }
+  }, [availablePaymentMethods, formData.deliveryType]);
 
   // Имя заполняется только из прошлых заказов, не из Telegram
 
@@ -1042,7 +1040,7 @@ export function CheckoutPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {paymentMethods.map((method) => {
+                {availablePaymentMethods.map((method) => {
                   const isSelected = formData.paymentMethod?.id === method.id;
                   const methodDiscount = method.discount || {};
                   const hasDiscount = methodDiscount.applied && methodDiscount.discount > 0;

@@ -18,6 +18,8 @@ class PaymentMethodSeeder extends Seeder
                 'name' => 'ЮКасса',
                 'description' => 'Оплата картой через ЮКассу',
                 'is_enabled' => true,
+                'available_for_delivery' => true,
+                'available_for_pickup' => false,
                 'sort_order' => 1,
                 'discount_type' => PaymentMethod::DISCOUNT_TYPE_PERCENTAGE,
                 'discount_value' => 3.0, // 3% скидка
@@ -30,9 +32,11 @@ class PaymentMethodSeeder extends Seeder
             ],
             [
                 'code' => 'cash',
-                'name' => 'Наличными',
+                'name' => 'Наличные',
                 'description' => 'Оплата наличными при получении',
                 'is_enabled' => true,
+                'available_for_delivery' => true,
+                'available_for_pickup' => true,
                 'sort_order' => 2,
                 'discount_type' => PaymentMethod::DISCOUNT_TYPE_NONE,
                 'discount_value' => null,

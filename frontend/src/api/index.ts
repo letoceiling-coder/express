@@ -555,6 +555,8 @@ export const paymentMethodsAPI = {
         description: method.description || undefined,
         isEnabled: method.is_enabled,
         isDefault: method.is_default || false,
+        availableForDelivery: method.available_for_delivery !== false,
+        availableForPickup: method.available_for_pickup !== false,
         sortOrder: method.sort_order,
         discountType: method.discount_type,
         discountValue: Number(method.discount_value) || 0,
