@@ -196,7 +196,7 @@ export function CatalogPage() {
           style={{
             bottom: orderMode === 'delivery'
               ? 'calc(56px + env(safe-area-inset-bottom, 0px) + 8px + 52px + 8px)'
-              : '80px',
+              : '72px',
           }}
         >
           <button
