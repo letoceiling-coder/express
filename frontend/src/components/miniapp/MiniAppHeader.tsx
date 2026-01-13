@@ -1,13 +1,11 @@
-import { ChevronLeft, ShoppingCart, Sun, Moon, Search } from 'lucide-react';
+import { ChevronLeft, Sun, Moon, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore } from '@/store/cartStore';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
 interface MiniAppHeaderProps {
   title?: string;
   showBack?: boolean;
-  showCart?: boolean;
   showSearch?: boolean;
   showThemeToggle?: boolean;
   className?: string;
@@ -16,13 +14,11 @@ interface MiniAppHeaderProps {
 export function MiniAppHeader({ 
   title = "Свой Хлеб", 
   showBack = false, 
-  showCart = true,
-  showSearch = false,
+  showSearch = true,
   showThemeToggle = true,
   className 
 }: MiniAppHeaderProps) {
   const navigate = useNavigate();
-  const totalItems = useCartStore((state) => state.getTotalItems());
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -60,20 +56,6 @@ export function MiniAppHeader({
             aria-label="Поиск"
           >
             <Search className="h-6 w-6 text-foreground" />
-          </button>
-        )}
-        {showCart && (
-          <button
-            onClick={() => navigate('/cart')}
-            className="relative flex h-10 w-10 items-center justify-center rounded-lg touch-feedback -mr-2"
-            aria-label="Корзина"
-          >
-            <ShoppingCart className="h-6 w-6 text-foreground" />
-            {totalItems > 0 && (
-              <span className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                {totalItems > 99 ? '99+' : totalItems}
-              </span>
-            )}
           </button>
         )}
       </div>

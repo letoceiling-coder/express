@@ -121,7 +121,7 @@ export function SearchPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <MiniAppHeader title="Поиск" showBack={true} showCart={false} showSearch={false} />
+      <MiniAppHeader title="Поиск" showBack={true} showSearch={false} />
 
       {/* Search Input */}
       <div className="px-4 pt-3 pb-2 border-b border-border">

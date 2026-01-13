@@ -113,7 +113,7 @@ export function CatalogPage() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      <MiniAppHeader title="Свой Хлеб" showSearch={true} showCart={false} />
+      <MiniAppHeader title="Свой Хлеб" />
 
       {/* Sticky Menu: Delivery Mode Toggle + Category Tabs */}
       <div className="sticky top-14 z-30 bg-background border-b border-border">

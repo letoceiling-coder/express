@@ -51,7 +51,7 @@ export function CartPage() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <MiniAppHeader title="Корзина" showCart={false} />
+        <MiniAppHeader title="Корзина" />
 
         <div className="flex flex-col items-center justify-center px-4 py-16">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
@@ -82,7 +82,7 @@ export function CartPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <MiniAppHeader title="Корзина" showCart={false} />
+      <MiniAppHeader title="Корзина" />
 
       <div className="flex-1 overflow-y-auto px-4 min-h-0 pb-56">
         <div className="flex items-center justify-between py-3 sticky top-0 bg-background z-10">

@@ -61,7 +61,7 @@ export function OrderDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <MiniAppHeader title="Заказ" showBack showCart={false} />
+        <MiniAppHeader title="Заказ" showBack />
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="mt-4 text-muted-foreground">Загрузка заказа...</p>
@@ -74,7 +74,7 @@ export function OrderDetailPage() {
   if (!order) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <MiniAppHeader title="Заказ" showBack showCart={false} />
+        <MiniAppHeader title="Заказ" showBack />
 
         <div className="flex flex-col items-center justify-center px-4 py-16">
           <h2 className="text-xl font-bold text-foreground">Заказ не найден</h2>
@@ -111,7 +111,7 @@ export function OrderDetailPage() {
 
   return (
     <div className="min-h-screen bg-background pb-44">
-      <MiniAppHeader title={`Заказ #${order.orderId}`} showBack showCart={false} />
+      <MiniAppHeader title={`Заказ #${order.orderId}`} showBack />
 
       <div className="px-4 py-4 space-y-4">
         {/* Payment Success Alert */}

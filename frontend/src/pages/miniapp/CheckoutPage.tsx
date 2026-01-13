@@ -730,7 +730,7 @@ export function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      <MiniAppHeader title="Оформление заказа" showBack showCart={false} />
+      <MiniAppHeader title="Оформление заказа" showBack />
 
       {/* Progress Steps */}
       <div className="px-4 py-4">
