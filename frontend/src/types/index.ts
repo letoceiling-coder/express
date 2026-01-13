@@ -117,10 +117,10 @@ export const isOrderUnpaid = (order: Order): boolean => {
 // Helper to check if order can be cancelled
 export const canCancelOrder = (order: Order): boolean => {
   // Заказ можно отменить только если:
-  // 1. Он не оплачен (paymentStatus === 'pending')
-  // 2. Он не отменен (status !== 'cancelled')
-  // 3. Он не доставлен (status !== 'delivered')
-  return order.paymentStatus === 'pending' && order.status !== 'cancelled' && order.status !== 'delivered';
+  // 1. Он не отменен (status !== 'cancelled')
+  // 2. Он не доставлен (status !== 'delivered')
+  // Это соответствует логике на бэкенде: можно отменить любой заказ, кроме доставленных и уже отмененных
+  return order.status !== 'cancelled' && order.status !== 'delivered';
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
