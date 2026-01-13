@@ -195,7 +195,7 @@ export function CatalogPage() {
           className="fixed left-4 right-4 z-40 animate-slide-up"
           style={{
             bottom: orderMode === 'delivery'
-              ? 'calc(56px + env(safe-area-inset-bottom, 0px) + 8px + 52px + 8px)'
+              ? 'calc(52px + env(safe-area-inset-bottom, 0px) + 8px + 52px + 8px)'
               : '72px',
           }}
         >
