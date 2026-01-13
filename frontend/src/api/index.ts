@@ -426,9 +426,13 @@ export const ordersAPI = {
     }
   },
 
-  async cancelOrder(orderId: string): Promise<void> {
+  async cancelOrder(orderId: string): Promise<Order> {
     try {
       // Находим заказ по orderId
+      if (!orderId) {
+        throw new Error('Не указан номер заказа');
+      }
+
       const order = await this.getByOrderId(orderId);
       if (!order) {
         throw new Error('Заказ не найден');
@@ -450,9 +454,37 @@ export const ordersAPI = {
         }),
       });
 
-      if (!response.success) {
+      if (!response.data) {
         throw new Error(response.message || 'Ошибка отмены заказа');
       }
+
+      // Преобразуем ответ сервера в объект Order
+      const cancelledOrder = response.data;
+      return {
+        id: String(cancelledOrder.id),
+        orderId: cancelledOrder.order_id,
+        telegramId: cancelledOrder.telegram_id,
+        status: cancelledOrder.status as Order['status'],
+        phone: cancelledOrder.phone,
+        name: cancelledOrder.name || undefined,
+        deliveryAddress: cancelledOrder.delivery_address,
+        deliveryTime: cancelledOrder.delivery_time,
+        comment: cancelledOrder.comment || undefined,
+        totalAmount: Number(cancelledOrder.total_amount),
+        items: (cancelledOrder.items || []).map((item: any) => ({
+          id: String(item.id),
+          productId: item.product_id ? String(item.product_id) : '',
+          productName: item.product_name,
+          productImage: item.product_image || undefined,
+          quantity: item.quantity,
+          unitPrice: Number(item.unit_price),
+          total: Number(item.total),
+        })),
+        paymentId: cancelledOrder.payment_id || undefined,
+        paymentStatus: cancelledOrder.payment_status as Order['paymentStatus'],
+        createdAt: new Date(cancelledOrder.created_at),
+        updatedAt: new Date(cancelledOrder.updated_at),
+      };
     } catch (error: any) {
       console.error('Orders API - cancelOrder error:', error);
       throw error;

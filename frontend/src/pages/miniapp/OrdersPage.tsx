@@ -5,7 +5,11 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { OrderCard } from '@/components/miniapp/OrderCard';
 import { useOrders } from '@/hooks/useOrders';
-import { OrderStatus } from '@/types';
+import { OrderStatus, Order, isOrderUnpaid, canCancelOrder } from '@/types';
+import { ordersAPI } from '@/api';
+import { paymentAPI } from '@/api';
+import { toast } from 'sonner';
+import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
 
 const statusFilters: { value: OrderStatus | 'all' | 'pending_payment'; label: string }[] = [
   { value: 'all', label: 'Все' },
@@ -63,6 +67,91 @@ export function OrdersPage() {
     }
     return orders.filter(order => order.status === statusFilter);
   }, [orders, statusFilter]);
+
+  const handlePayment = async (order: Order) => {
+    if (!isOrderUnpaid(order)) {
+      toast.error('Заказ уже оплачен или отменен');
+      return;
+    }
+
+    hapticFeedback('light');
+
+    try {
+      const user = getTelegramUser();
+      const telegramId = user?.id;
+
+      // Получаем email из Telegram WebApp для отправки квитанции
+      const telegramEmail = window.Telegram?.WebApp?.initDataUnsafe?.user?.email;
+
+      // Создаем платеж через ЮKassa
+      const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
+      toast.info('Создание платежа...');
+
+      const paymentData = await paymentAPI.createYooKassaPayment(
+        Number(order.id),
+        order.totalAmount,
+        returnUrl,
+        `Оплата заказа #${order.orderId}`,
+        telegramId,
+        telegramEmail
+      );
+
+      // Получаем URL для оплаты
+      const confirmationUrl =
+        paymentData?.data?.confirmation_url ||
+        paymentData?.data?.yookassa_payment?.confirmation?.confirmation_url ||
+        paymentData?.yookassa_payment?.confirmation?.confirmation_url ||
+        paymentData?.confirmation_url;
+
+      if (confirmationUrl) {
+        // Проверяем тестовый режим
+        const isTestMode = paymentData?.data?.is_test_mode ?? false;
+        if (isTestMode) {
+          toast.info('Тестовый режим: используется тестовая среда YooKassa', {
+            duration: 3000,
+          });
+        }
+
+        // Переходим на страницу оплаты
+        window.location.href = confirmationUrl;
+        toast.success('Переход к оплате...');
+      } else {
+        console.error('Confirmation URL not found in response:', paymentData);
+        toast.error('Ошибка: URL для оплаты не получен');
+      }
+    } catch (error: any) {
+      console.error('Ошибка при создании платежа:', error);
+      toast.error(error?.message || 'Ошибка при создании платежа. Попробуйте позже.');
+    }
+  };
+
+  const handleCancel = async (order: Order) => {
+    if (!canCancelOrder(order)) {
+      if (order.status === 'cancelled') {
+        toast.error('Заказ уже отменен');
+      } else {
+        toast.error('Заказ нельзя отменить');
+      }
+      return;
+    }
+
+    if (!window.confirm('Вы уверены, что хотите отменить этот заказ?')) {
+      return;
+    }
+
+    hapticFeedback('light');
+
+    try {
+      await ordersAPI.cancelOrder(order.orderId);
+      toast.success('Заказ успешно отменен');
+      
+      // Обновляем список заказов
+      await loadOrders(true);
+    } catch (error: any) {
+      console.error('Ошибка при отмене заказа:', error);
+      toast.error(error?.message || 'Ошибка при отмене заказа');
+    }
+  };
 
   if (loading) {
     return (
@@ -160,6 +249,8 @@ export function OrdersPage() {
               key={order.id}
               order={order}
               onClick={() => navigate(`/orders/${order.orderId}`)}
+              onPayment={() => handlePayment(order)}
+              onCancel={() => handleCancel(order)}
             />
           ))
         )}

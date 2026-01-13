@@ -644,6 +644,7 @@ class OrderController extends Controller
             ]);
 
             $order->refresh();
+            $order->load('items');
 
             // Уведомляем клиента
             $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_CANCELLED);

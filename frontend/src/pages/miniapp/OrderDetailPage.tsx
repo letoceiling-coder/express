@@ -215,17 +215,13 @@ export function OrderDetailPage() {
     hapticFeedback('light');
 
     try {
-      toast.info('Отмена заказа...');
-      await ordersAPI.cancelOrder(currentOrder.orderId);
+      const cancelledOrder = await ordersAPI.cancelOrder(currentOrder.orderId);
+      
+      // Обновляем заказ данными из ответа сервера
+      setOrder(cancelledOrder);
       toast.success('Заказ успешно отменен');
       
-      // Обновляем заказ
-      const updatedOrder = await getOrderById(currentOrder.orderId);
-      if (updatedOrder) {
-        setOrder(updatedOrder);
-      }
-      
-      // Обновляем список заказов
+      // Обновляем список заказов (через навигацию, которая вызовет перезагрузку)
       navigate(`/orders/${currentOrder.orderId}`, { replace: true });
     } catch (error: any) {
       console.error('Ошибка при отмене заказа:', error);
