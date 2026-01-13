@@ -270,13 +270,22 @@ Route::get('/admin/{any?}', function () {
 // Публичный роут для просмотра логов
 Route::get('/logs', [\App\Http\Controllers\LogController::class, 'index'])->name('logs.index');
 
+// Страница для звонка (для iOS в Telegram Mini App)
+Route::get('/call', function () {
+    $phone = request()->query('phone', '');
+    // Очищаем номер от лишних символов, оставляем только цифры и +
+    $phone = preg_replace('/[^\d+]/', '', $phone);
+    
+    return view('call', ['phone' => $phone]);
+})->name('call');
+
 // Маршруты для основного приложения (React)
 // Корневой роут для React приложения
 Route::get('/', function () {
     return view('react');
 })->name('react.root');
 
-// Все остальные маршруты (кроме admin, api, storage, build, frontend, assets, logs) отдаются React приложению
+// Все остальные маршруты (кроме admin, api, storage, build, frontend, assets, logs, call) отдаются React приложению
 Route::get('/{any?}', function ($any = null) {
     // Перед отдачей React view проверяем, не запрашивается ли статический файл
     if ($any && preg_match('/\.(js|css|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot)$/i', $any)) {
@@ -287,4 +296,4 @@ Route::get('/{any?}', function ($any = null) {
     }
     
     return view('react');
-})->where('any', '^(?!admin|api|storage|build|frontend|assets|logs).*')->name('react');
+})->where('any', '^(?!admin|api|storage|build|frontend|assets|logs|call).*')->name('react');
