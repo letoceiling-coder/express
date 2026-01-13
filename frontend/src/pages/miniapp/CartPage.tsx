@@ -1,15 +1,43 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CartItem } from '@/components/miniapp/CartItem';
 import { useCartStore } from '@/store/cartStore';
+import { deliverySettingsAPI } from '@/api';
 import { showTelegramConfirm, hapticFeedback } from '@/lib/telegram';
+import { cn } from '@/lib/utils';
 
 export function CartPage() {
   const navigate = useNavigate();
   const { items, getTotalAmount, clearCart } = useCartStore();
   const totalAmount = getTotalAmount();
+
+  // Получение orderMode из localStorage
+  const [orderMode] = useState<'pickup' | 'delivery'>(() => {
+    const saved = localStorage.getItem('orderMode');
+    return saved === 'delivery' ? 'delivery' : 'pickup';
+  });
+
+  // Загрузка настроек доставки
+  const [minDeliveryOrderTotal, setMinDeliveryOrderTotal] = useState<number>(3000);
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await deliverySettingsAPI.getSettings();
+        if (settings?.min_delivery_order_total_rub !== undefined) {
+          setMinDeliveryOrderTotal(settings.min_delivery_order_total_rub);
+        }
+      } catch (error) {
+        console.error('Error loading delivery settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  // Проверка блокировки доставки
+  const isDeliveryBlocked = orderMode === 'delivery' && totalAmount < minDeliveryOrderTotal;
 
   const handleClearCart = () => {
     showTelegramConfirm('Очистить корзину?', (confirmed) => {
@@ -92,9 +120,18 @@ export function CartPage() {
           </div>
         </div>
         
+        {isDeliveryBlocked && (
+          <p className="text-sm text-destructive mb-2 text-center">
+            Минимум {minDeliveryOrderTotal.toLocaleString('ru-RU')} ₽ для доставки
+          </p>
+        )}
         <button
-          onClick={() => navigate('/checkout')}
-          className="w-full h-11 rounded-lg bg-primary text-base font-semibold text-primary-foreground touch-feedback hover:opacity-90 transition-opacity"
+          onClick={() => navigate('/checkout', { state: { orderMode } })}
+          disabled={isDeliveryBlocked}
+          className={cn(
+            'w-full h-11 rounded-lg bg-primary text-base font-semibold text-primary-foreground touch-feedback hover:opacity-90 transition-opacity',
+            isDeliveryBlocked && 'opacity-50 cursor-not-allowed'
+          )}
         >
           Оформить заказ
         </button>

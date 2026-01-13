@@ -9,11 +9,10 @@ import { OrderStatus } from '@/types';
 
 const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Все' },
-  { value: 'new', label: 'Новые' },
-  { value: 'preparing', label: 'Готовятся' },
-  { value: 'in_transit', label: 'В пути' },
-  { value: 'delivered', label: 'Доставлены' },
-  { value: 'cancelled', label: 'Отменены' },
+  { value: 'new', label: 'Новый' },
+  { value: 'preparing', label: 'В работе' },
+  { value: 'in_transit', label: 'В доставке' },
+  { value: 'delivered', label: 'Завершён' },
 ];
 
 export function OrdersPage() {

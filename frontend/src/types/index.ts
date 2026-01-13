@@ -102,10 +102,10 @@ export interface User {
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'Новый',
   accepted: 'Принят',
-  preparing: 'Готовится',
+  preparing: 'В работе',
   ready_for_delivery: 'Готов к отправке',
-  in_transit: 'В пути',
-  delivered: 'Доставлен',
+  in_transit: 'В доставке',
+  delivered: 'Завершён',
   cancelled: 'Отменён',
 };
 

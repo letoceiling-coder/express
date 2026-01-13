@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { useCartStore } from '@/store/cartStore';
 import { useOrders } from '@/hooks/useOrders';
@@ -80,9 +80,20 @@ type DeliveryType = 'courier' | 'pickup';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { items, getTotalAmount, clearCart } = useCartStore();
   const { createOrder, loadOrders } = useOrders();
   const totalAmount = getTotalAmount();
+
+  // Получение orderMode из state или localStorage для начального значения
+  const getInitialDeliveryType = (): DeliveryType => {
+    if (location.state?.orderMode === 'delivery') return 'courier';
+    if (location.state?.orderMode === 'pickup') return 'pickup';
+    const saved = localStorage.getItem('orderMode');
+    if (saved === 'delivery') return 'courier';
+    if (saved === 'pickup') return 'pickup';
+    return 'courier'; // Дефолт из формы
+  };
 
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,17 +112,17 @@ export function CheckoutPage() {
   // const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressInputRef, setAddressInputRef] = useState<HTMLInputElement | null>(null);
   const [defaultCity, setDefaultCity] = useState<string>('Екатеринбург');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     phone: '',
     name: '',
     address: '',
     deliveryTime: 'asap', // По умолчанию "как можно скорее"
     deliveryDate: '',
     deliveryTimeSlot: '',
-    deliveryType: 'courier' as DeliveryType,
+    deliveryType: getInitialDeliveryType(),
     comment: '',
     paymentMethod: null as any | null,
-  });
+  }));
   
   // Минимальная дата (сегодня)
   const today = new Date();

@@ -1,11 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CategoryTabs } from '@/components/miniapp/CategoryTabs';
 import { ProductCard } from '@/components/miniapp/ProductCard';
+import { DeliveryModeToggle } from '@/components/miniapp/DeliveryModeToggle';
+import { DeliveryProgressBar } from '@/components/miniapp/DeliveryProgressBar';
 import { useCartStore } from '@/store/cartStore';
 import { useProducts } from '@/hooks/useProducts';
+import { deliverySettingsAPI } from '@/api';
 import { ShoppingCart, Loader2 } from 'lucide-react';
 import { Product } from '@/types';
 
@@ -15,6 +18,34 @@ export function CatalogPage() {
   const { products, categories, loading, error } = useProducts();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const totalAmount = useCartStore((state) => state.getTotalAmount());
+
+  // Состояние выбора типа доставки
+  const [orderMode, setOrderMode] = useState<'pickup' | 'delivery'>(() => {
+    const saved = localStorage.getItem('orderMode');
+    return (saved === 'delivery' || saved === 'pickup') ? saved : 'pickup';
+  });
+
+  // Сохранение orderMode в localStorage
+  useEffect(() => {
+    localStorage.setItem('orderMode', orderMode);
+  }, [orderMode]);
+
+  // Загрузка настроек доставки
+  const [minDeliveryTotal, setMinDeliveryTotal] = useState<number>(3000);
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await deliverySettingsAPI.getSettings();
+        if (settings?.min_delivery_order_total_rub !== undefined) {
+          setMinDeliveryTotal(settings.min_delivery_order_total_rub);
+        }
+      } catch (error) {
+        console.error('Error loading delivery settings:', error);
+        // Используем значение по умолчанию 3000
+      }
+    };
+    loadSettings();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (!activeCategory) return products;
@@ -84,8 +115,11 @@ export function CatalogPage() {
     <div className="min-h-screen bg-background pb-28">
       <MiniAppHeader title="Свой Хлеб" />
 
+      {/* Delivery Mode Toggle */}
+      <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
+
       {/* Category Tabs - Sticky with horizontal scroll */}
-      <div className="sticky top-14 z-30 bg-background border-b border-border">
+      <div className="sticky top-[104px] z-30 bg-background border-b border-border">
         <CategoryTabs
           categories={categories}
           activeCategory={activeCategory}
@@ -148,7 +182,7 @@ export function CatalogPage() {
 
       {/* Floating Cart Button */}
       {totalItems > 0 && (
-        <div className="fixed bottom-20 left-4 right-4 z-40 animate-slide-up">
+        <div className={`fixed ${orderMode === 'delivery' ? 'bottom-28' : 'bottom-20'} left-4 right-4 z-40 animate-slide-up`}>
           <button
             onClick={() => navigate('/cart')}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary h-12 text-base font-semibold text-primary-foreground shadow-lg touch-feedback hover:opacity-90 transition-opacity"
@@ -157,6 +191,15 @@ export function CatalogPage() {
             Корзина ({totalItems}) · {totalAmount.toLocaleString('ru-RU')} ₽
           </button>
         </div>
+      )}
+
+      {/* Delivery Progress Bar - показывается только при выборе доставки */}
+      {orderMode === 'delivery' && (
+        <DeliveryProgressBar
+          cartTotal={totalAmount}
+          minDeliveryTotal={minDeliveryTotal}
+          onNavigateToCart={() => navigate('/cart')}
+        />
       )}
 
       <BottomNavigation />
