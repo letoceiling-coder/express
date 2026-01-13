@@ -288,6 +288,8 @@ export default {
                     description: this.method.description || '',
                     is_enabled: this.method.is_enabled !== false,
                     is_default: this.method.is_default || false,
+                    available_for_delivery: this.method.available_for_delivery !== false,
+                    available_for_pickup: this.method.available_for_pickup !== false,
                     sort_order: this.method.sort_order || 0,
                     discount_type: this.method.discount_type || 'none',
                     discount_value: this.method.discount_value || null,
