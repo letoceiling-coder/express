@@ -244,24 +244,7 @@ export function AboutPage() {
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors no-underline"
                 aria-label="Позвонить"
               >
-                <div className="relative">
-                  <Phone className="h-5 w-5 text-primary" />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleCopyPhone(data.phone!);
-                    }}
-                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border border-border z-10"
-                    aria-label="Скопировать номер"
-                  >
-                    {phoneCopied ? (
-                      <Check className="h-2.5 w-2.5 text-green-500" />
-                    ) : (
-                      <Copy className="h-2.5 w-2.5 text-muted-foreground" />
-                    )}
-                  </button>
-                </div>
+                <Phone className="h-5 w-5 text-primary" />
                 <span className="text-xs text-foreground text-center leading-tight">Телефон</span>
               </a>
             )}

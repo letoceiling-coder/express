@@ -53,11 +53,11 @@ export function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-44">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       <MiniAppHeader title="Корзина" showCart={false} />
 
-      <div className="px-4">
-        <div className="flex items-center justify-between py-3">
+      <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex items-center justify-between py-3 sticky top-0 bg-background z-10">
           <span className="text-muted-foreground">
             {getItemsText(items.length)}
           </span>
@@ -69,7 +69,7 @@ export function CartPage() {
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 pb-4">
           {items.map((item) => (
             <CartItem key={item.product.id} item={item} />
           ))}
