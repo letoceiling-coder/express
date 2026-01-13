@@ -45,13 +45,44 @@ export function AboutPage() {
   }, []);
 
   const handlePhoneClick = (phone: string) => {
-    // Очищаем номер от пробелов и других символов для tel: ссылки
+    // Очищаем номер от пробелов и других символов
     const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
-    const telUrl = `tel:${cleanPhone}`;
     
-    // Telegram WebApp API не поддерживает tel: через openLink
-    // Используем прямой переход через window.location.href
-    window.location.href = telUrl;
+    const tg = window.Telegram?.WebApp;
+    
+    // В Telegram Mini App используем openTelegramLink для открытия контакта
+    // Это откроет контакт в Telegram, откуда можно будет позвонить
+    if (tg && tg.openTelegramLink) {
+      try {
+        // Используем tg://resolve для открытия контакта по номеру телефона
+        const tgContactUrl = `tg://resolve?phone=${cleanPhone}`;
+        tg.openTelegramLink(tgContactUrl);
+        return;
+      } catch (e) {
+        console.log('Telegram resolve protocol failed, trying direct call');
+      }
+    }
+    
+    // Fallback: пробуем прямой tel: протокол
+    // В некоторых случаях это может работать даже в Mini App
+    try {
+      const telUrl = `tel:${cleanPhone}`;
+      // Создаем временную ссылку и кликаем по ней
+      const link = document.createElement('a');
+      link.href = telUrl;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error('Failed to initiate call:', e);
+      // Если ничего не работает, показываем сообщение с номером
+      toast({
+        title: 'Позвоните по номеру',
+        description: phone,
+        duration: 3000,
+      });
+    }
   };
 
   const handleMapsClick = (url: string) => {
