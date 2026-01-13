@@ -115,11 +115,12 @@ export function CatalogPage() {
     <div className="min-h-screen bg-background pb-28">
       <MiniAppHeader title="Свой Хлеб" />
 
-      {/* Delivery Mode Toggle */}
-      <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
+      {/* Sticky Menu: Delivery Mode Toggle + Category Tabs */}
+      <div className="sticky top-14 z-30 bg-background border-b border-border">
+        {/* Delivery Mode Toggle */}
+        <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
 
-      {/* Category Tabs - Sticky with horizontal scroll */}
-      <div className="sticky top-[104px] z-30 bg-background border-b border-border">
+        {/* Category Tabs */}
         <CategoryTabs
           categories={categories}
           activeCategory={activeCategory}
