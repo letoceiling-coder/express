@@ -35,33 +35,66 @@ export function OrderDetailPage() {
       const paymentStatus = searchParams.get('payment');
       const action = searchParams.get('action');
       
-      if (paymentStatus === 'success') {
-        setShowPaymentSuccess(true);
-        toast.success('Оплата успешно выполнена!');
-        // Убираем параметр из URL
+      // Сначала проверяем заказы из кеша для быстрого отображения
+      const cachedOrder = orders.find(o => o.orderId === orderId);
+      
+      // Если есть action=pay или action=cancel, обрабатываем их
+      if (action === 'pay' && cachedOrder) {
         navigate(`/orders/${orderId}`, { replace: true });
-      } else if (paymentStatus === 'error') {
-        setShowPaymentError(true);
-        toast.error('Произошла ошибка при оплате');
-        // Убираем параметр из URL
+        setOrder(cachedOrder);
+        setLoading(false);
+        handlePayment(cachedOrder);
+        return;
+      } else if (action === 'cancel' && cachedOrder) {
         navigate(`/orders/${orderId}`, { replace: true });
+        setOrder(cachedOrder);
+        setLoading(false);
+        handleCancel(cachedOrder);
+        return;
       }
       
-      // Сначала проверяем заказы из кеша
-      const cachedOrder = orders.find(o => o.orderId === orderId);
+      // Если возврат с оплаты - обязательно загружаем актуальные данные с сервера
+      if (paymentStatus === 'success' || paymentStatus === 'error') {
+        setLoading(true);
+        // Загружаем актуальные данные заказа с сервера
+        const freshOrder = await getOrderById(orderId);
+        setOrder(freshOrder);
+        setLoading(false);
+        
+        // Убираем параметр из URL
+        navigate(`/orders/${orderId}`, { replace: true });
+        
+        // Строго проверяем статус оплаты перед показом сообщения
+        if (paymentStatus === 'success') {
+          if (freshOrder && freshOrder.paymentStatus === 'succeeded') {
+            setShowPaymentSuccess(true);
+            toast.success('Оплата успешно выполнена!');
+          } else if (freshOrder && freshOrder.paymentStatus === 'pending') {
+            // Платеж еще обрабатывается
+            toast.info('Платеж обрабатывается. Проверьте статус позже.');
+          } else if (freshOrder && freshOrder.paymentStatus === 'failed') {
+            setShowPaymentError(true);
+            toast.error('Произошла ошибка при обработке платежа');
+          }
+        } else if (paymentStatus === 'error') {
+          setShowPaymentError(true);
+          toast.error('Произошла ошибка при оплате');
+        }
+        
+        // Обрабатываем action после проверки статуса оплаты
+        if (action === 'pay' && freshOrder) {
+          handlePayment(freshOrder);
+        } else if (action === 'cancel' && freshOrder) {
+          handleCancel(freshOrder);
+        }
+        return;
+      }
+      
+      // Обычная загрузка заказа
       if (cachedOrder) {
         console.log('OrderDetailPage - Found order in cache:', cachedOrder.orderId);
         setOrder(cachedOrder);
         setLoading(false);
-        
-        // Если есть action=pay, запускаем оплату
-        if (action === 'pay') {
-          navigate(`/orders/${orderId}`, { replace: true });
-          handlePayment(cachedOrder);
-        } else if (action === 'cancel') {
-          navigate(`/orders/${orderId}`, { replace: true });
-          handleCancel(cachedOrder);
-        }
         return;
       }
       
@@ -71,15 +104,6 @@ export function OrderDetailPage() {
       const data = await getOrderById(orderId);
       setOrder(data);
       setLoading(false);
-      
-      // Если есть action=pay, запускаем оплату
-      if (action === 'pay' && data) {
-        navigate(`/orders/${orderId}`, { replace: true });
-        handlePayment(data);
-      } else if (action === 'cancel' && data) {
-        navigate(`/orders/${orderId}`, { replace: true });
-        handleCancel(data);
-      }
     };
     fetchOrder();
   }, [orderId, getOrderById, orders, searchParams, navigate]);
@@ -241,8 +265,8 @@ export function OrderDetailPage() {
       <MiniAppHeader title={`Заказ #${order.orderId}`} showBack />
 
       <div className="px-4 py-4 space-y-4">
-        {/* Payment Success Alert */}
-        {showPaymentSuccess && (
+        {/* Payment Success Alert - показывается только если статус действительно succeeded */}
+        {showPaymentSuccess && order && order.paymentStatus === 'succeeded' && (
           <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4 animate-fade-in">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
@@ -251,7 +275,7 @@ export function OrderDetailPage() {
                   Оплата успешно выполнена!
                 </h3>
                 <p className="mt-1 text-xs text-green-600 dark:text-green-500">
-                  Ваш платеж обрабатывается. Заказ будет обработан после подтверждения оплаты.
+                  Ваш платеж подтвержден. Заказ будет обработан в ближайшее время.
                 </p>
               </div>
               <button
