@@ -24,6 +24,56 @@ export function AdminAbout() {
 
   useEffect(() => {
     loadData();
+
+    // Слушаем сообщения от медиа-библиотеки
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'media-selected' && event.data.callback === 'about-cover-image') {
+        if (event.data.url) {
+          setFormData((prev) => ({
+            ...prev,
+            cover_image_url: event.data.url,
+          }));
+        }
+      }
+    };
+
+    // Проверяем localStorage на наличие выбранного файла
+    const checkLocalStorage = () => {
+      const selectedMedia = localStorage.getItem('media-selected-about-cover-image');
+      if (selectedMedia) {
+        try {
+          const media = JSON.parse(selectedMedia);
+          if (media && media.url) {
+            setFormData((prev) => ({
+              ...prev,
+              cover_image_url: media.url,
+            }));
+            // Очищаем localStorage после использования
+            localStorage.removeItem('media-selected-about-cover-image');
+          }
+        } catch (e) {
+          console.error('Error parsing selected media:', e);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    // Проверяем при монтировании
+    checkLocalStorage();
+    // Проверяем периодически (на случай если окно было открыто до монтирования)
+    const interval = setInterval(checkLocalStorage, 500);
+    
+    // Также проверяем при фокусе окна (когда пользователь возвращается из медиа-библиотеки)
+    const handleFocus = () => {
+      checkLocalStorage();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   const loadData = async () => {
@@ -177,11 +227,18 @@ export function AdminAbout() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => window.open('/admin/media', '_blank')}
+                    onClick={() => {
+                      // Открываем медиа-библиотеку с параметром для выбора
+                      const mediaWindow = window.open('/admin/media?select=true&callback=about-cover-image', '_blank');
+                      // Сохраняем ссылку на окно для возможной будущей коммуникации
+                      if (mediaWindow) {
+                        (window as any).mediaWindow = mediaWindow;
+                      }
+                    }}
                     className="whitespace-nowrap"
                   >
                     <ImageIcon className="h-4 w-4 mr-2" />
-                    Медиа
+                    Выбрать
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">

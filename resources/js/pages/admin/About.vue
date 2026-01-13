@@ -22,7 +22,7 @@
                     <!-- Basic Info -->
                     <div class="space-y-4">
                         <h2 class="text-lg font-semibold text-foreground mb-4">Основная информация</h2>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 Название компании *
@@ -35,7 +35,7 @@
                                 required
                             />
                         </div>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 Телефон
@@ -47,7 +47,7 @@
                                 class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             />
                         </div>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 Адрес
@@ -64,7 +64,7 @@
                     <!-- Cover Image -->
                     <div class="space-y-4 pt-4 border-t border-border">
                         <h2 class="text-lg font-semibold text-foreground mb-4">Обложка</h2>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 URL обложки
@@ -100,7 +100,7 @@
                     <!-- Description -->
                     <div class="space-y-4 pt-4 border-t border-border">
                         <h2 class="text-lg font-semibold text-foreground mb-4">Описание</h2>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 Описание
@@ -123,7 +123,7 @@
                         <p class="text-xs text-muted-foreground mb-2">
                             Важные моменты, которые будут отображаться в виде списка
                         </p>
-                        
+
                         <div class="space-y-3">
                             <div
                                 v-for="(bullet, index) in form.bullets"
@@ -148,7 +148,7 @@
                                 </button>
                             </div>
                         </div>
-                        
+
                         <button
                             type="button"
                             @click="handleAddBullet"
@@ -164,7 +164,7 @@
                     <!-- Yandex Maps -->
                     <div class="space-y-4 pt-4 border-t border-border">
                         <h2 class="text-lg font-semibold text-foreground mb-4">Яндекс.Карты</h2>
-                        
+
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
                                 URL Яндекс.Карт
@@ -173,6 +173,23 @@
                                 v-model="form.yandex_maps_url"
                                 type="url"
                                 placeholder="https://yandex.ru/maps/..."
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Support Telegram -->
+                    <div class="space-y-4 pt-4 border-t border-border">
+                        <h2 class="text-lg font-semibold text-foreground mb-4">Поддержка Telegram</h2>
+
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-1">
+                                URL Telegram поддержки
+                            </label>
+                            <input
+                                v-model="form.support_telegram_url"
+                                type="url"
+                                placeholder="https://t.me/+79826824368"
                                 class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             />
                         </div>
@@ -231,6 +248,7 @@ export default {
                 description: '',
                 bullets: [],
                 yandex_maps_url: '',
+                support_telegram_url: '',
                 cover_image_url: '',
             },
             loading: false,
@@ -249,7 +267,7 @@ export default {
             try {
                 const response = await apiGet('/admin/about');
                 const result = await response.json();
-                
+
                 if (response.ok && result.data) {
                     this.data = result.data;
                     this.form = {
@@ -259,6 +277,7 @@ export default {
                         description: result.data.description || '',
                         bullets: result.data.bullets && Array.isArray(result.data.bullets) ? result.data.bullets : [],
                         yandex_maps_url: result.data.yandex_maps_url || '',
+                        support_telegram_url: result.data.support_telegram_url || '',
                         cover_image_url: result.data.cover_image_url || '',
                     };
                 } else {
@@ -277,7 +296,7 @@ export default {
             try {
                 const response = await apiPut('/admin/about', this.form);
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     await swal.success('Страница "О нас" успешно сохранена');
                     this.data = result.data;
@@ -301,8 +320,10 @@ export default {
             this.form.bullets.splice(index, 1);
         },
         handleImageSelected(selectedFiles) {
-            if (selectedFiles && selectedFiles.length > 0) {
-                const selectedFile = selectedFiles[0];
+            // MediaSelector возвращает объект при multiple=false, массив при multiple=true
+            const selectedFile = Array.isArray(selectedFiles) ? selectedFiles[0] : selectedFiles;
+
+            if (selectedFile) {
                 this.form.cover_image_url = selectedFile.url || selectedFile.path || '';
             }
             this.showImageSelector = false;

@@ -464,11 +464,11 @@
               :key="file.id"
               :class="[
                 'group bg-background border rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col',
-                selectionMode && (file.type === 'photo' || file.type === 'video') 
+                isSelectionModeActive && (file.type === 'photo' || file.type === 'video') 
                   ? (isFileSelected(file) ? 'border-primary border-2 cursor-pointer' : 'border-border cursor-pointer hover:border-primary')
                   : 'border-border'
               ]"
-              @click="selectionMode && (file.type === 'photo' || file.type === 'video') ? openFilePreview(file) : null"
+              @click="isSelectionModeActive && (file.type === 'photo' || file.type === 'video') ? openFilePreview(file) : null"
             >
               <!-- Превью изображения -->
               <div class="relative aspect-video bg-muted/30 overflow-hidden flex-shrink-0">
@@ -503,14 +503,14 @@
                 </div>
                 <!-- Индикатор выбранного файла -->
                 <div
-                  v-if="selectionMode && isFileSelected(file)"
+                  v-if="isSelectionModeActive && isFileSelected(file)"
                   class="absolute top-2 left-2 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold z-10"
                 >
                   ✓
                 </div>
                 <!-- Кнопка выбора (вместо просмотра в режиме выбора) -->
                 <button
-                  v-if="selectionMode && (file.type === 'photo' || file.type === 'video')"
+                  v-if="isSelectionModeActive && (file.type === 'photo' || file.type === 'video')"
                   @click.stop="openFilePreview(file)"
                   :class="[
                     'absolute inset-0 flex items-center justify-center transition-opacity cursor-pointer',
@@ -524,7 +524,7 @@
                 </button>
                 <!-- Кнопка просмотра (только если не режим выбора) -->
                 <button
-                  v-else-if="!selectionMode && isPreviewable(file)"
+                  v-else-if="!isSelectionModeActive && isPreviewable(file)"
                   @click.stop="openFilePreview(file)"
                   class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 hover:bg-black/30 cursor-pointer"
                   title="Просмотр"
@@ -844,6 +844,17 @@ export default {
     const fileSortOrder = ref('desc')
     const paginationData = ref(null)
     const searchTimeout = ref(null)
+    
+    // Проверяем режим выбора из URL параметров
+    const isUrlSelectionMode = computed(() => {
+      const urlParams = new URLSearchParams(window.location.search)
+      return urlParams.get('select') === 'true'
+    })
+    
+    // Объединенный режим выбора (из props или URL)
+    const isSelectionModeActive = computed(() => {
+      return props.selectionMode || isUrlSelectionMode.value
+    })
     
     // Опции сортировки
     const sortOptions = [
@@ -1878,7 +1889,48 @@ export default {
 
     // Открытие файла для просмотра (lightbox для фото/видео, новая вкладка для документов)
     const openFilePreview = (file) => {
-      // Если включен режим выбора, эмитим событие выбора файла
+      // Проверяем, открыта ли страница в режиме выбора через URL параметры (приоритет)
+      const urlParams = new URLSearchParams(window.location.search)
+      const selectMode = urlParams.get('select')
+      const callback = urlParams.get('callback')
+      
+      if (selectMode === 'true' && callback) {
+        // Сохраняем выбранный файл в localStorage
+        try {
+          localStorage.setItem(`media-selected-${callback}`, JSON.stringify({
+            url: file.url,
+            id: file.id,
+            name: file.original_name,
+            type: file.type
+          }))
+          
+          // Отправляем сообщение родительскому окну, если оно есть
+          if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.postMessage({
+                type: 'media-selected',
+                callback: callback,
+                url: file.url,
+                id: file.id,
+                name: file.original_name,
+                type: file.type
+              }, window.location.origin)
+            } catch (e) {
+              console.log('[Media] Could not send postMessage to opener:', e)
+            }
+          }
+          
+          // Закрываем окно после выбора
+          setTimeout(() => {
+            window.close()
+          }, 100)
+          return
+        } catch (e) {
+          console.error('[Media] Error saving to localStorage:', e)
+        }
+      }
+      
+      // Если включен режим выбора (через props), эмитим событие выбора файла
       if (props.selectionMode) {
         emit('file-selected', file)
         return
@@ -2501,6 +2553,7 @@ export default {
 
     return {
       selectionMode: props.selectionMode,
+      isSelectionModeActive,
       isFileSelected,
       loading,
       loadingMedia,
