@@ -49,20 +49,55 @@ export function AboutPage() {
     const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
     const telUrl = `tel:${cleanPhone}`;
     
-    // Для iOS нужно использовать создание элемента <a> и программный клик
-    // Это работает как на Android, так и на iOS
-    const link = document.createElement('a');
-    link.href = telUrl;
-    link.style.display = 'none';
-    document.body.appendChild(link);
+    const tg = window.Telegram?.WebApp;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
-    // Программно кликаем по ссылке
-    link.click();
+    // Для iOS в Telegram Mini App используем window.open
+    if (isIOS && tg) {
+      // На iOS в WebView window.open может работать лучше
+      try {
+        window.open(telUrl, '_self');
+        return;
+      } catch (e) {
+        // Если не работает, пробуем другие методы
+      }
+    }
     
-    // Удаляем элемент после небольшой задержки
-    setTimeout(() => {
-      document.body.removeChild(link);
-    }, 100);
+    // Пробуем создать элемент <a> и кликнуть (работает на Android и некоторых iOS)
+    try {
+      const link = document.createElement('a');
+      link.href = telUrl;
+      link.style.display = 'none';
+      link.setAttribute('target', '_self');
+      document.body.appendChild(link);
+      
+      // Используем dispatchEvent для более надежного клика на iOS
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+      });
+      link.dispatchEvent(clickEvent);
+      
+      // Также пробуем обычный click
+      link.click();
+      
+      // Удаляем элемент
+      setTimeout(() => {
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
+      }, 100);
+    } catch (e) {
+      // Если ничего не работает, показываем popup с номером для iOS
+      if (isIOS && tg && tg.showAlert) {
+        tg.showAlert(`Позвоните по номеру:\n${phone}\n\nИли скопируйте номер, используя кнопку копирования.`);
+      } else {
+        // Fallback для других случаев
+        window.location.href = telUrl;
+      }
+    }
   };
 
   const handleMapsClick = (url: string) => {
