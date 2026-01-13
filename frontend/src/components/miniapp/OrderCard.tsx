@@ -70,7 +70,9 @@ export function OrderCard({ order, onClick, onCancel, onPayment }: OrderCardProp
             {formatDate(order.createdAt)}
           </p>
         </div>
-        {isUnpaid ? (
+        {order.status === 'cancelled' ? (
+          <StatusBadge status={order.status} size="sm" />
+        ) : isUnpaid ? (
           <span className="inline-flex items-center rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
             Ожидает оплаты
           </span>

@@ -177,9 +177,15 @@ export function OrderDetailPage() {
     const currentOrder = orderData || order;
     if (!currentOrder) return;
 
-    // Проверяем, что заказ неоплачен
-    if (!isOrderUnpaid(currentOrder)) {
-      toast.error('Заказ уже оплачен или отменен');
+    // Проверяем, что заказ можно отменить
+    if (!canCancelOrder(currentOrder)) {
+      if (currentOrder.status === 'cancelled') {
+        toast.error('Заказ уже отменен');
+      } else if (currentOrder.paymentStatus === 'succeeded') {
+        toast.error('Заказ уже оплачен');
+      } else {
+        toast.error('Заказ нельзя отменить');
+      }
       return;
     }
 
@@ -201,6 +207,9 @@ export function OrderDetailPage() {
       if (updatedOrder) {
         setOrder(updatedOrder);
       }
+      
+      // Обновляем список заказов
+      navigate(`/orders/${currentOrder.orderId}`, { replace: true });
     } catch (error: any) {
       console.error('Ошибка при отмене заказа:', error);
       toast.error(error?.message || 'Ошибка при отмене заказа');
@@ -321,7 +330,9 @@ export function OrderDetailPage() {
                 {formatDate(order.createdAt)}
               </p>
             </div>
-            {isOrderUnpaid(order) ? (
+            {order.status === 'cancelled' ? (
+              <StatusBadge status={order.status} size="lg" />
+            ) : isOrderUnpaid(order) ? (
               <span className="inline-flex items-center rounded-full bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive">
                 Ожидает оплаты
               </span>
