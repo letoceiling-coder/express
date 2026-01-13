@@ -47,9 +47,22 @@ export function AboutPage() {
   const handlePhoneClick = (phone: string) => {
     // Очищаем номер от пробелов и других символов для tel: ссылки
     const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+    const telUrl = `tel:${cleanPhone}`;
     
-    // Используем прямой формат tel: для вызова
-    window.location.href = `tel:${cleanPhone}`;
+    // Для iOS нужно использовать создание элемента <a> и программный клик
+    // Это работает как на Android, так и на iOS
+    const link = document.createElement('a');
+    link.href = telUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Программно кликаем по ссылке
+    link.click();
+    
+    // Удаляем элемент после небольшой задержки
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
   };
 
   const handleMapsClick = (url: string) => {
