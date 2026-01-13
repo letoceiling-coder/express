@@ -434,8 +434,20 @@ export const ordersAPI = {
         throw new Error('Заказ не найден');
       }
 
+      // Получаем telegram_id для проверки владельца заказа
+      const { getTelegramUser } = await import('@/lib/telegram');
+      const user = getTelegramUser();
+      const telegramId = user?.id;
+
+      if (!telegramId) {
+        throw new Error('Не удалось определить пользователя Telegram');
+      }
+
       const response = await apiRequest(`/orders/${order.id}/cancel`, {
         method: 'POST',
+        body: JSON.stringify({
+          telegram_id: telegramId,
+        }),
       });
 
       if (!response.success) {

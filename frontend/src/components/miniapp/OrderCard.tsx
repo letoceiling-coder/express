@@ -1,4 +1,4 @@
-import { Order, isOrderUnpaid } from '@/types';
+import { Order, isOrderUnpaid, canCancelOrder } from '@/types';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ interface OrderCardProps {
 export function OrderCard({ order, onClick, onCancel, onPayment }: OrderCardProps) {
   const navigate = useNavigate();
   const isUnpaid = isOrderUnpaid(order);
+  const canCancel = canCancelOrder(order);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('ru-RU', {
@@ -91,7 +92,7 @@ export function OrderCard({ order, onClick, onCancel, onPayment }: OrderCardProp
       </div>
 
       {/* CTA Buttons for Unpaid Orders */}
-      {isUnpaid && (
+      {isUnpaid && canCancel && (
         <div className="mt-3 flex gap-2 border-t border-border pt-3">
           <Button
             onClick={handlePayClick}

@@ -71,6 +71,10 @@ Route::prefix('v1')->group(function () {
     // Публичный роут для страницы "О нас"
     Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
     
+    // Публичный роут для отмены заказа из MiniApp
+    Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])
+        ->name('orders.cancel.public');
+    
     // Публичный вебхук от YooKassa (без авторизации, так как YooKassa отправляет уведомления напрямую)
     Route::post('webhooks/yookassa', [PaymentSettingsController::class, 'webhookYooKassa'])
         ->name('webhooks.yookassa.public');
@@ -138,8 +142,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('orders/{id}', [OrderController::class, 'destroy'])->name('orders.destroy');
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
-        Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])
-            ->name('orders.cancel');
         Route::get('orders/{id}/status-history', [OrderController::class, 'statusHistory'])
             ->name('orders.status-history');
         

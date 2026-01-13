@@ -602,13 +602,33 @@ class OrderController extends Controller
     /**
      * Отменить заказ
      * 
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function cancel($id)
+    public function cancel(Request $request, $id)
     {
         try {
             $order = Order::findOrFail($id);
+
+            // Проверяем права доступа: для публичных запросов требуется telegram_id
+            $user = $request->user();
+            if (!$user) {
+                // Публичный запрос - проверяем telegram_id
+                $telegramId = $request->input('telegram_id') ?: $request->query('telegram_id');
+                if (!$telegramId) {
+                    return response()->json([
+                        'message' => 'Для отмены заказа необходимо указать telegram_id или авторизоваться',
+                    ], 400);
+                }
+
+                // Проверяем, что заказ принадлежит пользователю
+                if ($order->telegram_id != (int)$telegramId) {
+                    return response()->json([
+                        'message' => 'Вы не можете отменить этот заказ',
+                    ], 403);
+                }
+            }
 
             // Проверяем, что заказ может быть отменен
             if (in_array($order->status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {

@@ -111,7 +111,12 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 
 // Helper to check if order is unpaid
 export const isOrderUnpaid = (order: Order): boolean => {
-  return order.paymentStatus === 'pending' && order.status !== 'cancelled';
+  return order.paymentStatus === 'pending' && order.status !== 'cancelled' && order.status !== 'delivered';
+};
+
+// Helper to check if order can be cancelled
+export const canCancelOrder = (order: Order): boolean => {
+  return isOrderUnpaid(order) && order.status !== 'cancelled';
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

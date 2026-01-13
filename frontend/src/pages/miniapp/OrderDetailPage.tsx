@@ -4,7 +4,7 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useOrders } from '@/hooks/useOrders';
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order, isOrderUnpaid } from '@/types';
+import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order, isOrderUnpaid, canCancelOrder } from '@/types';
 import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { openTelegramLink, hapticFeedback } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
@@ -447,8 +447,8 @@ export function OrderDetailPage() {
 
       {/* Bottom Actions */}
       <div className="fixed bottom-14 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm p-4 safe-area-bottom">
-        {isOrderUnpaid(order) ? (
-          // Кнопки для неоплаченных заказов
+        {isOrderUnpaid(order) && canCancelOrder(order) ? (
+          // Кнопки для неоплаченных заказов (которые можно отменить)
           <div className="flex gap-3">
             <Button
               onClick={handleCancel}
