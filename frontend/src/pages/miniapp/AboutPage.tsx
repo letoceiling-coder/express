@@ -49,14 +49,9 @@ export function AboutPage() {
     const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
     const telUrl = `tel:${cleanPhone}`;
     
-    // В Telegram Mini App используем openLink для открытия tel: ссылки
-    const tg = window.Telegram?.WebApp;
-    if (tg && tg.openLink) {
-      tg.openLink(telUrl, { try_instant_view: false });
-    } else {
-      // Fallback для обычного браузера
-      window.location.href = telUrl;
-    }
+    // Telegram WebApp API не поддерживает tel: через openLink
+    // Используем прямой переход через window.location.href
+    window.location.href = telUrl;
   };
 
   const handleMapsClick = (url: string) => {
