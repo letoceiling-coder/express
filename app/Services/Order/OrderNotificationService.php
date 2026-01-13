@@ -968,5 +968,115 @@ class OrderNotificationService
         Cache::forget("bot_{$botId}_couriers");
         Cache::forget("bot_{$botId}_kitchen");
     }
+
+    /**
+     * Уведомить клиента о неоплаченном заказе через 10 минут
+     *
+     * @param Order $order
+     * @return bool
+     */
+    public function notifyClientUnpaidAfter10Minutes(Order $order): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token || !$order->telegram_id) {
+                return false;
+            }
+
+            // Проверяем, что заказ все еще не оплачен
+            if ($order->payment_status !== Order::PAYMENT_STATUS_PENDING) {
+                return false;
+            }
+
+            $settings = \App\Models\OrderSetting::getSettings();
+            if (!$settings->notification_10min_enabled) {
+                return false;
+            }
+
+            $template = $settings->notification_10min_template 
+                ?? 'Вы оформили заказ №{{orderId}} на {{amount}} ₽.\nЧтобы мы начали готовить, оплатите заказ.';
+
+            $message = $settings->replaceTemplatePlaceholders($template, [
+                'orderId' => $order->order_id,
+                'amount' => number_format($order->total_amount, 2, '.', ' '),
+            ]);
+
+            // Кнопки для оплаты и отмены
+            $buttons = [
+                [
+                    [
+                        'text' => '💳 Оплатить',
+                        'callback_data' => "order_pay:{$order->id}"
+                    ],
+                    [
+                        'text' => '❌ Отменить',
+                        'callback_data' => "order_cancel_request:{$order->id}"
+                    ]
+                ]
+            ];
+
+            return $this->createClientNotification($order, $message, $buttons);
+        } catch (\Exception $e) {
+            Log::error('Error notifying client about unpaid order (10min): ' . $e->getMessage(), [
+                'order_id' => $order->id,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Уведомить клиента за 5 минут до истечения TTL
+     *
+     * @param Order $order
+     * @return bool
+     */
+    public function notifyClient5MinutesBeforeTTL(Order $order): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token || !$order->telegram_id) {
+                return false;
+            }
+
+            // Проверяем, что заказ все еще не оплачен
+            if ($order->payment_status !== Order::PAYMENT_STATUS_PENDING) {
+                return false;
+            }
+
+            $settings = \App\Models\OrderSetting::getSettings();
+            if (!$settings->notification_5min_before_ttl_enabled) {
+                return false;
+            }
+
+            $template = $settings->notification_5min_template 
+                ?? 'Заказ №{{orderId}} будет отменён через 5 минут, если не оплатить.';
+
+            $message = $settings->replaceTemplatePlaceholders($template, [
+                'orderId' => $order->order_id,
+                'amount' => number_format($order->total_amount, 2, '.', ' '),
+            ]);
+
+            // Кнопки для оплаты и отмены
+            $buttons = [
+                [
+                    [
+                        'text' => '💳 Оплатить',
+                        'callback_data' => "order_pay:{$order->id}"
+                    ],
+                    [
+                        'text' => '❌ Отменить',
+                        'callback_data' => "order_cancel_request:{$order->id}"
+                    ]
+                ]
+            ];
+
+            return $this->createClientNotification($order, $message, $buttons);
+        } catch (\Exception $e) {
+            Log::error('Error notifying client about TTL (5min): ' . $e->getMessage(), [
+                'order_id' => $order->id,
+            ]);
+            return false;
+        }
+    }
 }
 

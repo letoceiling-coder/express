@@ -598,4 +598,47 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Отменить заказ
+     * 
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function cancel($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            // Проверяем, что заказ может быть отменен
+            if (in_array($order->status, [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED])) {
+                return response()->json([
+                    'message' => 'Заказ уже доставлен или отменен',
+                ], 400);
+            }
+
+            // Отменяем заказ
+            $this->orderStatusService->changeStatus($order, Order::STATUS_CANCELLED, [
+                'role' => 'user',
+                'comment' => 'Отменено пользователем',
+            ]);
+
+            $order->refresh();
+
+            // Уведомляем клиента
+            $this->orderNotificationService->notifyClientStatusChange($order, Order::STATUS_CANCELLED);
+
+            return response()->json([
+                'message' => 'Заказ успешно отменен',
+                'data' => $order,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при отмене заказа: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Ошибка при отмене заказа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

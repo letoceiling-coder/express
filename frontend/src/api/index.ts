@@ -426,6 +426,59 @@ export const ordersAPI = {
     }
   },
 
+  async cancelOrder(orderId: string): Promise<void> {
+    try {
+      // Находим заказ по orderId
+      const order = await this.getByOrderId(orderId);
+      if (!order) {
+        throw new Error('Заказ не найден');
+      }
+
+      const response = await apiRequest(`/orders/${order.id}/cancel`, {
+        method: 'POST',
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Ошибка отмены заказа');
+      }
+    } catch (error: any) {
+      console.error('Orders API - cancelOrder error:', error);
+      throw error;
+    }
+  },
+
+  async getPaymentLink(orderId: string): Promise<string | null> {
+    try {
+      const order = await this.getByOrderId(orderId);
+      if (!order) {
+        throw new Error('Заказ не найден');
+      }
+
+      const user = await import('@/lib/telegram').then(m => m.getTelegramUser());
+      const telegramId = user?.id;
+
+      if (!order.paymentId) {
+        // Создаем новый платеж
+        const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
+        const paymentData = await paymentAPI.createYooKassaPayment(
+          Number(order.id),
+          order.totalAmount,
+          returnUrl,
+          `Оплата заказа ${order.orderId}`,
+          telegramId
+        );
+        return paymentData.confirmation_url || null;
+      }
+
+      // Если платеж уже существует, получаем его URL
+      const response = await apiRequest(`/payments/yookassa/${order.paymentId}/link`);
+      return response.data?.confirmation_url || null;
+    } catch (error: any) {
+      console.error('Orders API - getPaymentLink error:', error);
+      throw error;
+    }
+  },
+
   async updatePaymentStatus(orderId: string, paymentId: string, status: 'succeeded' | 'failed'): Promise<void> {
     // Ищем заказ по order_id
     const orders = await this.getByTelegramId(0); // Получаем все заказы или создаем отдельный метод

@@ -109,6 +109,11 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'Отменён',
 };
 
+// Helper to check if order is unpaid
+export const isOrderUnpaid = (order: Order): boolean => {
+  return order.paymentStatus === 'pending' && order.status !== 'cancelled';
+};
+
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   pending: 'Ожидает оплаты',
   succeeded: 'Оплачено',

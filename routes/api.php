@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\v1\PaymentController;
 use App\Http\Controllers\Api\v1\PaymentMethodController;
 use App\Http\Controllers\Api\v1\PaymentSettingsController;
 use App\Http\Controllers\Api\v1\DeliverySettingsController;
+use App\Http\Controllers\Api\v1\OrderSettingsController;
 use App\Http\Controllers\Api\v1\AboutPageController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
@@ -137,6 +138,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('orders/{id}', [OrderController::class, 'destroy'])->name('orders.destroy');
         Route::put('orders/{id}/status', [OrderController::class, 'updateStatus'])
             ->name('orders.status');
+        Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])
+            ->name('orders.cancel');
         Route::get('orders/{id}/status-history', [OrderController::class, 'statusHistory'])
             ->name('orders.status-history');
         
@@ -204,6 +207,12 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('delivery-settings.get');
         Route::put('delivery-settings', [DeliverySettingsController::class, 'updateSettings'])
             ->name('delivery-settings.update');
+        
+        // Order Settings
+        Route::get('order-settings', [OrderSettingsController::class, 'getSettings'])
+            ->name('order-settings.get');
+        Route::put('order-settings', [OrderSettingsController::class, 'updateSettings'])
+            ->name('order-settings.update');
         
         // About Page (Admin)
         Route::get('admin/about', [AboutPageController::class, 'getAdmin'])

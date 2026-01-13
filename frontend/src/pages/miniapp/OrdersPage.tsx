@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ClipboardList, Filter, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
@@ -7,9 +7,9 @@ import { OrderCard } from '@/components/miniapp/OrderCard';
 import { useOrders } from '@/hooks/useOrders';
 import { OrderStatus } from '@/types';
 
-const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
+const statusFilters: { value: OrderStatus | 'all' | 'pending_payment'; label: string }[] = [
   { value: 'all', label: 'Все' },
-  { value: 'new', label: 'Новый' },
+  { value: 'pending_payment', label: 'Ожидает оплаты' },
   { value: 'preparing', label: 'В работе' },
   { value: 'in_transit', label: 'В доставке' },
   { value: 'delivered', label: 'Завершён' },
@@ -18,7 +18,7 @@ const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
 export function OrdersPage() {
   const navigate = useNavigate();
   const { orders, loading, error, loadOrders } = useOrders();
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all' | 'pending_payment'>('all');
 
   useEffect(() => {
     console.log('OrdersPage - Component mounted, checking if orders need loading...');
@@ -54,9 +54,15 @@ export function OrdersPage() {
     });
   }, [orders, loading, error]);
 
-  const filteredOrders = statusFilter === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === statusFilter);
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'all') {
+      return orders;
+    }
+    if (statusFilter === 'pending_payment') {
+      return orders.filter(order => order.paymentStatus === 'pending' && order.status !== 'cancelled');
+    }
+    return orders.filter(order => order.status === statusFilter);
+  }, [orders, statusFilter]);
 
   if (loading) {
     return (
