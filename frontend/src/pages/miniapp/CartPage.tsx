@@ -56,7 +56,7 @@ export function CartPage() {
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       <MiniAppHeader title="Корзина" showCart={false} />
 
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto px-4 min-h-0">
         <div className="flex items-center justify-between py-3 sticky top-0 bg-background z-10">
           <span className="text-muted-foreground">
             {getItemsText(items.length)}
@@ -77,7 +77,7 @@ export function CartPage() {
       </div>
 
       {/* Bottom Summary */}
-      <div className="fixed bottom-14 left-0 right-0 z-40 border-t border-border bg-background p-4 safe-area-bottom">
+      <div className="flex-shrink-0 border-t border-border bg-background p-4 safe-area-bottom">
         {/* Summary card */}
         <div className="mb-3 rounded-lg bg-secondary p-3">
           <div className="flex items-center justify-between text-sm">
