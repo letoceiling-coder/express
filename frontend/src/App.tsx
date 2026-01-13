@@ -13,6 +13,7 @@ import { OrdersPage } from "./pages/miniapp/OrdersPage";
 import { OrderDetailPage } from "./pages/miniapp/OrderDetailPage";
 import { ProductDetailPage } from "./pages/miniapp/ProductDetailPage";
 import { AboutPage } from "./pages/miniapp/AboutPage";
+import { CallPage } from "./pages/miniapp/CallPage";
 
 // Admin Pages
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/call" element={<CallPage />} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>

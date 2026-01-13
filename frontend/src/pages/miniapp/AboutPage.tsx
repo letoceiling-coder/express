@@ -53,18 +53,52 @@ export function AboutPage() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
-    // Для iOS в Telegram Mini App используем window.open
-    if (isIOS && tg) {
-      // На iOS в WebView window.open может работать лучше
-      try {
-        window.open(telUrl, '_self');
-        return;
-      } catch (e) {
-        // Если не работает, пробуем другие методы
-      }
+    // Для iOS показываем popup с кнопками
+    if (isIOS && tg && tg.showPopup) {
+      tg.showPopup(
+        {
+          title: 'Позвонить',
+          message: phone, // Номер крупно
+          buttons: [
+            {
+              id: 'copy',
+              type: 'default',
+              text: 'Скопировать',
+            },
+            {
+              id: 'call',
+              type: 'default',
+              text: 'Позвонить',
+            },
+            {
+              id: 'cancel',
+              type: 'cancel',
+              text: 'Отмена',
+            },
+          ],
+        },
+        (buttonId) => {
+          if (buttonId === 'copy') {
+            // Копируем номер
+            handleCopyPhone(phone);
+          } else if (buttonId === 'call') {
+            // Открываем страницу для звонка
+            const baseUrl = window.location.origin;
+            const callUrl = `${baseUrl}/call?phone=${encodeURIComponent(cleanPhone)}`;
+            
+            // Открываем в новой вкладке через Telegram API
+            if (tg.openLink) {
+              tg.openLink(callUrl, { try_instant_view: false });
+            } else {
+              window.open(callUrl, '_blank');
+            }
+          }
+        }
+      );
+      return;
     }
     
-    // Пробуем создать элемент <a> и кликнуть (работает на Android и некоторых iOS)
+    // Для Android и других платформ используем прямой вызов
     try {
       const link = document.createElement('a');
       link.href = telUrl;
@@ -72,31 +106,16 @@ export function AboutPage() {
       link.setAttribute('target', '_self');
       document.body.appendChild(link);
       
-      // Используем dispatchEvent для более надежного клика на iOS
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true,
-      });
-      link.dispatchEvent(clickEvent);
-      
-      // Также пробуем обычный click
       link.click();
       
-      // Удаляем элемент
       setTimeout(() => {
         if (link.parentNode) {
           document.body.removeChild(link);
         }
       }, 100);
     } catch (e) {
-      // Если ничего не работает, показываем popup с номером для iOS
-      if (isIOS && tg && tg.showAlert) {
-        tg.showAlert(`Позвоните по номеру:\n${phone}\n\nИли скопируйте номер, используя кнопку копирования.`);
-      } else {
-        // Fallback для других случаев
-        window.location.href = telUrl;
-      }
+      // Fallback
+      window.location.href = telUrl;
     }
   };
 
