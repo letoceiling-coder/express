@@ -175,31 +175,15 @@ export function OrderDetailPage() {
 
   const handleCancel = async (orderData?: Order) => {
     const currentOrder = orderData || order;
-    if (!currentOrder) return;
+    if (!currentOrder || !currentOrder.orderId) {
+      toast.error('Заказ не найден');
+      return;
+    }
 
     // Проверяем, что заказ можно отменить
-    console.log('OrderDetailPage - handleCancel - Order data:', {
-      orderId: currentOrder.orderId,
-      status: currentOrder.status,
-      paymentStatus: currentOrder.paymentStatus,
-      canCancel: canCancelOrder(currentOrder),
-    });
-
     if (!canCancelOrder(currentOrder)) {
-      console.log('OrderDetailPage - handleCancel - Cannot cancel order:', {
-        status: currentOrder.status,
-        paymentStatus: currentOrder.paymentStatus,
-        isCancelled: currentOrder.status === 'cancelled',
-        isDelivered: currentOrder.status === 'delivered',
-        isPaid: currentOrder.paymentStatus === 'succeeded',
-      });
-      
       if (currentOrder.status === 'cancelled') {
         toast.error('Заказ уже отменен');
-      } else if (currentOrder.status === 'delivered') {
-        toast.error('Заказ уже доставлен');
-      } else if (currentOrder.paymentStatus === 'succeeded') {
-        toast.error('Заказ уже оплачен');
       } else {
         toast.error('Заказ нельзя отменить');
       }
