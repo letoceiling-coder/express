@@ -128,6 +128,14 @@ export function CatalogPage() {
         />
       </div>
 
+      {/* Delivery Progress Bar - Sticky под меню */}
+      {orderMode === 'delivery' && (
+        <DeliveryProgressBar
+          cartTotal={totalAmount}
+          minDeliveryTotal={minDeliveryTotal}
+        />
+      )}
+
       <div className="px-2 sm:px-4 pt-4">
         {activeCategory ? (
           // Grid layout when category is selected
@@ -183,7 +191,7 @@ export function CatalogPage() {
 
       {/* Floating Cart Button */}
       {totalItems > 0 && (
-        <div className={`fixed ${orderMode === 'delivery' ? 'bottom-28' : 'bottom-20'} left-4 right-4 z-40 animate-slide-up`}>
+        <div className="fixed bottom-20 left-4 right-4 z-40 animate-slide-up">
           <button
             onClick={() => navigate('/cart')}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary h-12 text-base font-semibold text-primary-foreground shadow-lg touch-feedback hover:opacity-90 transition-opacity"
@@ -192,15 +200,6 @@ export function CatalogPage() {
             Корзина ({totalItems}) · {totalAmount.toLocaleString('ru-RU')} ₽
           </button>
         </div>
-      )}
-
-      {/* Delivery Progress Bar - показывается только при выборе доставки */}
-      {orderMode === 'delivery' && (
-        <DeliveryProgressBar
-          cartTotal={totalAmount}
-          minDeliveryTotal={minDeliveryTotal}
-          onNavigateToCart={() => navigate('/cart')}
-        />
       )}
 
       <BottomNavigation />
