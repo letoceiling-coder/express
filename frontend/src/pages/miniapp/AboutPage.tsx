@@ -45,7 +45,18 @@ export function AboutPage() {
   }, []);
 
   const handlePhoneClick = (phone: string) => {
-    window.location.href = `tel:${phone}`;
+    // Очищаем номер от пробелов и других символов для tel: ссылки
+    const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+    const telUrl = `tel:${cleanPhone}`;
+    
+    // В Telegram Mini App используем openLink для открытия tel: ссылки
+    const tg = window.Telegram?.WebApp;
+    if (tg && tg.openLink) {
+      tg.openLink(telUrl, { try_instant_view: false });
+    } else {
+      // Fallback для обычного браузера
+      window.location.href = telUrl;
+    }
   };
 
   const handleMapsClick = (url: string) => {
@@ -164,22 +175,24 @@ export function AboutPage() {
           <div className="grid grid-cols-3 gap-2">
             {/* Phone Button */}
             {data.phone && (
-              <button
+              <a
+                href={`tel:${data.phone.replace(/\s+/g, '').replace(/[^\d+]/g, '')}`}
                 onClick={(e) => {
-                  e.stopPropagation();
+                  e.preventDefault();
                   handlePhoneClick(data.phone!);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors no-underline"
                 aria-label="Позвонить"
               >
                 <div className="relative">
                   <Phone className="h-5 w-5 text-primary" />
                   <button
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       handleCopyPhone(data.phone!);
                     }}
-                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border border-border"
+                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border border-border z-10"
                     aria-label="Скопировать номер"
                   >
                     {phoneCopied ? (
@@ -190,7 +203,7 @@ export function AboutPage() {
                   </button>
                 </div>
                 <span className="text-xs text-foreground text-center leading-tight">Телефон</span>
-              </button>
+              </a>
             )}
 
             {/* Address/Map Button */}
