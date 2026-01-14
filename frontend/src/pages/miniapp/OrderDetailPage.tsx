@@ -459,7 +459,7 @@ export function OrderDetailPage() {
           // Кнопки для неоплаченных заказов (которые можно отменить)
           <div className="flex gap-3">
             <Button
-              onClick={handleCancel}
+              onClick={() => handleCancel(order)}
               disabled={isCancelling || isProcessingPayment}
               variant="outline"
               className="flex-1"
