@@ -77,6 +77,18 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | This value is the version of your application, used for cache busting
+    | in Telegram mini-apps and other places where versioning is needed.
+    |
+    */
+
+    'version' => env('APP_VERSION', date('YmdHis')),
+
     'timezone' => 'UTC',
 
     /*

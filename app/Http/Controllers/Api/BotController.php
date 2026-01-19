@@ -366,10 +366,25 @@ class BotController extends Controller
                     $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
                     
                     // Добавляем версию к URL для принудительного сброса кеша
-                    // Используем timestamp или версию приложения из конфига
-                    $appVersion = config('app.version', date('YmdHis'));
+                    // Используем комбинацию версии из конфига и timestamp для гарантированного сброса кеша
+                    $appVersion = config('app.version', '');
+                    // Всегда добавляем timestamp для гарантированного сброса кеша
+                    // Формат: {APP_VERSION}-{timestamp} или просто {timestamp}
+                    $timestamp = time();
+                    if (!empty($appVersion) && $appVersion !== date('YmdHis')) {
+                        $versionParam = $appVersion . '-' . $timestamp;
+                    } else {
+                        $versionParam = $timestamp; // Используем только timestamp для максимальной уникальности
+                    }
                     $separator = strpos($miniAppUrl, '?') !== false ? '&' : '?';
-                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $appVersion;
+                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $versionParam;
+                    
+                    \Illuminate\Support\Facades\Log::info('🔗 Mini App URL with version', [
+                        'original_url' => $miniAppUrl,
+                        'app_version' => $appVersion,
+                        'version_param' => $versionParam,
+                        'final_url' => $miniAppUrlWithVersion,
+                    ]);
                     
                     // Формируем клавиатуру с кнопкой для запуска miniApp
                     $keyboard = [
