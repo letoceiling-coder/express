@@ -22,8 +22,7 @@ export interface Product {
     large?: { webp?: string; jpeg?: string };
   };
   isWeightProduct: boolean;
-  sortOrder: number;
-  position?: number;
+  sortOrder?: number;
   createdAt: Date;
   updatedAt: Date;
 }

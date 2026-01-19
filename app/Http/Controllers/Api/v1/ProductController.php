@@ -57,25 +57,15 @@ class ProductController extends Controller
             });
         }
 
-        // Сортировка по позиции (для drag-and-drop в админке)
-        // Если не указана явная сортировка, используем position
-        if (!$request->has('sort_by')) {
-            $query->orderBy('position', 'asc')->orderBy('id', 'asc');
+        // Сортировка
+        $sortBy = $request->get('sort_by', 'sort_order');
+        $sortOrder = $request->get('sort_order', 'asc');
+        
+        // Специальная сортировка по цене
+        if ($sortBy === 'price') {
+            $query->orderBy('price', $sortOrder);
         } else {
-            $sortBy = $request->get('sort_by', 'position');
-            $sortOrder = $request->get('sort_order', 'asc');
-            
-            // Специальная сортировка по цене
-            if ($sortBy === 'price') {
-                $query->orderBy('price', $sortOrder);
-            } else {
-                $query->orderBy($sortBy, $sortOrder);
-            }
-            
-            // Дополнительная сортировка по id для стабильности
-            if ($sortBy !== 'id') {
-                $query->orderBy('id', 'asc');
-            }
+            $query->orderBy($sortBy, $sortOrder);
         }
 
         // Пагинация
@@ -198,6 +188,62 @@ class ProductController extends Controller
             return response()->json([
                 'message' => 'Ошибка при удалении товара',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Обновить позиции товаров (drag & drop)
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updatePositions(Request $request)
+    {
+        $request->validate([
+            'products' => 'required|array|min:1',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.sort_order' => 'required|integer|min:0'
+        ], [
+            'products.required' => 'Массив товаров обязателен',
+            'products.array' => 'Товары должны быть переданы в виде массива',
+            'products.*.id.required' => 'ID товара обязателен',
+            'products.*.id.exists' => 'Товар с указанным ID не найден',
+            'products.*.sort_order.required' => 'Порядок сортировки обязателен',
+            'products.*.sort_order.integer' => 'Порядок сортировки должен быть целым числом'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($request->products as $productData) {
+                Product::where('id', $productData['id'])->update([
+                    'sort_order' => $productData['sort_order']
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Product positions updated', [
+                'count' => count($request->products),
+                'products' => $request->products
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Позиции товаров успешно обновлены'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Product positions update error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка обновления позиций: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -530,46 +576,6 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка при импорте товаров: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Обновить позиции товаров (для drag-and-drop)
-     * 
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function updatePositions(Request $request): JsonResponse
-    {
-        $request->validate([
-            'positions' => 'required|array',
-            'positions.*.id' => 'required|integer|exists:products,id',
-            'positions.*.position' => 'required|integer|min:0',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            foreach ($request->input('positions') as $item) {
-                Product::where('id', $item['id'])->update([
-                    'position' => $item['position']
-                ]);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Позиции товаров успешно обновлены',
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Ошибка при обновлении позиций товаров: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Ошибка при обновлении позиций: ' . $e->getMessage(),
             ], 500);
         }
     }

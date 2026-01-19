@@ -110,6 +110,8 @@ export const productsAPI = {
     const params = new URLSearchParams();
     params.append('is_available', 'true');
     params.append('per_page', '0'); // Отключаем пагинацию для получения всех продуктов
+    params.append('sort_by', 'sort_order'); // Сортировка по позиции
+    params.append('sort_order', 'asc'); // По возрастанию
     if (categoryId && categoryId !== 'all') {
       params.append('category_id', categoryId);
     }
@@ -147,7 +149,6 @@ export const productsAPI = {
       imageVariants: product.image?.variants || undefined,
       isWeightProduct: product.is_weight_product || false,
       sortOrder: product.sort_order || 0,
-      position: product.position !== undefined ? Number(product.position) : undefined,
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
     }));
@@ -179,21 +180,12 @@ export const productsAPI = {
             imageVariants: product.image?.variants || undefined,
             isWeightProduct: product.is_weight_product || false,
             sortOrder: product.sort_order || 0,
-            position: product.position !== undefined ? Number(product.position) : undefined,
             createdAt: new Date(product.created_at),
             updatedAt: new Date(product.updated_at),
           };
     } catch (error) {
       return null;
     }
-  },
-
-  async updatePositions(positions: Array<{ id: number; position: number }>): Promise<void> {
-    await apiRequest('/products/update-positions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ positions }),
-    });
   },
 };
 

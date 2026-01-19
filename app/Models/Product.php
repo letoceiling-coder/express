@@ -65,7 +65,6 @@ class Product extends Model
         'sort_order',
         'meta_title',
         'meta_description',
-        'position',
     ];
 
     /**
@@ -85,7 +84,6 @@ class Product extends Model
         'gallery_ids' => 'array',
         'video_id' => 'integer',
         'sort_order' => 'integer',
-        'position' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -166,6 +164,17 @@ class Product extends Model
     }
 
     /**
+     * Scope для сортировки
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
+    }
+
+    /**
      * Scope для фильтрации по категории
      * 
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -217,16 +226,5 @@ class Product extends Model
         }
 
         return $this->stock_quantity > 0;
-    }
-
-    /**
-     * Scope для сортировки по позиции
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('position', 'asc')->orderBy('id', 'asc');
     }
 }

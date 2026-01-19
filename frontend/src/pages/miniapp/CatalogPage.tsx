@@ -48,8 +48,19 @@ export function CatalogPage() {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    if (!activeCategory) return products;
-    return products.filter((product) => product.categoryId === activeCategory);
+    let filtered = activeCategory 
+      ? products.filter((product) => product.categoryId === activeCategory)
+      : products;
+    
+    // Сортируем по sortOrder, затем по названию
+    filtered = [...filtered].sort((a, b) => {
+      const orderA = a.sortOrder || 0;
+      const orderB = b.sortOrder || 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
+    
+    return filtered;
   }, [activeCategory, products]);
 
   // Group products by category when showing all
@@ -63,12 +74,11 @@ export function CatalogPage() {
       groups[product.categoryId].push(product);
     });
     
-    // Сортируем товары в каждой категории по position (если есть) или sortOrder
+    // Сортируем товары в каждой категории по sortOrder
     Object.keys(groups).forEach((categoryId) => {
       groups[categoryId].sort((a, b) => {
-        // Приоритет сортировки: position > sortOrder > name
-        const orderA = a.position !== undefined ? a.position : (a.sortOrder || 0);
-        const orderB = b.position !== undefined ? b.position : (b.sortOrder || 0);
+        const orderA = a.sortOrder || 0;
+        const orderB = b.sortOrder || 0;
         if (orderA !== orderB) return orderA - orderB;
         return a.name.localeCompare(b.name);
       });

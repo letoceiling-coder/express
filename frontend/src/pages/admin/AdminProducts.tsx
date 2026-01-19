@@ -1,22 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Search, Upload, GripVertical, Save, Loader2 } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, Search, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,87 +31,13 @@ import {
 import { mockProducts, mockCategories } from '@/data/mockData';
 import { Product } from '@/types';
 import { toast } from 'sonner';
-import { productsAPI, categoriesAPI } from '@/api';
-
-// SortableRow компонент для drag-and-drop
-function SortableProductRow({ product, onEdit, onDelete, getCategoryName }: any) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: product.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <TableRow ref={setNodeRef} style={style}>
-      <TableCell>
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1"
-        >
-          <GripVertical className="h-5 w-5 text-slate-400" />
-        </div>
-      </TableCell>
-      <TableCell>
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="h-12 w-12 rounded-lg object-cover"
-        />
-      </TableCell>
-      <TableCell>
-        <div>
-          <p className="font-medium">{product.name}</p>
-          <p className="max-w-xs truncate text-sm text-slate-500 dark:text-slate-400">
-            {product.description}
-          </p>
-        </div>
-      </TableCell>
-      <TableCell>{getCategoryName(product.categoryId)}</TableCell>
-      <TableCell>
-        {product.price.toLocaleString('ru-RU')} ₽
-        {product.isWeightProduct && (
-          <span className="ml-1 text-xs text-slate-400">/ед.</span>
-        )}
-      </TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(product)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-500 hover:text-red-600"
-            onClick={() => onDelete(product.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
 
 export function AdminProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [hasPositionChanges, setHasPositionChanges] = useState(false);
-  const [isSavingPositions, setIsSavingPositions] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -137,41 +46,6 @@ export function AdminProducts() {
     imageUrl: '',
     isWeightProduct: false,
   });
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Минимальное расстояние для активации drag (8px)
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Загрузка товаров и категорий из API
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [productsData, categoriesData] = await Promise.all([
-          productsAPI.getAll(),
-          categoriesAPI.getAll(),
-        ]);
-        setProducts(productsData);
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error loading products:', error);
-        toast.error('Ошибка при загрузке товаров');
-        // Fallback на mock данные
-        setProducts(mockProducts);
-        setCategories(mockCategories);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -258,87 +132,19 @@ export function AdminProducts() {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setProducts((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        
-        const newItems = arrayMove(items, oldIndex, newIndex);
-        setHasPositionChanges(true);
-        return newItems;
-      });
-    }
-  };
-
-  const handleSavePositions = async () => {
-    setIsSavingPositions(true);
-    try {
-      const positions = filteredProducts.map((product, index) => ({
-        id: parseInt(product.id),
-        position: index,
-      }));
-      await productsAPI.updatePositions(positions);
-      toast.success('Порядок товаров сохранён');
-      setHasPositionChanges(false);
-      
-      // Обновляем позиции в локальном состоянии
-      setProducts((prev) => {
-        const updated = [...prev];
-        positions.forEach(({ id, position }) => {
-          const product = updated.find((p) => parseInt(p.id) === id);
-          if (product) {
-            product.position = position;
-          }
-        });
-        return updated;
-      });
-    } catch (error: any) {
-      console.error('Error saving positions:', error);
-      toast.error(error?.response?.data?.message || 'Ошибка при сохранении порядка');
-    } finally {
-      setIsSavingPositions(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-4 lg:p-8">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-4 text-muted-foreground">Загрузка товаров...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 lg:p-8">
       <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100">Товары</h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">
-            Управление каталогом товаров • Перетащите товары для изменения порядка
+            Управление каталогом товаров
           </p>
         </div>
-        <div className="flex gap-2">
-          {hasPositionChanges && (
-            <Button
-              onClick={handleSavePositions}
-              disabled={isSavingPositions}
-              className="bg-blue-500 hover:bg-blue-600"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isSavingPositions ? 'Сохранение...' : 'Сохранить порядок'}
-            </Button>
-          )}
-          <Button onClick={openCreateDialog} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md shadow-emerald-200 dark:shadow-emerald-900/30">
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить товар
-          </Button>
-        </div>
+        <Button onClick={openCreateDialog} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md shadow-emerald-200 dark:shadow-emerald-900/30">
+          <Plus className="mr-2 h-4 w-4" />
+          Добавить товар
+        </Button>
       </div>
 
       <Card className="border-0 bg-white dark:bg-slate-800 shadow-sm">
@@ -413,42 +219,68 @@ export function AdminProducts() {
             ))}
           </div>
 
-          {/* Desktop Table View with Drag-and-Drop */}
+          {/* Desktop Table View */}
           <div className="hidden lg:block">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Фото</TableHead>
-                    <TableHead>Название</TableHead>
-                    <TableHead>Категория</TableHead>
-                    <TableHead>Цена</TableHead>
-                    <TableHead className="text-right">Действия</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <SortableContext
-                  items={filteredProducts.map(p => p.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <TableBody>
-                    {filteredProducts.map((product) => (
-                      <SortableProductRow
-                        key={product.id}
-                        product={product}
-                        onEdit={openEditDialog}
-                        onDelete={handleDelete}
-                        getCategoryName={getCategoryName}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Фото</TableHead>
+                  <TableHead>Название</TableHead>
+                  <TableHead>Категория</TableHead>
+                  <TableHead>Цена</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-12 w-12 rounded-lg object-cover"
                       />
-                    ))}
-                  </TableBody>
-                </SortableContext>
-              </Table>
-            </DndContext>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="max-w-xs truncate text-sm text-slate-500 dark:text-slate-400">
+                          {product.description}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getCategoryName(product.categoryId)}</TableCell>
+                    <TableCell>
+                      {product.price.toLocaleString('ru-RU')} ₽
+                      {product.isWeightProduct && (
+                        <span className="ml-1 text-xs text-slate-400">
+                          /ед.
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(product)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleDelete(product.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
 
           {filteredProducts.length === 0 && (
@@ -516,7 +348,7 @@ export function AdminProducts() {
                     <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {mockCategories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>

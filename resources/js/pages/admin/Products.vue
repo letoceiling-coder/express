@@ -3,18 +3,9 @@
         <div class="mb-6 flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-foreground">Товары</h1>
-                <p class="text-muted-foreground mt-1">Управление товарами • Перетащите товары для изменения порядка</p>
+                <p class="text-muted-foreground mt-1">Управление товарами</p>
             </div>
             <div class="flex items-center gap-2">
-                <button
-                    v-if="hasPositionChanges"
-                    @click="handleSavePositions"
-                    class="h-10 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
-                    :disabled="savingPositions"
-                >
-                    <span v-if="savingPositions">Сохранение...</span>
-                    <span v-else>💾 Сохранить порядок</span>
-                </button>
                 <button
                     @click="handleExportCsv"
                     class="h-10 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 inline-flex items-center gap-2"
@@ -100,7 +91,6 @@
                         v-model="sortBy"
                         class="h-10 px-3 rounded-lg border border-input bg-background"
                     >
-                        <option value="position">По позиции</option>
                         <option value="sort_order">По порядку</option>
                         <option value="name">По названию</option>
                         <option value="price">По цене</option>
@@ -125,7 +115,6 @@
             <table class="w-full">
                 <thead class="bg-muted/50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground w-12"></th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Изображение</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Название</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Категория</th>
@@ -136,44 +125,33 @@
                         <th class="px-6 py-3 text-right text-sm font-medium text-foreground">Действия</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-border" id="products-tbody">
+                <tbody 
+                    class="divide-y divide-border"
+                    id="products-table-body"
+                >
                     <tr 
-                        v-for="(product, index) in filteredProducts" 
+                        v-for="product in filteredProducts" 
                         :key="product.id"
-                        :data-id="product.id"
-                        :class="[
-                            'cursor-move hover:bg-muted/50 transition-colors',
-                            draggedIndex === index ? 'opacity-50 bg-blue-100' : '',
-                            draggedOverIndex === index ? 'border-t-2 border-blue-500' : ''
-                        ]"
-                        draggable="true"
-                        @dragstart="handleDragStart($event, index)"
-                        @dragover.prevent="handleDragOver($event, index)"
-                        @dragleave="handleDragLeave"
-                        @drop="handleDrop($event, index)"
+                        :draggable="true"
+                        @dragstart="handleDragStart($event, product)"
+                        @dragover.prevent="handleDragOver($event)"
+                        @drop="handleDrop($event, product)"
                         @dragend="handleDragEnd"
+                        :class="{ 'opacity-50': draggingProductId === product.id }"
+                        class="cursor-move hover:bg-muted/50 transition-colors"
                     >
                         <td class="px-6 py-4">
-                            <div class="cursor-grab active:cursor-grabbing text-muted-foreground">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="9" cy="12" r="1"></circle>
-                                    <circle cx="9" cy="5" r="1"></circle>
-                                    <circle cx="9" cy="19" r="1"></circle>
-                                    <circle cx="15" cy="12" r="1"></circle>
-                                    <circle cx="15" cy="5" r="1"></circle>
-                                    <circle cx="15" cy="19" r="1"></circle>
-                                </svg>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <img
-                                v-if="product.image?.url"
-                                :src="product.image.url"
-                                :alt="product.name"
-                                class="w-16 h-16 object-cover rounded-lg"
-                            />
-                            <div v-else class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                                <span class="text-muted-foreground text-xs">Нет фото</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-muted-foreground text-xs select-none">⋮⋮</span>
+                                <img
+                                    v-if="product.image?.url"
+                                    :src="product.image.url"
+                                    :alt="product.name"
+                                    class="w-16 h-16 object-cover rounded-lg"
+                                />
+                                <div v-else class="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                                    <span class="text-muted-foreground text-xs">Нет фото</span>
+                                </div>
                             </div>
                         </td>
                         <td class="px-6 py-4">
@@ -315,17 +293,16 @@ export default {
             searchQuery: '',
             categoryFilter: '',
             statusFilter: '',
-            sortBy: 'position',
+            sortBy: 'sort_order',
             exporting: false,
             showImportDialog: false,
             selectedFile: null,
             importing: false,
             importError: null,
             importSuccess: null,
-            hasPositionChanges: false,
-            savingPositions: false,
-            draggedIndex: null,
-            draggedOverIndex: null,
+            draggingProductId: null,
+            draggedProduct: null,
+            isUpdatingPositions: false,
         };
     },
     computed: {
@@ -359,12 +336,7 @@ export default {
 
             // Сортировка
             filtered.sort((a, b) => {
-                if (this.sortBy === 'position') {
-                    const posA = a.position !== undefined ? a.position : (a.sort_order || 0);
-                    const posB = b.position !== undefined ? b.position : (b.sort_order || 0);
-                    if (posA !== posB) return posA - posB;
-                    return (a.id || 0) - (b.id || 0);
-                } else if (this.sortBy === 'sort_order') {
+                if (this.sortBy === 'sort_order') {
                     return (a.sort_order || 0) - (b.sort_order || 0);
                 } else if (this.sortBy === 'name') {
                     return a.name.localeCompare(b.name);
@@ -390,33 +362,8 @@ export default {
             try {
                 const response = await productsAPI.getAll();
                 // Гарантируем, что products всегда массив
-                let products = Array.isArray(response.data) ? response.data : [];
-                
-                // Убеждаемся, что у всех товаров есть position
-                products = products.map((product, index) => {
-                    if (product.position === undefined || product.position === null) {
-                        product.position = product.sort_order !== undefined ? product.sort_order : index;
-                    }
-                    return product;
-                });
-                
-                // Сортируем по position для правильного отображения
-                products.sort((a, b) => {
-                    const posA = a.position !== undefined ? a.position : (a.sort_order || 0);
-                    const posB = b.position !== undefined ? b.position : (b.sort_order || 0);
-                    if (posA !== posB) return posA - posB;
-                    return (a.id || 0) - (b.id || 0);
-                });
-                
-                this.products = products;
-                this.hasPositionChanges = false; // Сбрасываем флаг при загрузке
-                
-                console.log('Products loaded:', products.length, 'items');
-                console.log('First 5 products with positions:', 
-                    products.slice(0, 5).map(p => ({ id: p.id, name: p.name, position: p.position }))
-                );
+                this.products = Array.isArray(response.data) ? response.data : [];
             } catch (error) {
-                console.error('Error loading products:', error);
                 this.error = error.message || 'Ошибка загрузки товаров';
                 this.products = []; // В случае ошибки устанавливаем пустой массив
             } finally {
@@ -557,226 +504,79 @@ export default {
             }
         },
 
-        handleDragStart(event, index) {
-            console.log('Drag start at index:', index);
-            this.draggedIndex = index;
+        // Drag and Drop методы
+        handleDragStart(event, product) {
+            this.draggedProduct = product;
+            this.draggingProductId = product.id;
             event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', index.toString());
-            event.dataTransfer.setData('application/json', JSON.stringify(this.filteredProducts[index]));
-            
-            // Предотвращаем всплытие события
-            event.stopPropagation();
-            
-            // Визуальная обратная связь
-            if (event.currentTarget) {
-                event.currentTarget.style.opacity = '0.5';
-                event.currentTarget.classList.add('dragging');
-            }
+            event.dataTransfer.setData('text/html', product.id);
         },
 
-        handleDragOver(event, index) {
+        handleDragOver(event) {
             event.preventDefault();
-            event.stopPropagation();
             event.dataTransfer.dropEffect = 'move';
-            
-            if (this.draggedIndex === null || this.draggedIndex === index) {
-                return;
-            }
-            
-            this.draggedOverIndex = index;
         },
 
-        handleDragLeave(event) {
-            // Убираем подсветку только если мы действительно покинули строку
-            const relatedTarget = event.relatedTarget;
-            if (!relatedTarget || !event.currentTarget.contains(relatedTarget)) {
-                // Проверяем, что мы не перешли в дочерний элемент
-                const rect = event.currentTarget.getBoundingClientRect();
-                const x = event.clientX;
-                const y = event.clientY;
-                
-                if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-                    this.draggedOverIndex = null;
-                }
-            }
-        },
-
-        handleDrop(event, dropIndex) {
+        async handleDrop(event, targetProduct) {
             event.preventDefault();
-            event.stopPropagation();
             
-            if (this.draggedIndex === null) {
-                console.warn('Drop: draggedIndex is null');
-                this.draggedIndex = null;
-                this.draggedOverIndex = null;
-                return;
-            }
-            
-            if (this.draggedIndex === dropIndex) {
-                console.log('Drop: same position, ignoring');
-                this.draggedIndex = null;
-                this.draggedOverIndex = null;
+            if (!this.draggedProduct || this.draggedProduct.id === targetProduct.id) {
+                this.draggingProductId = null;
+                this.draggedProduct = null;
                 return;
             }
 
-            console.log('Drop: from filtered index', this.draggedIndex, 'to filtered index', dropIndex);
+            // Находим индексы товаров в отфильтрованном списке
+            const draggedIndex = this.filteredProducts.findIndex(p => p.id === this.draggedProduct.id);
+            const targetIndex = this.filteredProducts.findIndex(p => p.id === targetProduct.id);
 
-            // Получаем товары из filteredProducts (computed)
-            const filtered = this.filteredProducts;
-            
-            if (this.draggedIndex >= filtered.length || dropIndex >= filtered.length) {
-                console.error('Invalid index:', { draggedIndex: this.draggedIndex, dropIndex, filteredLength: filtered.length });
-                this.draggedIndex = null;
-                this.draggedOverIndex = null;
+            if (draggedIndex === -1 || targetIndex === -1) {
+                this.draggingProductId = null;
+                this.draggedProduct = null;
                 return;
             }
-            
-            const draggedProduct = filtered[this.draggedIndex];
-            const dropProduct = filtered[dropIndex];
-            
-            console.log('Dragged product:', draggedProduct.name, 'ID:', draggedProduct.id);
-            console.log('Drop target product:', dropProduct.name, 'ID:', dropProduct.id);
-            
-            // Находим индексы этих товаров в исходном массиве products
-            const draggedProductIndex = this.products.findIndex(p => String(p.id) === String(draggedProduct.id));
-            const dropProductIndex = this.products.findIndex(p => String(p.id) === String(dropProduct.id));
-            
-            console.log('In products array: dragged index', draggedProductIndex, 'drop index', dropProductIndex);
-            
-            if (draggedProductIndex === -1) {
-                console.error('Dragged product not found in products array:', draggedProduct.id);
-                this.draggedIndex = null;
-                this.draggedOverIndex = null;
-                return;
-            }
-            
-            if (dropProductIndex === -1) {
-                console.error('Drop target product not found in products array:', dropProduct.id);
-                this.draggedIndex = null;
-                this.draggedOverIndex = null;
-                return;
-            }
-            
-            // Переставляем элементы в исходном массиве products
-            const reorderedProducts = [...this.products];
-            const [draggedProductObj] = reorderedProducts.splice(draggedProductIndex, 1);
-            
-            // Вычисляем новую позицию для вставки
-            let newDropIndex = dropProductIndex;
-            if (draggedProductIndex < dropProductIndex) {
-                // Если перетаскиваем вниз, нужно скорректировать индекс
-                newDropIndex = dropProductIndex;
-            } else {
-                // Если перетаскиваем вверх, индекс остается тем же
-                newDropIndex = dropProductIndex;
-            }
-            
-            reorderedProducts.splice(newDropIndex, 0, draggedProductObj);
-            
-            console.log('Reordered products. New order (first 10):', 
-                reorderedProducts.slice(0, 10).map((p, i) => ({ index: i, id: p.id, name: p.name }))
-            );
-            
-            // Обновляем массив products
-            // В Vue 2 для массивов просто присваиваем новый массив
-            this.products = reorderedProducts;
-            this.hasPositionChanges = true;
-            
-            // Принудительно обновляем компонент для немедленного отображения изменений
-            this.$nextTick(() => {
-                this.$forceUpdate();
-            });
-            
-            console.log('Products reordered. Total:', this.products.length);
-            console.log('hasPositionChanges:', this.hasPositionChanges);
-            
-            this.draggedIndex = null;
-            this.draggedOverIndex = null;
-        },
 
-        handleDragEnd(event) {
-            event.currentTarget.style.opacity = '';
-            event.currentTarget.classList.remove('dragging');
-            this.draggedIndex = null;
-            this.draggedOverIndex = null;
-        },
+            // Перемещаем товар в массиве
+            const products = [...this.filteredProducts];
+            const [removed] = products.splice(draggedIndex, 1);
+            products.splice(targetIndex, 0, removed);
 
-        async handleSavePositions() {
-            if (!this.hasPositionChanges) {
-                console.log('No position changes to save');
-                return;
-            }
-            
-            this.savingPositions = true;
+            // Обновляем sort_order для всех товаров
+            const productsToUpdate = products.map((product, index) => ({
+                id: product.id,
+                sort_order: index + 1
+            }));
+
+            // Сохраняем новые позиции на сервере
             try {
-                // Используем исходный массив products, а не filteredProducts
-                // чтобы сохранить позиции для всех товаров
-                const positions = this.products.map((product, index) => {
-                    const id = parseInt(product.id);
-                    if (isNaN(id)) {
-                        console.error('Invalid product ID:', product.id);
-                        return null;
-                    }
-                    return {
-                        id: id,
-                        position: index,
-                    };
-                }).filter(p => p !== null);
+                this.isUpdatingPositions = true;
+                await productsAPI.updatePositions(productsToUpdate);
                 
-                if (positions.length === 0) {
-                    throw new Error('Нет товаров для сохранения');
-                }
-                
-                console.log('Saving positions:', positions.slice(0, 10), '... (total:', positions.length, ')');
-                
-                const result = await productsAPI.updatePositions(positions);
-                
-                console.log('Positions saved successfully:', result);
-                
-                // Обновляем позиции в локальном массиве
-                positions.forEach(({ id, position }) => {
-                    const product = this.products.find(p => parseInt(p.id) === id);
-                    if (product) {
-                        product.position = position;
+                // Обновляем локальный массив products с новыми sort_order
+                products.forEach((product, index) => {
+                    const originalProduct = this.products.find(p => p.id === product.id);
+                    if (originalProduct) {
+                        originalProduct.sort_order = index + 1;
                     }
                 });
-                
-                await swal.success('Порядок товаров успешно сохранён');
-                this.hasPositionChanges = false;
-                
-                // Перезагружаем товары для синхронизации с сервером
-                await this.loadProducts();
+
+                await swal.success('Позиции товаров успешно обновлены');
             } catch (error) {
-                console.error('Error saving positions:', error);
-                console.error('Error details:', {
-                    message: error.message,
-                    response: error.response?.data,
-                    status: error.response?.status,
-                });
-                const errorMessage = error.response?.data?.message || error.message || 'Ошибка при сохранении порядка';
-                await swal.error(errorMessage);
+                console.error('Ошибка обновления позиций:', error);
+                await swal.error(error.message || 'Ошибка обновления позиций товаров');
+                // Перезагружаем список товаров в случае ошибки
+                await this.loadProducts();
             } finally {
-                this.savingPositions = false;
+                this.isUpdatingPositions = false;
+                this.draggingProductId = null;
+                this.draggedProduct = null;
             }
+        },
+
+        handleDragEnd() {
+            this.draggingProductId = null;
+            this.draggedProduct = null;
         },
     },
 };
 </script>
-
-<style scoped>
-.products-page tbody tr[draggable="true"] {
-    cursor: move;
-}
-
-.products-page tbody tr[draggable="true"]:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-}
-
-.products-page tbody tr.dragging {
-    opacity: 0.5;
-}
-
-.products-page tbody tr.drag-over {
-    border-top: 2px solid #3b82f6;
-}
-</style>
