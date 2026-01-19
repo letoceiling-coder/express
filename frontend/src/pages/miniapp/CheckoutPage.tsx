@@ -194,6 +194,7 @@ export function CheckoutPage() {
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
   const [minDeliveryOrderTotal, setMinDeliveryOrderTotal] = useState<number>(3000);
   const [deliveryMinLeadHours, setDeliveryMinLeadHours] = useState<number>(3);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Загрузка настроек доставки для получения города по умолчанию
   useEffect(() => {
@@ -908,7 +909,7 @@ export function CheckoutPage() {
                   <label className="mb-1.5 block text-sm text-muted-foreground">
                     Дата доставки *
                   </label>
-                  <Popover>
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -916,6 +917,7 @@ export function CheckoutPage() {
                           "w-full justify-start text-left font-normal h-11",
                           !formData.deliveryDate && "text-muted-foreground"
                         )}
+                        onClick={() => setCalendarOpen(true)}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {formData.deliveryDate ? (
@@ -937,6 +939,8 @@ export function CheckoutPage() {
                               deliveryDate: dateStr,
                               deliveryTimeSlot: '', // Сбрасываем время при смене даты
                             });
+                            // Закрываем календарь после выбора даты
+                            setCalendarOpen(false);
                           }
                         }}
                         disabled={(date) => {

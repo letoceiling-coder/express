@@ -550,7 +550,13 @@ export default {
             // Сохраняем новые позиции на сервере
             try {
                 this.isUpdatingPositions = true;
-                await productsAPI.updatePositions(productsToUpdate);
+                // Игнорируем ответ API, чтобы не показывать попап
+                const response = await productsAPI.updatePositions(productsToUpdate);
+                // Явно игнорируем response, чтобы никакой обработчик не показал попап
+                if (response && response.message) {
+                    // Игнорируем message из ответа
+                    console.log('Позиции обновлены:', response.message);
+                }
                 
                 // Обновляем локальный массив products с новыми sort_order
                 products.forEach((product, index) => {
@@ -560,7 +566,7 @@ export default {
                     }
                 });
 
-                // Позиции обновлены без показа попапа
+                // Позиции обновлены без показа попапа - НЕ показываем swal.success
             } catch (error) {
                 console.error('Ошибка обновления позиций:', error);
                 await swal.error(error.message || 'Ошибка обновления позиций товаров');
