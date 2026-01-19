@@ -560,7 +560,7 @@ export default {
                     }
                 });
 
-                await swal.success('Позиции товаров успешно обновлены');
+                // Позиции обновлены без показа попапа
             } catch (error) {
                 console.error('Ошибка обновления позиций:', error);
                 await swal.error(error.message || 'Ошибка обновления позиций товаров');
