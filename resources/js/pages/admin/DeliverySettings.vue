@@ -203,8 +203,49 @@
                         </button>
                     </div>
 
+                    <!-- Minimum Delivery Order Total -->
+                    <div class="space-y-4 pt-4 border-t border-border">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-1">
+                                Минимальный заказ для доставки (₽)
+                            </label>
+                            <input
+                                v-model.number="form.min_delivery_order_total_rub"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="3000"
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Минимальная сумма заказа для оформления доставки курьером. На самовывоз не влияет.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Minimum Lead Time -->
+                    <div class="space-y-4 pt-4 border-t border-border">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-1">
+                                Минимальное время подготовки (часы)
+                            </label>
+                            <input
+                                v-model.number="form.delivery_min_lead_hours"
+                                type="number"
+                                step="1"
+                                min="0"
+                                max="72"
+                                placeholder="3"
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Минимальное количество часов от текущего момента до доступного времени доставки. Например, при значении 3 и текущем времени 10:00, самый ранний слот будет 13:00.
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- Enable/Disable -->
-                    <div class="space-y-4">
+                    <div class="space-y-4 pt-4 border-t border-border">
                         <div class="flex items-center justify-between">
                             <div>
                                 <label class="block text-sm font-medium text-foreground mb-1">
@@ -268,6 +309,8 @@ export default {
                     { max_distance: null, cost: 1000 },
                 ],
                 is_enabled: false,
+                min_delivery_order_total_rub: 3000,
+                delivery_min_lead_hours: 3,
             },
             // Сохраняем введенный API ключ, чтобы не терять его при перезагрузке
             savedApiKey: '',
@@ -306,6 +349,12 @@ export default {
                             ? this.settings.delivery_zones
                             : this.form.delivery_zones,
                         is_enabled: this.settings.is_enabled !== undefined ? this.settings.is_enabled : false,
+                        min_delivery_order_total_rub: this.settings.min_delivery_order_total_rub !== undefined && this.settings.min_delivery_order_total_rub !== null
+                            ? Number(this.settings.min_delivery_order_total_rub)
+                            : 3000,
+                        delivery_min_lead_hours: this.settings.delivery_min_lead_hours !== undefined && this.settings.delivery_min_lead_hours !== null
+                            ? Number(this.settings.delivery_min_lead_hours)
+                            : 3,
                     };
                     
                     // Обновляем сохраненный ключ
