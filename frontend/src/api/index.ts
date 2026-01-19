@@ -147,6 +147,7 @@ export const productsAPI = {
       imageVariants: product.image?.variants || undefined,
       isWeightProduct: product.is_weight_product || false,
       sortOrder: product.sort_order || 0,
+      position: product.position !== undefined ? Number(product.position) : undefined,
       createdAt: new Date(product.created_at),
       updatedAt: new Date(product.updated_at),
     }));
@@ -178,12 +179,21 @@ export const productsAPI = {
             imageVariants: product.image?.variants || undefined,
             isWeightProduct: product.is_weight_product || false,
             sortOrder: product.sort_order || 0,
+            position: product.position !== undefined ? Number(product.position) : undefined,
             createdAt: new Date(product.created_at),
             updatedAt: new Date(product.updated_at),
           };
     } catch (error) {
       return null;
     }
+  },
+
+  async updatePositions(positions: Array<{ id: number; position: number }>): Promise<void> {
+    await apiRequest('/products/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions }),
+    });
   },
 };
 

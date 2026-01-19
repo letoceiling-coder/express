@@ -58,7 +58,7 @@ class ProductController extends Controller
         }
 
         // Сортировка
-        $sortBy = $request->get('sort_by', 'sort_order');
+        $sortBy = $request->get('sort_by', 'position');
         $sortOrder = $request->get('sort_order', 'asc');
         
         // Специальная сортировка по цене
@@ -66,6 +66,11 @@ class ProductController extends Controller
             $query->orderBy('price', $sortOrder);
         } else {
             $query->orderBy($sortBy, $sortOrder);
+        }
+        
+        // Дополнительная сортировка по id для стабильности
+        if ($sortBy !== 'id') {
+            $query->orderBy('id', 'asc');
         }
 
         // Пагинация
@@ -576,6 +581,46 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Ошибка при импорте товаров: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Обновить позиции товаров (для drag-and-drop)
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updatePositions(Request $request): JsonResponse
+    {
+        $request->validate([
+            'positions' => 'required|array',
+            'positions.*.id' => 'required|integer|exists:products,id',
+            'positions.*.position' => 'required|integer|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($request->input('positions') as $item) {
+                Product::where('id', $item['id'])->update([
+                    'position' => $item['position']
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Позиции товаров успешно обновлены',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Ошибка при обновлении позиций товаров: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при обновлении позиций: ' . $e->getMessage(),
             ], 500);
         }
     }

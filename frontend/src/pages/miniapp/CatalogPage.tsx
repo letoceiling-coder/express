@@ -63,11 +63,12 @@ export function CatalogPage() {
       groups[product.categoryId].push(product);
     });
     
-    // Сортируем товары в каждой категории по sortOrder
+    // Сортируем товары в каждой категории по position (если есть) или sortOrder
     Object.keys(groups).forEach((categoryId) => {
       groups[categoryId].sort((a, b) => {
-        const orderA = a.sortOrder || 0;
-        const orderB = b.sortOrder || 0;
+        // Приоритет сортировки: position > sortOrder > name
+        const orderA = a.position !== undefined ? a.position : (a.sortOrder || 0);
+        const orderB = b.position !== undefined ? b.position : (b.sortOrder || 0);
         if (orderA !== orderB) return orderA - orderB;
         return a.name.localeCompare(b.name);
       });
