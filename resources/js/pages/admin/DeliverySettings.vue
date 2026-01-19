@@ -68,7 +68,7 @@
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                placeholder="10000"
+                                placeholder="7000"
                                 class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             />
                             <p class="text-xs text-muted-foreground mt-1">
@@ -301,7 +301,7 @@ export default {
                 origin_latitude: '',
                 origin_longitude: '',
                 default_city: 'Екатеринбург',
-                free_delivery_threshold: 10000,
+                free_delivery_threshold: 7000,
                 delivery_zones: [
                     { max_distance: 3, cost: 300 },
                     { max_distance: 7, cost: 500 },
@@ -344,7 +344,7 @@ export default {
                         default_city: this.settings.default_city || 'Екатеринбург',
                         free_delivery_threshold: this.settings.free_delivery_threshold !== undefined && this.settings.free_delivery_threshold !== null
                             ? Number(this.settings.free_delivery_threshold)
-                            : 10000,
+                            : 7000,
                         delivery_zones: this.settings.delivery_zones && Array.isArray(this.settings.delivery_zones) && this.settings.delivery_zones.length > 0
                             ? this.settings.delivery_zones
                             : this.form.delivery_zones,

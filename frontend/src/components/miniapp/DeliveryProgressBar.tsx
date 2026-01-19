@@ -3,26 +3,58 @@ import { cn } from '@/lib/utils';
 interface DeliveryProgressBarProps {
   cartTotal: number;
   minDeliveryTotal: number;
+  freeDeliveryThreshold?: number;
   className?: string;
 }
 
 export function DeliveryProgressBar({
   cartTotal,
   minDeliveryTotal,
+  freeDeliveryThreshold,
   className,
 }: DeliveryProgressBarProps) {
-  const progress = Math.min(cartTotal / minDeliveryTotal, 1);
-  const remaining = Math.max(0, minDeliveryTotal - cartTotal);
-  const isComplete = cartTotal >= minDeliveryTotal;
+  // Определяем текущую цель прогресса
+  let targetAmount: number;
+  let remaining: number;
+  let progress: number;
+  let isComplete: boolean;
+  let message: string;
+  let progressLabel: string;
+
+  if (cartTotal < minDeliveryTotal) {
+    // Показываем прогресс до минимального заказа
+    targetAmount = minDeliveryTotal;
+    remaining = Math.max(0, minDeliveryTotal - cartTotal);
+    progress = Math.min(cartTotal / minDeliveryTotal, 1);
+    isComplete = false;
+    message = `Ещё ${formatNumber(remaining)} ₽ до доставки`;
+    progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(minDeliveryTotal)} ₽`;
+  } else if (freeDeliveryThreshold && cartTotal < freeDeliveryThreshold) {
+    // Показываем прогресс до бесплатной доставки
+    targetAmount = freeDeliveryThreshold;
+    remaining = Math.max(0, freeDeliveryThreshold - cartTotal);
+    progress = Math.min((cartTotal - minDeliveryTotal) / (freeDeliveryThreshold - minDeliveryTotal), 1);
+    isComplete = false;
+    message = `Ещё ${formatNumber(remaining)} ₽ до бесплатной доставки`;
+    progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(freeDeliveryThreshold)} ₽`;
+  } else {
+    // Доставка бесплатна
+    targetAmount = freeDeliveryThreshold || minDeliveryTotal;
+    remaining = 0;
+    progress = 1;
+    isComplete = true;
+    message = 'Доставка бесплатна';
+    progressLabel = `${formatNumber(cartTotal)} ₽`;
+  }
 
   // Форматирование чисел с пробелами (2 920 вместо 2920)
-  const formatNumber = (num: number): string => {
+  function formatNumber(num: number): string {
     return num.toLocaleString('ru-RU', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 0,
       useGrouping: true
     });
-  };
+  }
 
   return (
     <div
@@ -37,12 +69,10 @@ export function DeliveryProgressBar({
       <div className="mx-4 bg-card border border-border rounded-lg px-3 py-2 pointer-events-none">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-medium text-foreground">
-            {isComplete
-              ? 'Доставка доступна'
-              : `Ещё ${formatNumber(remaining)} ₽ до доставки`}
+            {message}
           </span>
           <span className="text-[10px] text-muted-foreground">
-            {formatNumber(cartTotal)} / {formatNumber(minDeliveryTotal)} ₽
+            {progressLabel}
           </span>
         </div>
         

@@ -32,6 +32,7 @@ export function CatalogPage() {
 
   // Загрузка настроек доставки
   const [minDeliveryTotal, setMinDeliveryTotal] = useState<number>(3000);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | undefined>(undefined);
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -39,9 +40,12 @@ export function CatalogPage() {
         if (settings?.min_delivery_order_total_rub !== undefined) {
           setMinDeliveryTotal(settings.min_delivery_order_total_rub);
         }
+        if (settings?.free_delivery_threshold !== undefined) {
+          setFreeDeliveryThreshold(settings.free_delivery_threshold);
+        }
       } catch (error) {
         console.error('Error loading delivery settings:', error);
-        // Используем значение по умолчанию 3000
+        // Используем значения по умолчанию
       }
     };
     loadSettings();
@@ -197,6 +201,7 @@ export function CatalogPage() {
         <DeliveryProgressBar
           cartTotal={totalAmount}
           minDeliveryTotal={minDeliveryTotal}
+          freeDeliveryThreshold={freeDeliveryThreshold}
         />
       )}
 
