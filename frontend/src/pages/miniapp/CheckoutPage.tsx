@@ -116,7 +116,6 @@ export function CheckoutPage() {
     phone: '',
     name: '',
     address: '',
-    deliveryTime: 'asap', // По умолчанию "как можно скорее"
     deliveryDate: '',
     deliveryTimeSlot: '',
     deliveryType: getInitialDeliveryType(),
@@ -523,7 +522,17 @@ export function CheckoutPage() {
           return false;
         }
       }
-      // Время доставки теперь необязательное
+      
+      // Проверка обязательного выбора даты и времени доставки
+      if (!formData.deliveryDate) {
+        toast.error('Выберите дату доставки');
+        return false;
+      }
+      
+      if (!formData.deliveryTimeSlot) {
+        toast.error('Выберите время доставки');
+        return false;
+      }
     }
     if (currentStep === 3) {
       if (!formData.paymentMethod) {
@@ -592,18 +601,11 @@ export function CheckoutPage() {
       
       // Формируем строку времени доставки
       let deliveryTimeStr: string | undefined;
-      if (formData.deliveryTime === 'asap') {
-        deliveryTimeStr = 'Как можно скорее';
-      } else if (formData.deliveryTime === 'scheduled' && formData.deliveryDate && formData.deliveryTimeSlot) {
+      if (formData.deliveryDate && formData.deliveryTimeSlot) {
         // Форматируем дату и время
         const date = new Date(formData.deliveryDate);
         const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
         deliveryTimeStr = `${dateStr}, ${formData.deliveryTimeSlot}`;
-      } else if (formData.deliveryTime === 'scheduled' && formData.deliveryDate) {
-        // Только дата без времени
-        const date = new Date(formData.deliveryDate);
-        const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-        deliveryTimeStr = dateStr;
       }
       
       const orderData = {
@@ -893,125 +895,88 @@ export function CheckoutPage() {
 
             <div>
               <label className="mb-1.5 block text-sm text-muted-foreground">
-                Время доставки
+                Время доставки *
               </label>
               
-              {/* Радио-кнопки для выбора типа времени */}
+              {/* Выбор даты и времени */}
               <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="deliveryTime"
-                    value="asap"
-                    checked={formData.deliveryTime === 'asap'}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      deliveryTime: e.target.value,
-                      deliveryDate: '',
-                      deliveryTimeSlot: '',
-                    })}
-                    className="w-4 h-4 text-primary border-input"
-                  />
-                  <span className="text-sm text-foreground">Как можно скорее</span>
-                </label>
+                {/* Выбор даты через календарь */}
+                <div>
+                  <label className="mb-1.5 block text-sm text-muted-foreground">
+                    Дата доставки *
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-11",
+                          !formData.deliveryDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.deliveryDate ? (
+                          format(new Date(formData.deliveryDate), "PPP", { locale: ru })
+                        ) : (
+                          <span>Выберите дату</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.deliveryDate ? new Date(formData.deliveryDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const dateStr = format(date, "yyyy-MM-dd");
+                            setFormData({ 
+                              ...formData, 
+                              deliveryDate: dateStr,
+                              deliveryTimeSlot: '', // Сбрасываем время при смене даты
+                            });
+                          }
+                        }}
+                        disabled={(date) => {
+                          // Отключаем прошлые даты и даты после максимума
+                          const dateStart = new Date(date);
+                          dateStart.setHours(0, 0, 0, 0);
+                          return dateStart < today || dateStart > maxDate;
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="deliveryTime"
-                    value="scheduled"
-                    checked={formData.deliveryTime === 'scheduled'}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      deliveryTime: e.target.value,
-                    })}
-                    className="w-4 h-4 text-primary border-input"
-                  />
-                  <span className="text-sm text-foreground">Выбрать дату и время</span>
-                </label>
-              </div>
-              
-              {/* Выбор даты и времени, если выбрано "Выбрать дату и время" */}
-              {formData.deliveryTime === 'scheduled' && (
-                <div className="mt-4 space-y-3 pl-7">
-                  {/* Выбор даты через календарь */}
+                {/* Выбор времени */}
+                {formData.deliveryDate && (
                   <div>
                     <label className="mb-1.5 block text-sm text-muted-foreground">
-                      Дата доставки
+                      Временной интервал *
                     </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal h-11",
-                            !formData.deliveryDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.deliveryDate ? (
-                            format(new Date(formData.deliveryDate), "PPP", { locale: ru })
-                          ) : (
-                            <span>Выберите дату</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.deliveryDate ? new Date(formData.deliveryDate) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              const dateStr = format(date, "yyyy-MM-dd");
-                              setFormData({ 
-                                ...formData, 
-                                deliveryDate: dateStr,
-                                deliveryTimeSlot: '', // Сбрасываем время при смене даты
-                              });
-                            }
-                          }}
-                          disabled={(date) => {
-                            // Отключаем прошлые даты и даты после максимума
-                            const dateStart = new Date(date);
-                            dateStart.setHours(0, 0, 0, 0);
-                            return dateStart < today || dateStart > maxDate;
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <select
+                      value={formData.deliveryTimeSlot}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        deliveryTimeSlot: e.target.value,
+                      })}
+                      className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="">Выберите время</option>
+                      {getTimeSlotsForDate(formData.deliveryDate).map((slot) => (
+                        <option key={slot} value={slot}>
+                          {slot}
+                        </option>
+                      ))}
+                    </select>
+                    {getTimeSlotsForDate(formData.deliveryDate).length === 0 && (
+                      <p className="mt-1 text-xs text-destructive">
+                        Нет доступных временных слотов на выбранную дату
+                      </p>
+                    )}
                   </div>
-                  
-                  {/* Выбор времени */}
-                  {formData.deliveryDate && (
-                    <div>
-                      <label className="mb-1.5 block text-sm text-muted-foreground">
-                        Время доставки
-                      </label>
-                      <select
-                        value={formData.deliveryTimeSlot}
-                        onChange={(e) => setFormData({ 
-                          ...formData, 
-                          deliveryTimeSlot: e.target.value,
-                        })}
-                        className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      >
-                        <option value="">Выберите время</option>
-                        {getTimeSlotsForDate(formData.deliveryDate).map((slot) => (
-                          <option key={slot} value={slot}>
-                            {slot}
-                          </option>
-                        ))}
-                      </select>
-                      {getTimeSlotsForDate(formData.deliveryDate).length === 0 && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Нет доступных временных слотов на выбранную дату
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div>
@@ -1175,13 +1140,11 @@ export function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Время доставки</span>
                   <span className="text-foreground">
-                    {formData.deliveryTime === 'asap' 
-                      ? 'Как можно скорее'
-                      : formData.deliveryTime === 'scheduled' && formData.deliveryDate && formData.deliveryTimeSlot
+                    {formData.deliveryDate && formData.deliveryTimeSlot
                       ? `${new Date(formData.deliveryDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}, ${formData.deliveryTimeSlot}`
-                      : formData.deliveryTime === 'scheduled' && formData.deliveryDate
+                      : formData.deliveryDate
                       ? new Date(formData.deliveryDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
-                      : 'Как можно скорее'}
+                      : 'Не выбрано'}
                   </span>
                 </div>
                 <div className="flex justify-between">

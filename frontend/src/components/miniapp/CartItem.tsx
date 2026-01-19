@@ -1,4 +1,5 @@
 import { Minus, Plus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { CartItem as CartItemType } from '@/types';
 import { useCartStore } from '@/store/cartStore';
 import { OptimizedImage } from '@/components/OptimizedImage';
@@ -8,10 +9,18 @@ interface CartItemProps {
 }
 
 export function CartItem({ item }: CartItemProps) {
+  const navigate = useNavigate();
   const { updateQuantity, removeItem } = useCartStore();
 
+  const handleCardClick = () => {
+    navigate(`/products/${item.product.id}`);
+  };
+
   return (
-    <div className="flex gap-3 rounded-lg border border-border bg-card p-3 card-shadow animate-fade-in">
+    <div 
+      onClick={handleCardClick}
+      className="flex gap-3 rounded-lg border border-border bg-card p-3 card-shadow animate-fade-in cursor-pointer hover:border-primary/50 transition-colors touch-feedback"
+    >
       {/* Product Image */}
       <div className="h-[60px] w-[60px] flex-shrink-0 overflow-hidden rounded-lg bg-muted">
         <OptimizedImage
@@ -32,7 +41,10 @@ export function CartItem({ item }: CartItemProps) {
             {item.product.name}
           </h3>
           <button
-            onClick={() => removeItem(item.product.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              removeItem(item.product.id);
+            }}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive touch-feedback"
             aria-label="Удалить"
           >
@@ -44,7 +56,10 @@ export function CartItem({ item }: CartItemProps) {
           {/* Quantity Controls */}
           <div className="flex items-center gap-1">
             <button
-              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                updateQuantity(item.product.id, item.quantity - 1);
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
               aria-label="Уменьшить"
             >
@@ -54,7 +69,10 @@ export function CartItem({ item }: CartItemProps) {
               {item.quantity}
             </span>
             <button
-              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                updateQuantity(item.product.id, item.quantity + 1);
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground touch-feedback"
               aria-label="Увеличить"
             >

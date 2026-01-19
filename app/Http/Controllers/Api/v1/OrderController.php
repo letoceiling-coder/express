@@ -42,7 +42,7 @@ class OrderController extends Controller
             'phone' => 'required|string|max:255',
             'name' => 'nullable|string|max:255',
             'delivery_address' => 'required|string',
-            'delivery_time' => 'nullable|string|max:255',
+            'delivery_time' => 'required|string|max:255',
             'delivery_type' => 'nullable|string|in:courier,pickup',
             'comment' => 'nullable|string',
             'payment_method' => 'nullable|string|max:50',
