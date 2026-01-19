@@ -365,6 +365,12 @@ class BotController extends Controller
                     // Получаем URL для miniApp (из настроек бота или конфига)
                     $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
                     
+                    // Добавляем версию к URL для принудительного сброса кеша
+                    // Используем timestamp или версию приложения из конфига
+                    $appVersion = config('app.version', date('YmdHis'));
+                    $separator = strpos($miniAppUrl, '?') !== false ? '&' : '?';
+                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $appVersion;
+                    
                     // Формируем клавиатуру с кнопкой для запуска miniApp
                     $keyboard = [
                         'inline_keyboard' => [
@@ -372,7 +378,7 @@ class BotController extends Controller
                                 [
                                     'text' => '🚀 Открыть приложение',
                                     'web_app' => [
-                                        'url' => $miniAppUrl
+                                        'url' => $miniAppUrlWithVersion
                                     ]
                                 ]
                             ]
