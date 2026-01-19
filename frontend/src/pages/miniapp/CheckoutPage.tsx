@@ -167,26 +167,25 @@ export function CheckoutPage() {
     }
     
     if (!isToday) {
-      // Если не сегодня, все слоты доступны
+      // Если не сегодня (завтра и далее), все слоты доступны
       return slots;
     }
     
-    // Если сегодня, фильтруем прошедшие слоты
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    // Если сегодня, фильтруем слоты с учетом минимального времени подготовки
+    // Минимальное доступное время = текущее время + deliveryMinLeadHours часов
+    const minAvailableTime = new Date(now.getTime() + deliveryMinLeadHours * 60 * 60 * 1000);
+    const minHour = minAvailableTime.getHours();
+    const minMinute = minAvailableTime.getMinutes();
     
     return slots.filter((slot) => {
       const [startTime] = slot.split('-');
       const [hour, minute] = startTime.split(':').map(Number);
       
-      // Исключаем слоты, которые уже прошли
-      if (hour < currentHour) return false;
-      if (hour === currentHour && minute < currentMinute) return false;
+      // Слот доступен, если его начало >= minAvailableTime
+      if (hour > minHour) return true;
+      if (hour === minHour && minute >= minMinute) return true;
       
-      // Исключаем текущий час (запас 1 час)
-      if (hour === currentHour) return false;
-      
-      return true;
+      return false;
     });
   };
   
@@ -194,6 +193,7 @@ export function CheckoutPage() {
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<{ discount: number; final_amount: number; applied: boolean } | null>(null);
   const [minDeliveryOrderTotal, setMinDeliveryOrderTotal] = useState<number>(3000);
+  const [deliveryMinLeadHours, setDeliveryMinLeadHours] = useState<number>(3);
 
   // Загрузка настроек доставки для получения города по умолчанию
   useEffect(() => {
@@ -206,6 +206,9 @@ export function CheckoutPage() {
           }
           if (settings.min_delivery_order_total_rub !== undefined) {
             setMinDeliveryOrderTotal(settings.min_delivery_order_total_rub);
+          }
+          if (settings.delivery_min_lead_hours !== undefined) {
+            setDeliveryMinLeadHours(settings.delivery_min_lead_hours);
           }
         }
       } catch (error) {

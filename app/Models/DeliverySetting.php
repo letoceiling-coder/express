@@ -42,6 +42,7 @@ class DeliverySetting extends Model
         'delivery_zones',
         'is_enabled',
         'min_delivery_order_total_rub',
+        'delivery_min_lead_hours',
     ];
 
     /**
@@ -56,6 +57,7 @@ class DeliverySetting extends Model
         'is_enabled' => 'boolean',
         'free_delivery_threshold' => 'decimal:2',
         'min_delivery_order_total_rub' => 'decimal:2',
+        'delivery_min_lead_hours' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -82,6 +84,7 @@ class DeliverySetting extends Model
                 ],
                 'is_enabled' => false, // По умолчанию выключено до настройки
                 'min_delivery_order_total_rub' => 3000,
+                'delivery_min_lead_hours' => 3,
             ]);
         }
         

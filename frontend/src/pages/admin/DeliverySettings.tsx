@@ -30,6 +30,7 @@ export function DeliverySettings() {
     ] as DeliveryZone[],
     is_enabled: false,
     min_delivery_order_total_rub: 3000,
+    delivery_min_lead_hours: 3,
   });
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export function DeliverySettings() {
               : prev.delivery_zones,
             is_enabled: data.is_enabled !== undefined ? data.is_enabled : prev.is_enabled,
             min_delivery_order_total_rub: data.min_delivery_order_total_rub !== undefined ? data.min_delivery_order_total_rub : (prev.min_delivery_order_total_rub ?? 3000),
+            delivery_min_lead_hours: data.delivery_min_lead_hours !== undefined ? data.delivery_min_lead_hours : (prev.delivery_min_lead_hours ?? 3),
           };
         });
       }
@@ -314,15 +316,15 @@ export function DeliverySettings() {
             </CardContent>
           </Card>
 
-          {/* Minimum Delivery Order Total */}
+          {/* Minimum Delivery Order Total & Lead Time */}
           <Card className="border-0 bg-white dark:bg-slate-800 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-slate-800 dark:text-slate-100">Минимальный заказ</CardTitle>
+              <CardTitle className="text-slate-800 dark:text-slate-100">Ограничения для доставки</CardTitle>
               <CardDescription>
-                Минимальная сумма заказа для оформления доставки курьером
+                Минимальная сумма заказа и время подготовки для доставки курьером
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="min_delivery_order_total_rub">Минимальный заказ для доставки (₽) *</Label>
                 <Input
@@ -341,6 +343,28 @@ export function DeliverySettings() {
                 />
                 <p className="mt-1 text-sm text-muted-foreground">
                   Минимальная сумма заказа для оформления доставки курьером. На самовывоз не влияет.
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="delivery_min_lead_hours">Минимальное время подготовки (часы) *</Label>
+                <Input
+                  id="delivery_min_lead_hours"
+                  type="number"
+                  min="0"
+                  max="72"
+                  step="1"
+                  placeholder="3"
+                  value={formData.delivery_min_lead_hours}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    delivery_min_lead_hours: parseInt(e.target.value) || 0 
+                  })}
+                  className="mt-1"
+                  required
+                />
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Минимальное количество часов от текущего момента до доступного времени доставки. Например, при значении 3 и текущем времени 10:00, самый ранний слот будет 13:00.
                 </p>
               </div>
             </CardContent>

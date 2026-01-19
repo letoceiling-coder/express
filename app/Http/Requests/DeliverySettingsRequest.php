@@ -33,6 +33,7 @@ class DeliverySettingsRequest extends FormRequest
             'delivery_zones.*.cost' => ['required_with:delivery_zones', 'numeric', 'min:0'],
             'is_enabled' => ['nullable', 'boolean'],
             'min_delivery_order_total_rub' => ['nullable', 'numeric', 'min:0'],
+            'delivery_min_lead_hours' => ['nullable', 'integer', 'min:0', 'max:72'],
         ];
     }
 
@@ -53,6 +54,9 @@ class DeliverySettingsRequest extends FormRequest
             'delivery_zones.*.cost.min' => 'Стоимость доставки не может быть отрицательной',
             'min_delivery_order_total_rub.numeric' => 'Минимальный заказ для доставки должен быть числом',
             'min_delivery_order_total_rub.min' => 'Минимальный заказ для доставки не может быть отрицательным',
+            'delivery_min_lead_hours.integer' => 'Минимальное время подготовки должно быть целым числом',
+            'delivery_min_lead_hours.min' => 'Минимальное время подготовки не может быть отрицательным',
+            'delivery_min_lead_hours.max' => 'Минимальное время подготовки не может превышать 72 часа',
         ];
     }
 }
