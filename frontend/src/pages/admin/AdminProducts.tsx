@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Search, Upload, GripVertical, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, Search, Upload, GripVertical, Save, Loader2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -48,6 +48,7 @@ import {
 import { mockProducts, mockCategories } from '@/data/mockData';
 import { Product } from '@/types';
 import { toast } from 'sonner';
+import { productsAPI, categoriesAPI } from '@/api';
 
 // SortableRow компонент для drag-and-drop
 function SortableProductRow({ product, onEdit, onDelete, getCategoryName }: any) {
@@ -119,7 +120,9 @@ function SortableProductRow({ product, onEdit, onDelete, getCategoryName }: any)
 }
 
 export function AdminProducts() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -136,11 +139,39 @@ export function AdminProducts() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Минимальное расстояние для активации drag (8px)
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Загрузка товаров и категорий из API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, categoriesData] = await Promise.all([
+          productsAPI.getAll(),
+          categoriesAPI.getAll(),
+        ]);
+        setProducts(productsData);
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error loading products:', error);
+        toast.error('Ошибка при загрузке товаров');
+        // Fallback на mock данные
+        setProducts(mockProducts);
+        setCategories(mockCategories);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -245,23 +276,43 @@ export function AdminProducts() {
   const handleSavePositions = async () => {
     setIsSavingPositions(true);
     try {
-      // TODO: Заменить на реальный API вызов когда backend будет готов
-      // const positions = filteredProducts.map((product, index) => ({
-      //   id: parseInt(product.id),
-      //   position: index,
-      // }));
-      // await productsAPI.updatePositions(positions);
-      
-      // Для демо просто показываем успех
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const positions = filteredProducts.map((product, index) => ({
+        id: parseInt(product.id),
+        position: index,
+      }));
+      await productsAPI.updatePositions(positions);
       toast.success('Порядок товаров сохранён');
       setHasPositionChanges(false);
-    } catch (error) {
-      toast.error('Ошибка при сохранении порядка');
+      
+      // Обновляем позиции в локальном состоянии
+      setProducts((prev) => {
+        const updated = [...prev];
+        positions.forEach(({ id, position }) => {
+          const product = updated.find((p) => parseInt(p.id) === id);
+          if (product) {
+            product.position = position;
+          }
+        });
+        return updated;
+      });
+    } catch (error: any) {
+      console.error('Error saving positions:', error);
+      toast.error(error?.response?.data?.message || 'Ошибка при сохранении порядка');
     } finally {
       setIsSavingPositions(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-8">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-4 text-muted-foreground">Загрузка товаров...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8">
@@ -465,7 +516,7 @@ export function AdminProducts() {
                     <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockCategories.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
