@@ -13,7 +13,7 @@ export function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeItem } = useCartStore();
 
   const handleCardClick = () => {
-    navigate(`/products/${item.product.id}`);
+    navigate(`/product/${item.product.id}`);
   };
 
   return (

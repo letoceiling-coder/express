@@ -10,7 +10,7 @@ import { openTelegramLink, hapticFeedback } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { toast } from 'sonner';
-import { paymentAPI } from '@/api';
+import { paymentAPI, aboutAPI } from '@/api';
 import { ordersAPI } from '@/api';
 import { getTelegramUser } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,23 @@ export function OrderDetailPage() {
   const [showPaymentError, setShowPaymentError] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [supportTelegramUrl, setSupportTelegramUrl] = useState<string>('https://t.me/+79826824368');
+
+  // Загрузка настроек поддержки
+  useEffect(() => {
+    const loadSupportSettings = async () => {
+      try {
+        const aboutData = await aboutAPI.get();
+        if (aboutData?.support_telegram_url) {
+          setSupportTelegramUrl(aboutData.support_telegram_url);
+        }
+      } catch (error) {
+        console.error('Error loading support settings:', error);
+        // Используем значение по умолчанию
+      }
+    };
+    loadSupportSettings();
+  }, []);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -263,7 +280,9 @@ export function OrderDetailPage() {
   };
 
   const handleContactSupport = () => {
-    openTelegramLink('https://t.me/svoihleb_support');
+    if (supportTelegramUrl) {
+      openTelegramLink(supportTelegramUrl);
+    }
   };
 
   return (
