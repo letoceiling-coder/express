@@ -585,6 +585,19 @@ class Deploy extends Command
         $this->line("  🔐 Token: " . (substr($deployToken, 0, 3) . '...' . substr($deployToken, -3)));
 
         try {
+            // Предварительная проверка DNS резолвинга
+            $host = parse_url($deployUrl, PHP_URL_HOST);
+            if ($host) {
+                $this->line("  🔍 Проверка DNS для {$host}...");
+                $ip = gethostbyname($host);
+                if ($ip === $host) {
+                    $this->warn("  ⚠️  Не удалось разрешить DNS для {$host}");
+                    $this->line("  💡 Попробуйте проверить интернет-соединение или DNS настройки");
+                } else {
+                    $this->line("  ✅ DNS разрешен: {$host} → {$ip}");
+                }
+            }
+
             $httpClient = Http::timeout(300); // 5 минут таймаут
 
             // Отключить проверку SSL для локальной разработки (если указана опция)
@@ -614,6 +627,16 @@ class Deploy extends Command
             // Разрешаем редиректы
             $curlOptions[CURLOPT_FOLLOWLOCATION] = true;
             $curlOptions[CURLOPT_MAXREDIRS] = 5;
+
+            // Настройки для решения проблем с DNS
+            // Принудительно используем IPv4 (может помочь при проблемах с IPv6)
+            $curlOptions[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+            
+            // Увеличиваем таймаут DNS резолвинга
+            $curlOptions[CURLOPT_DNS_CACHE_TIMEOUT] = 60;
+            
+            // Используем системный DNS резолвер
+            $curlOptions[CURLOPT_DNS_USE_GLOBAL_CACHE] = true;
 
             $response = $httpClient->withOptions($curlOptions)
                 ->withHeaders([
@@ -698,15 +721,38 @@ class Deploy extends Command
             }
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             $errorMessage = $e->getMessage();
-
+            
             // Детальная диагностика ошибки
             $this->newLine();
             $this->error('❌ Ошибка подключения к серверу');
             $this->line("  📡 URL: {$deployUrl}");
             $this->line("  🔍 Ошибка: {$errorMessage}");
-
+            
             // Проверяем тип ошибки и даем рекомендации
-            if (str_contains($errorMessage, 'Connection was reset') || str_contains($errorMessage, 'cURL error 35')) {
+            if (str_contains($errorMessage, 'Could not resolve host') || str_contains($errorMessage, 'cURL error 6')) {
+                $this->newLine();
+                $this->line('  💡 Проблема с DNS резолвингом. Возможные решения:');
+                $this->line('     1. Проверьте интернет-соединение');
+                $this->line('     2. Проверьте правильность DEPLOY_SERVER_URL в .env');
+                $this->line('     3. Попробуйте выполнить команду позже (возможны временные проблемы с DNS)');
+                $this->line('     4. Проверьте настройки DNS на вашем компьютере');
+                $this->line('     5. Попробуйте использовать IP адрес вместо домена');
+                $this->newLine();
+                
+                // Пробуем резолвить DNS вручную
+                $host = parse_url($deployUrl, PHP_URL_HOST);
+                if ($host) {
+                    $this->line("  🔍 Попытка резолва DNS для {$host}...");
+                    $ip = @gethostbyname($host);
+                    if ($ip !== $host && filter_var($ip, FILTER_VALIDATE_IP)) {
+                        $this->line("  ✅ DNS резолвится: {$host} → {$ip}");
+                        $this->line("  💡 Попробуйте временно использовать IP: " . str_replace($host, $ip, $deployUrl));
+                    } else {
+                        $this->warn("  ❌ DNS не резолвится: {$host}");
+                        $this->line("  💡 Проверьте доступность домена через браузер или ping");
+                    }
+                }
+            } elseif (str_contains($errorMessage, 'Connection was reset') || str_contains($errorMessage, 'cURL error 35')) {
                 $this->newLine();
                 $this->warn('  💡 Возможные причины:');
                 $this->line('     1. Проблема с SSL/TLS сертификатом на сервере');
