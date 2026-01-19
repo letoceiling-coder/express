@@ -37,7 +37,9 @@ export function CatalogPage() {
     const loadSettings = async () => {
       try {
         const response = await deliverySettingsAPI.getSettings();
-        // deliverySettingsAPI.getSettings() уже возвращает response.data, который содержит { data: {...} }
+        // API структура: { data: { min_delivery_order_total_rub: 3000, free_delivery_threshold: 7000, ... } }
+        // apiRequest возвращает: { data: { ... } }
+        // deliverySettingsAPI.getSettings() возвращает: response.data, то есть { data: { ... } }
         // Поэтому нужно извлечь data из response
         const settings = response?.data || response;
         
@@ -47,7 +49,8 @@ export function CatalogPage() {
         }
         if (settings?.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
           const threshold = Number(settings.free_delivery_threshold);
-          if (threshold > 0 && threshold > (settings?.min_delivery_order_total_rub || 0)) {
+          const minTotal = Number(settings?.min_delivery_order_total_rub || 0);
+          if (threshold > 0 && threshold > minTotal) {
             setFreeDeliveryThreshold(threshold);
           } else {
             setFreeDeliveryThreshold(undefined);
