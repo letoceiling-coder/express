@@ -61,38 +61,65 @@
                         </div>
                     </div>
 
-                    <!-- Cover Image -->
+                    <!-- Cover Images -->
                     <div class="space-y-4 pt-4 border-t border-border">
                         <h2 class="text-lg font-semibold text-foreground mb-4">Обложка</h2>
 
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">
-                                URL обложки
+                                Изображения обложки
                             </label>
                             <div class="flex gap-2">
-                                <input
-                                    v-model="form.cover_image_url"
-                                    type="text"
-                                    placeholder="/upload/..."
-                                    class="flex-1 h-10 px-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                />
                                 <button
                                     type="button"
                                     @click="showImageSelector = true"
                                     class="h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 whitespace-nowrap"
                                 >
-                                    Выбрать
+                                    Выбрать фото
+                                </button>
+                                <button
+                                    v-if="form.cover_images && form.cover_images.length > 0"
+                                    type="button"
+                                    @click="form.cover_images = []"
+                                    class="h-10 px-4 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 whitespace-nowrap"
+                                >
+                                    Очистить все
                                 </button>
                             </div>
                             <p class="text-xs text-muted-foreground mt-1">
-                                Выберите изображение из медиа-библиотеки или введите URL вручную
+                                Выберите одно или несколько изображений из медиа-библиотеки. Они будут отображаться в виде слайдера на странице "О нас".
                             </p>
-                            <img
-                                v-if="form.cover_image_url"
-                                :src="form.cover_image_url"
-                                alt="Preview"
-                                class="mt-3 h-32 w-full rounded-lg object-cover border border-border"
-                                @error="($event.target.style.display = 'none')"
+                            
+                            <!-- Preview выбранных изображений -->
+                            <div v-if="form.cover_images && form.cover_images.length > 0" class="mt-3 grid grid-cols-3 gap-2">
+                                <div
+                                    v-for="(imageUrl, index) in form.cover_images"
+                                    :key="index"
+                                    class="relative group"
+                                >
+                                    <img
+                                        :src="imageUrl"
+                                        :alt="`Preview ${index + 1}`"
+                                        class="h-24 w-full rounded-lg object-cover border border-border"
+                                        @error="($event.target.style.display = 'none')"
+                                    />
+                                    <button
+                                        type="button"
+                                        @click="removeCoverImage(index)"
+                                        class="absolute top-1 right-1 w-6 h-6 bg-destructive text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                    >
+                                        ✕
+                                    </button>
+                                    <div class="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded">
+                                        {{ index + 1 }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Старое поле для обратной совместимости (скрыто) -->
+                            <input
+                                v-model="form.cover_image_url"
+                                type="hidden"
                             />
                         </div>
                     </div>
@@ -218,9 +245,9 @@
         <!-- MediaSelector Modal -->
         <MediaSelector
             :open="showImageSelector"
-            :multiple="false"
+            :multiple="true"
             :allowedTypes="['photo']"
-            :currentSelection="form.cover_image_url ? [{ url: form.cover_image_url }] : []"
+            :currentSelection="form.cover_images ? form.cover_images.map(url => ({ url })) : []"
             @close="showImageSelector = false"
             @select="handleImageSelected"
         />
@@ -250,6 +277,7 @@ export default {
                 yandex_maps_url: '',
                 support_telegram_url: '',
                 cover_image_url: '',
+                cover_images: [],
             },
             loading: false,
             saving: false,
@@ -270,6 +298,15 @@ export default {
 
                 if (response.ok && result.data) {
                     this.data = result.data;
+                    // Обрабатываем cover_images: если есть массив, используем его, иначе создаем из cover_image_url
+                    let coverImages = [];
+                    if (result.data.cover_images && Array.isArray(result.data.cover_images) && result.data.cover_images.length > 0) {
+                        coverImages = result.data.cover_images;
+                    } else if (result.data.cover_image_url) {
+                        // Для обратной совместимости: если есть старое поле, добавляем его в массив
+                        coverImages = [result.data.cover_image_url];
+                    }
+                    
                     this.form = {
                         title: result.data.title || '',
                         phone: result.data.phone || '',
@@ -279,6 +316,7 @@ export default {
                         yandex_maps_url: result.data.yandex_maps_url || '',
                         support_telegram_url: result.data.support_telegram_url || '',
                         cover_image_url: result.data.cover_image_url || '',
+                        cover_images: coverImages,
                     };
                 } else {
                     this.error = result.message || 'Ошибка при загрузке данных';
@@ -320,13 +358,32 @@ export default {
             this.form.bullets.splice(index, 1);
         },
         handleImageSelected(selectedFiles) {
-            // MediaSelector возвращает объект при multiple=false, массив при multiple=true
-            const selectedFile = Array.isArray(selectedFiles) ? selectedFiles[0] : selectedFiles;
-
-            if (selectedFile) {
-                this.form.cover_image_url = selectedFile.url || selectedFile.path || '';
+            // MediaSelector возвращает массив при multiple=true
+            if (Array.isArray(selectedFiles) && selectedFiles.length > 0) {
+                this.form.cover_images = selectedFiles.map(file => file.url || file.path || '').filter(url => url);
+                // Для обратной совместимости сохраняем первое изображение в cover_image_url
+                if (this.form.cover_images.length > 0) {
+                    this.form.cover_image_url = this.form.cover_images[0];
+                }
+            } else if (selectedFiles && !Array.isArray(selectedFiles)) {
+                // Fallback для одиночного выбора
+                this.form.cover_images = [selectedFiles.url || selectedFiles.path || ''].filter(url => url);
+                if (this.form.cover_images.length > 0) {
+                    this.form.cover_image_url = this.form.cover_images[0];
+                }
             }
             this.showImageSelector = false;
+        },
+        removeCoverImage(index) {
+            if (this.form.cover_images && Array.isArray(this.form.cover_images)) {
+                this.form.cover_images.splice(index, 1);
+                // Обновляем cover_image_url для обратной совместимости
+                if (this.form.cover_images.length > 0) {
+                    this.form.cover_image_url = this.form.cover_images[0];
+                } else {
+                    this.form.cover_image_url = '';
+                }
+            }
         },
     },
 };

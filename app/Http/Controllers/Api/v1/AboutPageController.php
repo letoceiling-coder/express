@@ -34,6 +34,7 @@ class AboutPageController extends Controller
                 'yandex_maps_url' => $page->yandex_maps_url,
                 'support_telegram_url' => $page->support_telegram_url,
                 'cover_image_url' => $page->cover_image_url,
+                'cover_images' => $page->cover_images ?? [],
             ],
         ]);
     }
@@ -60,6 +61,7 @@ class AboutPageController extends Controller
                 'yandex_maps_url' => $page->yandex_maps_url,
                 'support_telegram_url' => $page->support_telegram_url,
                 'cover_image_url' => $page->cover_image_url,
+                'cover_images' => $page->cover_images ?? [],
             ],
         ]);
     }
@@ -84,6 +86,8 @@ class AboutPageController extends Controller
             'yandex_maps_url' => 'nullable|url|max:500',
             'support_telegram_url' => 'nullable|url|max:500',
             'cover_image_url' => 'nullable|string|max:500',
+            'cover_images' => 'nullable|array',
+            'cover_images.*' => 'string|max:500',
         ], [
             'title.required' => 'Название компании обязательно',
             'title.string' => 'Название компании должно быть строкой',
@@ -96,6 +100,9 @@ class AboutPageController extends Controller
             'support_telegram_url.max' => 'URL Telegram поддержки не должен превышать 500 символов',
             'cover_image_url.string' => 'URL обложки должен быть строкой',
             'cover_image_url.max' => 'URL обложки не должен превышать 500 символов',
+            'cover_images.array' => 'Обложки должны быть массивом',
+            'cover_images.*.string' => 'URL обложки должен быть строкой',
+            'cover_images.*.max' => 'URL обложки не должен превышать 500 символов',
         ]);
 
         if ($validator->fails()) {
@@ -120,6 +127,15 @@ class AboutPageController extends Controller
                 $validated['bullets'] = array_values($validated['bullets']);
             }
             
+            // Обрабатываем cover_images: если это массив, фильтруем пустые значения
+            if (isset($validated['cover_images']) && is_array($validated['cover_images'])) {
+                $validated['cover_images'] = array_filter($validated['cover_images'], function($image) {
+                    return !empty(trim($image));
+                });
+                // Перенумеровываем массив после фильтрации
+                $validated['cover_images'] = array_values($validated['cover_images']);
+            }
+            
             // Обновляем страницу
             $page->fill($validated);
             $page->save();
@@ -139,6 +155,7 @@ class AboutPageController extends Controller
                     'yandex_maps_url' => $page->yandex_maps_url,
                     'support_telegram_url' => $page->support_telegram_url,
                     'cover_image_url' => $page->cover_image_url,
+                    'cover_images' => $page->cover_images ?? [],
                 ],
                 'message' => 'Страница "О нас" успешно обновлена',
             ]);

@@ -42,6 +42,7 @@ class AboutPage extends Model
         'yandex_maps_url',
         'support_telegram_url',
         'cover_image_url',
+        'cover_images',
     ];
 
     /**
@@ -51,6 +52,7 @@ class AboutPage extends Model
      */
     protected $casts = [
         'bullets' => 'array',
+        'cover_images' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

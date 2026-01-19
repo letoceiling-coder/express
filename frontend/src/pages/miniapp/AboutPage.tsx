@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
-import { Loader2, Phone, MapPin, Copy, Check, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Phone, MapPin, Copy, Check, MessageCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { aboutAPI } from '@/api';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { openTelegramLink } from '@/lib/telegram';
 import { toast } from '@/hooks/use-toast';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface AboutPageData {
   id: number;
@@ -17,6 +18,7 @@ interface AboutPageData {
   yandex_maps_url?: string | null;
   support_telegram_url?: string | null;
   cover_image_url?: string | null;
+  cover_images?: string[] | null;
 }
 
 export function AboutPage() {
@@ -210,14 +212,49 @@ export function AboutPage() {
       <MiniAppHeader title="О нас" />
 
       <div className="space-y-6 px-4 py-6">
-        {/* Cover Image */}
+        {/* Cover Images Slider */}
         <div className="relative -mx-4 h-48 overflow-hidden rounded-xl bg-muted">
-          {data.cover_image_url ? (
-            <OptimizedImage
-              src={data.cover_image_url}
-              alt={data.title}
-              className="h-full w-full object-cover"
-            />
+          {(data.cover_images && data.cover_images.length > 0) || data.cover_image_url ? (
+            (() => {
+              // Используем cover_images если есть, иначе fallback на cover_image_url
+              const images = (data.cover_images && data.cover_images.length > 0) 
+                ? data.cover_images 
+                : (data.cover_image_url ? [data.cover_image_url] : []);
+              
+              if (images.length === 1) {
+                // Если одно изображение, показываем без слайдера
+                return (
+                  <OptimizedImage
+                    src={images[0]}
+                    alt={data.title}
+                    className="h-full w-full object-cover"
+                  />
+                );
+              }
+              
+              // Если несколько изображений, показываем слайдер
+              return (
+                <Carousel className="w-full h-full" opts={{ loop: true }}>
+                  <CarouselContent className="h-48 -ml-0">
+                    {images.map((imageUrl, index) => (
+                      <CarouselItem key={index} className="h-48 pl-0 basis-full">
+                        <OptimizedImage
+                          src={imageUrl}
+                          alt={`${data.title} - ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  {images.length > 1 && (
+                    <>
+                      <CarouselPrevious className="left-2 h-8 w-8 bg-background/80 hover:bg-background border-border" />
+                      <CarouselNext className="right-2 h-8 w-8 bg-background/80 hover:bg-background border-border" />
+                    </>
+                  )}
+                </Carousel>
+              );
+            })()
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <p className="text-muted-foreground">Изображение не загружено</p>
