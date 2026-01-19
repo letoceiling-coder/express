@@ -366,23 +366,18 @@ class BotController extends Controller
                     $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
                     
                     // Добавляем версию к URL для принудительного сброса кеша
-                    // Используем комбинацию версии из конфига и timestamp для гарантированного сброса кеша
-                    $appVersion = config('app.version', '');
-                    // Всегда добавляем timestamp для гарантированного сброса кеша
-                    // Формат: {APP_VERSION}-{timestamp} или просто {timestamp}
-                    $timestamp = time();
-                    if (!empty($appVersion) && $appVersion !== date('YmdHis')) {
-                        $versionParam = $appVersion . '-' . $timestamp;
-                    } else {
-                        $versionParam = $timestamp; // Используем только timestamp для максимальной уникальности
+                    // Используем версию из конфига или timestamp для гарантированного сброса кеша
+                    $appVersion = config('app.version');
+                    // Если версия не задана или старая, используем timestamp
+                    if (empty($appVersion) || $appVersion === date('YmdHis')) {
+                        $appVersion = time(); // Используем timestamp для уникальности
                     }
                     $separator = strpos($miniAppUrl, '?') !== false ? '&' : '?';
-                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $versionParam;
+                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $appVersion;
                     
                     \Illuminate\Support\Facades\Log::info('🔗 Mini App URL with version', [
                         'original_url' => $miniAppUrl,
-                        'app_version' => $appVersion,
-                        'version_param' => $versionParam,
+                        'version' => $appVersion,
                         'final_url' => $miniAppUrlWithVersion,
                     ]);
                     
