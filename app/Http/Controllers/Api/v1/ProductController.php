@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -57,20 +58,25 @@ class ProductController extends Controller
             });
         }
 
-        // Сортировка
-        $sortBy = $request->get('sort_by', 'position');
-        $sortOrder = $request->get('sort_order', 'asc');
-        
-        // Специальная сортировка по цене
-        if ($sortBy === 'price') {
-            $query->orderBy('price', $sortOrder);
+        // Сортировка по позиции (для drag-and-drop в админке)
+        // Если не указана явная сортировка, используем position
+        if (!$request->has('sort_by')) {
+            $query->orderBy('position', 'asc')->orderBy('id', 'asc');
         } else {
-            $query->orderBy($sortBy, $sortOrder);
-        }
-        
-        // Дополнительная сортировка по id для стабильности
-        if ($sortBy !== 'id') {
-            $query->orderBy('id', 'asc');
+            $sortBy = $request->get('sort_by', 'position');
+            $sortOrder = $request->get('sort_order', 'asc');
+            
+            // Специальная сортировка по цене
+            if ($sortBy === 'price') {
+                $query->orderBy('price', $sortOrder);
+            } else {
+                $query->orderBy($sortBy, $sortOrder);
+            }
+            
+            // Дополнительная сортировка по id для стабильности
+            if ($sortBy !== 'id') {
+                $query->orderBy('id', 'asc');
+            }
         }
 
         // Пагинация
