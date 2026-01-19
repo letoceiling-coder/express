@@ -29,21 +29,29 @@ export function DeliveryProgressBar({
     isComplete = false;
     message = `Ещё ${formatNumber(remaining)} ₽ до доставки`;
     progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(minDeliveryTotal)} ₽`;
-  } else if (freeDeliveryThreshold && cartTotal < freeDeliveryThreshold) {
-    // Показываем прогресс до бесплатной доставки
+  } else if (freeDeliveryThreshold && freeDeliveryThreshold > minDeliveryTotal && cartTotal < freeDeliveryThreshold) {
+    // Показываем прогресс до бесплатной доставки (только если freeDeliveryThreshold задан и больше минимального заказа)
     targetAmount = freeDeliveryThreshold;
     remaining = Math.max(0, freeDeliveryThreshold - cartTotal);
     progress = Math.min((cartTotal - minDeliveryTotal) / (freeDeliveryThreshold - minDeliveryTotal), 1);
     isComplete = false;
     message = `Ещё ${formatNumber(remaining)} ₽ до бесплатной доставки`;
     progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(Math.round(freeDeliveryThreshold))} ₽`;
-  } else {
-    // Доставка бесплатна
-    targetAmount = freeDeliveryThreshold || minDeliveryTotal;
+  } else if (freeDeliveryThreshold && cartTotal >= freeDeliveryThreshold) {
+    // Доставка бесплатна (только если freeDeliveryThreshold задан и достигнут)
+    targetAmount = freeDeliveryThreshold;
     remaining = 0;
     progress = 1;
     isComplete = true;
     message = 'Доставка бесплатна';
+    progressLabel = `${formatNumber(cartTotal)} ₽`;
+  } else {
+    // Доставка доступна, но не бесплатна (если freeDeliveryThreshold не задан или меньше минимального заказа)
+    targetAmount = minDeliveryTotal;
+    remaining = 0;
+    progress = 1;
+    isComplete = true;
+    message = 'Доставка доступна';
     progressLabel = `${formatNumber(cartTotal)} ₽`;
   }
 

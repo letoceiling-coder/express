@@ -37,14 +37,21 @@ export function CatalogPage() {
     const loadSettings = async () => {
       try {
         const response = await deliverySettingsAPI.getSettings();
-        // API возвращает { data: {...} }, поэтому извлекаем data
+        // deliverySettingsAPI.getSettings() уже возвращает response.data, который содержит { data: {...} }
+        // Поэтому нужно извлечь data из response
         const settings = response?.data || response;
+        
         if (settings?.min_delivery_order_total_rub !== undefined && settings.min_delivery_order_total_rub !== null) {
-          setMinDeliveryTotal(Number(settings.min_delivery_order_total_rub));
+          const minTotal = Number(settings.min_delivery_order_total_rub);
+          setMinDeliveryTotal(minTotal);
         }
         if (settings?.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
           const threshold = Number(settings.free_delivery_threshold);
-          setFreeDeliveryThreshold(threshold > 0 ? threshold : undefined);
+          if (threshold > 0 && threshold > (settings?.min_delivery_order_total_rub || 0)) {
+            setFreeDeliveryThreshold(threshold);
+          } else {
+            setFreeDeliveryThreshold(undefined);
+          }
         }
       } catch (error) {
         console.error('Error loading delivery settings:', error);
