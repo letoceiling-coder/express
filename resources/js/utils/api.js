@@ -480,6 +480,23 @@ export const productsAPI = {
         }
         return response.json();
     },
+
+    // Обновить позиции товаров (для drag-and-drop)
+    async updatePositions(positions) {
+        try {
+            const response = await axios.post(`${API_BASE}/products/update-positions`, 
+                { positions },
+                {
+                    headers: getAuthHeaders(),
+                    withCredentials: true,
+                }
+            );
+            return response.data;
+        } catch (error) {
+            console.error('Products API error:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.message || 'Ошибка обновления позиций товаров');
+        }
+    },
 };
 
 // ============================================
