@@ -5,27 +5,30 @@ import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useOrders } from '@/hooks/useOrders';
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, Order, isOrderUnpaid, canCancelOrder } from '@/types';
-import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { MapPin, Phone, Clock, MessageSquare, CreditCard, Package, Headphones, ShoppingBag, Loader2, CheckCircle2, XCircle, RotateCw } from 'lucide-react';
 import { openTelegramLink, hapticFeedback } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { toast } from 'sonner';
-import { paymentAPI, aboutAPI } from '@/api';
+import { paymentAPI, aboutAPI, productsAPI } from '@/api';
 import { ordersAPI } from '@/api';
 import { getTelegramUser } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
+import { useCartStore } from '@/store/cartStore';
 
 export function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { getOrderById, orders } = useOrders();
+  const { addItem } = useCartStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentError, setShowPaymentError] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isRepeatingOrder, setIsRepeatingOrder] = useState(false);
   const [supportTelegramUrl, setSupportTelegramUrl] = useState<string>('https://t.me/+79826824368');
 
   // Загрузка настроек поддержки
@@ -285,6 +288,61 @@ export function OrderDetailPage() {
     }
   };
 
+  const handleRepeatOrder = async () => {
+    if (!order || !order.items || order.items.length === 0) {
+      toast.error('Нет товаров для повторения заказа');
+      return;
+    }
+
+    setIsRepeatingOrder(true);
+    hapticFeedback('light');
+
+    try {
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      // Загружаем и добавляем каждый товар из заказа в корзину
+      for (const orderItem of order.items) {
+        try {
+          // Пытаемся загрузить товар по ID
+          const product = await productsAPI.getById(orderItem.productId);
+          
+          if (product) {
+            // Добавляем товар в корзину с количеством из заказа
+            addItem(product, orderItem.quantity);
+            addedCount++;
+          } else {
+            // Товар не найден
+            skippedCount++;
+            console.warn(`Товар ${orderItem.productName} (ID: ${orderItem.productId}) не найден`);
+          }
+        } catch (error) {
+          console.error(`Ошибка при загрузке товара ${orderItem.productId}:`, error);
+          skippedCount++;
+        }
+      }
+
+      hapticFeedback('success');
+
+      if (addedCount > 0) {
+        toast.success(
+          `Добавлено товаров: ${addedCount}${skippedCount > 0 ? ` (пропущено: ${skippedCount})` : ''}`,
+          { duration: 3000 }
+        );
+        // Переходим в корзину
+        navigate('/cart');
+      } else {
+        toast.error('Не удалось добавить товары в корзину. Возможно, они больше не доступны.');
+      }
+    } catch (error) {
+      console.error('Ошибка при повторении заказа:', error);
+      hapticFeedback('error');
+      toast.error('Ошибка при добавлении товаров в корзину');
+    } finally {
+      setIsRepeatingOrder(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-44">
       <MiniAppHeader title={`Заказ #${order.orderId}`} showBack />
@@ -503,13 +561,35 @@ export function OrderDetailPage() {
               <Headphones className="h-5 w-5" />
               Поддержка
             </button>
-            <button
-              onClick={() => navigate('/')}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground touch-feedback"
-            >
-              <ShoppingBag className="h-5 w-5" />
-              В каталог
-            </button>
+            {order.status === 'delivered' ? (
+              // Кнопка "Повторить" для завершенных заказов
+              <button
+                onClick={handleRepeatOrder}
+                disabled={isRepeatingOrder}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground touch-feedback disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRepeatingOrder ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Добавление...
+                  </>
+                ) : (
+                  <>
+                    <RotateCw className="h-5 w-5" />
+                    Повторить
+                  </>
+                )}
+              </button>
+            ) : (
+              // Кнопка "В каталог" для других статусов
+              <button
+                onClick={() => navigate('/')}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground touch-feedback"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                В каталог
+              </button>
+            )}
           </div>
         )}
       </div>
