@@ -36,7 +36,7 @@ export function DeliveryProgressBar({
     progress = Math.min((cartTotal - minDeliveryTotal) / (freeDeliveryThreshold - minDeliveryTotal), 1);
     isComplete = false;
     message = `Ещё ${formatNumber(remaining)} ₽ до бесплатной доставки`;
-    progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(freeDeliveryThreshold)} ₽`;
+    progressLabel = `${formatNumber(cartTotal)} / ${formatNumber(Math.round(freeDeliveryThreshold))} ₽`;
   } else {
     // Доставка бесплатна
     targetAmount = freeDeliveryThreshold || minDeliveryTotal;
@@ -49,7 +49,9 @@ export function DeliveryProgressBar({
 
   // Форматирование чисел с пробелами (2 920 вместо 2920)
   function formatNumber(num: number): string {
-    return num.toLocaleString('ru-RU', { 
+    // Округляем до целого числа перед форматированием
+    const rounded = Math.round(num);
+    return rounded.toLocaleString('ru-RU', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 0,
       useGrouping: true

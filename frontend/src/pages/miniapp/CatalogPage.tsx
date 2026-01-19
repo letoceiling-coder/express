@@ -36,12 +36,15 @@ export function CatalogPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settings = await deliverySettingsAPI.getSettings();
-        if (settings?.min_delivery_order_total_rub !== undefined) {
-          setMinDeliveryTotal(settings.min_delivery_order_total_rub);
+        const response = await deliverySettingsAPI.getSettings();
+        // API возвращает { data: {...} }, поэтому извлекаем data
+        const settings = response?.data || response;
+        if (settings?.min_delivery_order_total_rub !== undefined && settings.min_delivery_order_total_rub !== null) {
+          setMinDeliveryTotal(Number(settings.min_delivery_order_total_rub));
         }
-        if (settings?.free_delivery_threshold !== undefined) {
-          setFreeDeliveryThreshold(settings.free_delivery_threshold);
+        if (settings?.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
+          const threshold = Number(settings.free_delivery_threshold);
+          setFreeDeliveryThreshold(threshold > 0 ? threshold : undefined);
         }
       } catch (error) {
         console.error('Error loading delivery settings:', error);
