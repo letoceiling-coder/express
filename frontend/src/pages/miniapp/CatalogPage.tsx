@@ -36,20 +36,21 @@ export function CatalogPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await deliverySettingsAPI.getSettings();
-        // API структура: { data: { min_delivery_order_total_rub: 3000, free_delivery_threshold: 7000, ... } }
-        // apiRequest возвращает: { data: { ... } }
-        // deliverySettingsAPI.getSettings() возвращает: response.data, то есть { data: { ... } }
-        // Поэтому нужно извлечь data из response
-        const settings = response?.data || response;
-        
-        if (settings?.min_delivery_order_total_rub !== undefined && settings.min_delivery_order_total_rub !== null) {
+        const settings = await deliverySettingsAPI.getSettings();
+        if (!settings) {
+          return;
+        }
+
+        if (settings.min_delivery_order_total_rub !== undefined && settings.min_delivery_order_total_rub !== null) {
           const minTotal = Number(settings.min_delivery_order_total_rub);
           setMinDeliveryTotal(minTotal);
         }
-        if (settings?.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
+
+        if (settings.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
           const threshold = Number(settings.free_delivery_threshold);
-          const minTotal = Number(settings?.min_delivery_order_total_rub || 0);
+          const minTotal = Number(settings.min_delivery_order_total_rub || 0);
+
+          // freeDeliveryThreshold должен быть положительным и строго больше минимального заказа
           if (threshold > 0 && threshold > minTotal) {
             setFreeDeliveryThreshold(threshold);
           } else {
@@ -58,9 +59,11 @@ export function CatalogPage() {
         }
       } catch (error) {
         console.error('Error loading delivery settings:', error);
-        // Используем значения по умолчанию
+        // В miniApp оставим дефолтные значения (3000 / без бесплатной доставки),
+        // чтобы каталог продолжал работать даже при ошибке API.
       }
     };
+
     loadSettings();
   }, []);
 

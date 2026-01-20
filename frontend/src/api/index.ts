@@ -720,7 +720,14 @@ export const deliverySettingsAPI = {
   async getSettings(): Promise<any | null> {
     try {
       const response = await apiRequest('/delivery-settings');
-      return response.data || null;
+
+      // Бэкенд может вернуть как { data: {...} }, так и просто {...}.
+      // Нормализуем формат, чтобы фронт везде получал один и тот же объект настроек.
+      const settings = (response && typeof response === 'object')
+        ? (response.data ?? response)
+        : null;
+
+      return settings || null;
     } catch (error: any) {
       console.error('DeliverySettings API - getSettings error:', error);
       throw error;
