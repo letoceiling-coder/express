@@ -364,20 +364,6 @@ class BotController extends Controller
                     
                     // Получаем базовый URL для miniApp (из настроек бота или конфига)
                     $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
-
-                    // Если в настройках явно не задан mini_app_url, а в конфиге/ENV указан только домен,
-                    // аккуратно добавляем /frontend, не ломая варианты с уже заданным путём или index.html
-                    if (empty($bot->settings['mini_app_url'])) {
-                        $parsed = parse_url($miniAppUrl);
-                        $path = $parsed['path'] ?? '/';
-
-                        // Если пути нет или это просто "/", считаем что нужен /frontend/
-                        if ($path === '' || $path === '/') {
-                            $miniAppUrl = rtrim($miniAppUrl, '/') . '/frontend/';
-                        }
-                        // Во всех остальных случаях (уже есть /frontend, /frontend/index.html и т.п.)
-                        // НИЧЕГО не трогаем, используем как есть.
-                    }
                     
                     // Добавляем версию к URL для принудительного сброса кеша Telegram
                     // Используем хеш от последнего коммита или timestamp для гарантированного сброса кеша
