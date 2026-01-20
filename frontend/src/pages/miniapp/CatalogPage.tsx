@@ -5,7 +5,7 @@ import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CategoryTabs } from '@/components/miniapp/CategoryTabs';
 import { ProductCard } from '@/components/miniapp/ProductCard';
 import { DeliveryModeToggle } from '@/components/miniapp/DeliveryModeToggle';
-import { DeliveryProgressBar } from '@/components/miniapp/DeliveryProgressBar';
+import { DeliveryProgressIndicator } from '@/components/miniapp/DeliveryProgressIndicator';
 import { useCartStore } from '@/store/cartStore';
 import { useProducts } from '@/hooks/useProducts';
 import { deliverySettingsAPI } from '@/api';
@@ -211,7 +211,7 @@ export function CatalogPage() {
 
       {/* Delivery Progress Bar - Fixed внизу между Корзиной и Bottom Navigation */}
       {orderMode === 'delivery' && (
-        <DeliveryProgressBar
+        <DeliveryProgressIndicator
           cartTotal={totalAmount}
           minDeliveryTotal={minDeliveryTotal}
           freeDeliveryThreshold={freeDeliveryThreshold}

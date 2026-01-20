@@ -1,18 +1,18 @@
 import { cn } from '@/lib/utils';
 
-interface DeliveryProgressBarProps {
+interface DeliveryProgressIndicatorProps {
   cartTotal: number;
   minDeliveryTotal: number;
   freeDeliveryThreshold?: number;
   className?: string;
 }
 
-export function DeliveryProgressBar({
+export function DeliveryProgressIndicator({
   cartTotal,
   minDeliveryTotal,
   freeDeliveryThreshold,
   className,
-}: DeliveryProgressBarProps) {
+}: DeliveryProgressIndicatorProps) {
   // Определяем текущую цель прогресса
   let targetAmount: number;
   let remaining: number;
