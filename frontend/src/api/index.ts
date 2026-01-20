@@ -727,6 +727,16 @@ export const deliverySettingsAPI = {
         ? (response.data ?? response)
         : null;
 
+      // Логирование для отладки
+      if (settings) {
+        console.log('[deliverySettingsAPI] Settings received:', {
+          min_delivery_order_total_rub: settings.min_delivery_order_total_rub,
+          free_delivery_threshold: settings.free_delivery_threshold,
+          free_delivery_threshold_rub: settings.free_delivery_threshold_rub,
+          allKeys: Object.keys(settings),
+        });
+      }
+
       return settings || null;
     } catch (error: any) {
       console.error('DeliverySettings API - getSettings error:', error);

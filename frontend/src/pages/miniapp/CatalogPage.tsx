@@ -37,28 +37,67 @@ export function CatalogPage() {
     const loadSettings = async () => {
       try {
         const settings = await deliverySettingsAPI.getSettings();
+        console.log('[CatalogPage] Delivery settings loaded:', settings);
+        
         if (!settings) {
+          console.warn('[CatalogPage] No delivery settings received');
           return;
         }
 
+        // Загружаем минимальный заказ
         if (settings.min_delivery_order_total_rub !== undefined && settings.min_delivery_order_total_rub !== null) {
           const minTotal = Number(settings.min_delivery_order_total_rub);
+          console.log('[CatalogPage] Setting minDeliveryTotal:', minTotal);
           setMinDeliveryTotal(minTotal);
         }
 
-        if (settings.free_delivery_threshold !== undefined && settings.free_delivery_threshold !== null) {
-          const threshold = Number(settings.free_delivery_threshold);
-          const minTotal = Number(settings.min_delivery_order_total_rub || 0);
+        // Загружаем порог бесплатной доставки
+        // Проверяем разные возможные названия поля
+        const thresholdValue = settings.free_delivery_threshold 
+          ?? settings.free_delivery_threshold_rub
+          ?? settings.freeDeliveryThreshold;
+        
+        console.log('[CatalogPage] free_delivery_threshold from API:', {
+          thresholdValue,
+          'free_delivery_threshold': settings.free_delivery_threshold,
+          'free_delivery_threshold_rub': settings.free_delivery_threshold_rub,
+          'freeDeliveryThreshold': settings.freeDeliveryThreshold,
+          allKeys: Object.keys(settings),
+        });
+        
+        const currentMinTotal = Number(settings.min_delivery_order_total_rub || minDeliveryTotal || 3000);
+        
+        if (thresholdValue !== undefined && thresholdValue !== null && thresholdValue !== '') {
+          const threshold = Number(thresholdValue);
+          
+          console.log('[CatalogPage] Processing threshold:', {
+            threshold,
+            currentMinTotal,
+            thresholdValid: threshold > 0,
+            thresholdGreaterThanMin: threshold > currentMinTotal,
+            thresholdType: typeof thresholdValue,
+          });
 
           // freeDeliveryThreshold должен быть положительным и строго больше минимального заказа
-          if (threshold > 0 && threshold > minTotal) {
+          if (!isNaN(threshold) && threshold > 0 && threshold > currentMinTotal) {
+            console.log('[CatalogPage] ✅ Setting freeDeliveryThreshold:', threshold);
             setFreeDeliveryThreshold(threshold);
           } else {
+            console.warn('[CatalogPage] ❌ Threshold invalid:', { 
+              threshold, 
+              currentMinTotal,
+              isValid: !isNaN(threshold),
+              isPositive: threshold > 0,
+              isGreaterThanMin: threshold > currentMinTotal
+            });
             setFreeDeliveryThreshold(undefined);
           }
+        } else {
+          console.warn('[CatalogPage] ❌ free_delivery_threshold not found or empty in settings');
+          setFreeDeliveryThreshold(undefined);
         }
       } catch (error) {
-        console.error('Error loading delivery settings:', error);
+        console.error('[CatalogPage] Error loading delivery settings:', error);
         // В miniApp оставим дефолтные значения (3000 / без бесплатной доставки),
         // чтобы каталог продолжал работать даже при ошибке API.
       }
