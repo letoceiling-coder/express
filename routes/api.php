@@ -60,6 +60,10 @@ Route::prefix('v1')->group(function () {
     Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
         ->name('payments.yookassa.create.public');
     
+    // Публичный роут для получения настроек доставки (из MiniApp)
+    Route::get('delivery-settings', [DeliverySettingsController::class, 'getSettings'])
+        ->name('delivery-settings.get.public');
+    
     // Публичный роут для расчета стоимости доставки (из MiniApp)
     Route::post('delivery/calculate-cost', [DeliverySettingsController::class, 'calculateCost'])
         ->name('delivery.calculate-cost.public');
