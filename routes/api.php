@@ -209,8 +209,8 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payment-settings.yookassa.test');
         
         // Delivery Settings
-        Route::get('delivery-settings', [DeliverySettingsController::class, 'getSettings'])
-            ->name('delivery-settings.get');
+        // GET для настроек доставки используем публичный роут (delivery-settings.get.public),
+        // здесь оставляем только защищённый PUT для обновления настроек в админке
         Route::put('delivery-settings', [DeliverySettingsController::class, 'updateSettings'])
             ->name('delivery-settings.update');
         
