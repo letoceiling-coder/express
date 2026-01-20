@@ -80,6 +80,11 @@ class Deploy extends Command
             if ($hasChanges) {
                 $this->addChangesToGit($dryRun);
 
+                // Шаг 4.5: Обновление версии приложения для сброса кеша Telegram miniApp
+                if (!$dryRun) {
+                    $this->updateAppVersion();
+                }
+
                 // Шаг 5: Создание коммита
                 $commitMessage = $this->createCommit($dryRun);
 
@@ -792,6 +797,45 @@ class Deploy extends Command
         }
 
         $this->newLine();
+    }
+
+    /**
+     * Обновление версии приложения для сброса кеша Telegram miniApp
+     */
+    protected function updateAppVersion(): void
+    {
+        try {
+            // Получаем хеш последнего коммита
+            $process = Process::run('git rev-parse --short HEAD');
+            $gitHash = trim($process->output());
+            
+            if ($process->successful() && !empty($gitHash)) {
+                // Используем git hash как версию
+                $version = $gitHash;
+            } else {
+                // Если не удалось получить git hash, используем timestamp
+                $version = (string)(int)(microtime(true) * 1000);
+            }
+            
+            // Обновляем .env файл
+            $envPath = base_path('.env');
+            if (File::exists($envPath)) {
+                $envContent = File::get($envPath);
+                
+                // Заменяем или добавляем APP_VERSION
+                if (preg_match('/^APP_VERSION=.*$/m', $envContent)) {
+                    $envContent = preg_replace('/^APP_VERSION=.*$/m', "APP_VERSION={$version}", $envContent);
+                } else {
+                    $envContent .= "\nAPP_VERSION={$version}\n";
+                }
+                
+                File::put($envPath, $envContent);
+                $this->line("  ✅ Версия приложения обновлена: {$version}");
+            }
+        } catch (\Exception $e) {
+            // Не критично, просто логируем
+            $this->warn("  ⚠️  Не удалось обновить версию: " . $e->getMessage());
+        }
     }
 }
 

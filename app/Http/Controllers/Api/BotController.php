@@ -365,13 +365,32 @@ class BotController extends Controller
                     // Получаем URL для miniApp (из настроек бота или конфига)
                     $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
                     
-                    // Добавляем версию к URL для принудительного сброса кеша
-                    // Используем версию из конфига или timestamp для гарантированного сброса кеша
-                    $appVersion = config('app.version');
-                    // Если версия не задана или старая, используем timestamp
-                    if (empty($appVersion) || $appVersion === date('YmdHis')) {
-                        $appVersion = time(); // Используем timestamp для уникальности
+                    // Убеждаемся, что URL указывает на /frontend/
+                    if (!str_ends_with($miniAppUrl, '/frontend') && !str_ends_with($miniAppUrl, '/frontend/')) {
+                        // Если URL не содержит /frontend/, добавляем его
+                        $baseUrl = rtrim($miniAppUrl, '/');
+                        $miniAppUrl = $baseUrl . '/frontend/';
                     }
+                    
+                    // Добавляем версию к URL для принудительного сброса кеша Telegram
+                    // Используем хеш от последнего коммита или timestamp для гарантированного сброса кеша
+                    $appVersion = config('app.version');
+                    
+                    // Пытаемся получить хеш последнего коммита для более надёжной версии
+                    $gitHash = null;
+                    if (function_exists('exec') && is_dir(base_path('.git'))) {
+                        $gitHash = @exec('git rev-parse --short HEAD 2>/dev/null');
+                        if (!empty($gitHash)) {
+                            $appVersion = $gitHash;
+                        }
+                    }
+                    
+                    // Если не удалось получить git hash, используем timestamp с микросекундами для уникальности
+                    if (empty($appVersion) || $appVersion === date('YmdHis')) {
+                        // Используем timestamp с микросекундами для гарантированной уникальности
+                        $appVersion = (int)(microtime(true) * 1000); // миллисекунды
+                    }
+                    
                     $separator = strpos($miniAppUrl, '?') !== false ? '&' : '?';
                     $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $appVersion;
                     
