@@ -21,11 +21,24 @@ class DeliverySettingsController extends Controller
      */
     public function getSettings(): JsonResponse
     {
+        // Логируем запрос для отладки
+        Log::info('DeliverySettingsController::getSettings called', [
+            'auth_user' => auth()->check() ? auth()->id() : 'guest',
+            'has_auth_header' => request()->hasHeader('Authorization'),
+            'route_name' => request()->route()?->getName(),
+        ]);
+        
         $settings = DeliverySetting::getSettings();
         
         $data = $settings->toArray();
         // Не показываем API ключ
         unset($data['yandex_geocoder_api_key']);
+        
+        Log::info('DeliverySettingsController::getSettings response', [
+            'has_free_delivery_threshold' => isset($data['free_delivery_threshold']),
+            'free_delivery_threshold' => $data['free_delivery_threshold'] ?? null,
+            'min_delivery_order_total_rub' => $data['min_delivery_order_total_rub'] ?? null,
+        ]);
         
         return response()->json([
             'data' => $data,
