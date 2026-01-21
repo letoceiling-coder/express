@@ -23,6 +23,7 @@ interface AboutPageData {
 }
 
 export function AboutPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<AboutPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
