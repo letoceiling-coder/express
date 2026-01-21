@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\v1\PaymentSettingsController;
 use App\Http\Controllers\Api\v1\DeliverySettingsController;
 use App\Http\Controllers\Api\v1\OrderSettingsController;
 use App\Http\Controllers\Api\v1\AboutPageController;
+use App\Http\Controllers\Api\v1\LegalDocumentsController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ProductHistoryController;
 use App\Http\Controllers\Api\v1\ReturnController;
@@ -74,6 +75,10 @@ Route::prefix('v1')->group(function () {
     
     // Публичный роут для страницы "О нас"
     Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
+    
+    // Публичные роуты для документов
+    Route::get('legal-documents', [LegalDocumentsController::class, 'index'])->name('legal-documents.index.public');
+    Route::get('legal-documents/{type}', [LegalDocumentsController::class, 'show'])->name('legal-documents.show.public');
     
     // Публичный роут для отмены заказа из MiniApp
     Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])
@@ -225,6 +230,12 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('admin.about.get');
         Route::put('admin/about', [AboutPageController::class, 'update'])
             ->name('admin.about.update');
+        
+        // Legal Documents (Admin)
+        Route::get('admin/legal-documents', [LegalDocumentsController::class, 'getAdmin'])
+            ->name('admin.legal-documents.get');
+        Route::put('admin/legal-documents', [LegalDocumentsController::class, 'update'])
+            ->name('admin.legal-documents.update');
         
         // Telegram MiniApp
         Route::post('telegram/validate-init-data', [TelegramController::class, 'validateInitData'])

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\Order;
+use App\Models\Bot;
 use App\Services\Telegram\TelegramUserService;
+use App\Services\Telegram\TelegramMiniAppService;
 use App\Services\Order\OrderStatusService;
 use App\Services\Order\OrderNotificationService;
 use Illuminate\Http\JsonResponse;
@@ -16,15 +18,18 @@ use Illuminate\Support\Facades\Log;
 class OrderController extends Controller
 {
     protected TelegramUserService $telegramUserService;
+    protected TelegramMiniAppService $telegramMiniAppService;
     protected OrderStatusService $orderStatusService;
     protected OrderNotificationService $orderNotificationService;
 
     public function __construct(
         TelegramUserService $telegramUserService,
+        TelegramMiniAppService $telegramMiniAppService,
         OrderStatusService $orderStatusService,
         OrderNotificationService $orderNotificationService
     ) {
         $this->telegramUserService = $telegramUserService;
+        $this->telegramMiniAppService = $telegramMiniAppService;
         $this->orderStatusService = $orderStatusService;
         $this->orderNotificationService = $orderNotificationService;
     }
@@ -114,6 +119,7 @@ class OrderController extends Controller
                 'telegram_id' => $telegramId,
                 'bot_id' => $botId,
                 'phone' => $request->get('phone'),
+                'email' => $request->get('email'), // Email для чека
                 'name' => $request->get('name'),
                 'delivery_address' => $request->get('delivery_address'),
                 'delivery_time' => $request->get('delivery_time'),
@@ -252,65 +258,24 @@ class OrderController extends Controller
         $hasAuth = $request->user() !== null;
         $authHeader = $request->header('Authorization');
         $hasToken = !empty($authHeader) && str_starts_with($authHeader, 'Bearer ');
+        $initData = $request->header('X-Telegram-Init-Data');
         
         Log::info('OrderController::index - Incoming request', [
             'has_user' => $hasAuth,
             'user_id' => $request->user()?->id,
             'has_auth_header' => !empty($authHeader),
-            'auth_header_preview' => $authHeader ? substr($authHeader, 0, 20) . '...' : null,
-            'telegram_id' => $request->get('telegram_id'),
+            'has_init_data' => !empty($initData),
+            'init_data_preview' => $initData ? substr($initData, 0, 50) . '...' : null,
+            'telegram_id_param' => $request->get('telegram_id'),
             'method' => $request->method(),
             'path' => $request->path(),
         ]);
 
         $query = Order::query()->with(['items', 'manager', 'bot']);
+        $telegramIdInt = null;
 
-        // Безопасность: если запрос без авторизации (публичный), обязателен telegram_id
-        // Пользователь может получить только свои заказы
-        // Если есть токен в заголовке, считаем запрос авторизованным (даже если Sanctum не распознал)
-        if (!$hasAuth && !$hasToken) {
-            // Публичный запрос БЕЗ токена - требуется telegram_id
-            if (!$request->has('telegram_id') || !$request->get('telegram_id')) {
-                Log::warning('OrderController::index - Missing telegram_id for public request', [
-                    'request_params' => $request->all(),
-                    'query_params' => $request->query(),
-                ]);
-                return response()->json([
-                    'message' => 'Для получения заказов необходимо указать telegram_id или авторизоваться',
-                ], 400);
-            }
-            
-            // Логируем запрос с telegram_id для отладки
-            $telegramId = $request->get('telegram_id');
-            // Приводим к integer для корректного сравнения
-            $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
-            
-            Log::info('OrderController::index - Public request with telegram_id', [
-                'telegram_id_raw' => $telegramId,
-                'telegram_id_type' => gettype($telegramId),
-                'telegram_id_int' => $telegramIdInt,
-            ]);
-            
-            if (!$telegramIdInt) {
-                Log::warning('OrderController::index - Invalid telegram_id format', [
-                    'telegram_id' => $telegramId,
-                ]);
-                return response()->json([
-                    'message' => 'Некорректный формат telegram_id',
-                ], 400);
-            }
-            
-            // Для публичных запросов принудительно фильтруем по telegram_id
-            // Используем integer для корректного сравнения
-            $query->where('telegram_id', $telegramIdInt);
-            
-            // Дополнительная проверка: логируем SQL запрос для отладки
-            Log::info('OrderController::index - Public request filtered by telegram_id', [
-                'telegram_id' => $telegramIdInt,
-                'sql_query' => $query->toSql(),
-                'sql_bindings' => $query->getBindings(),
-            ]);
-        } else {
+        // Если запрос авторизован (админ), разрешаем все фильтры
+        if ($hasAuth || $hasToken) {
             // Для авторизованных пользователей (админов) можно использовать все фильтры
             // Фильтрация по telegram_id (опционально)
             if ($request->has('telegram_id')) {
@@ -325,6 +290,100 @@ class OrderController extends Controller
                 'has_token' => $hasToken,
                 'telegram_id_filter' => $request->get('telegram_id'),
             ]);
+        } else {
+            // Публичный запрос - требуется валидация через initData или telegram_id (fallback для web)
+            
+            // Приоритет 1: Валидация через initData (Telegram Mini App)
+            if ($initData) {
+                // Получаем токен бота
+                $botToken = $request->header('X-Bot-Token') 
+                    ?? $request->input('bot_token')
+                    ?? config('telegram.bot_token');
+                
+                // Пробуем найти бота по ID из запроса или из initData
+                if (!$botToken) {
+                    $botId = $request->input('bot_id');
+                    if ($botId) {
+                        $bot = Bot::find($botId);
+                        if ($bot) {
+                            $botToken = $bot->token;
+                        }
+                    }
+                }
+                
+                if (!$botToken) {
+                    Log::warning('OrderController::index - Bot token not found for initData validation');
+                    return response()->json([
+                        'message' => 'Токен бота не найден для валидации',
+                    ], 400);
+                }
+                
+                // Валидируем initData
+                $validation = $this->telegramMiniAppService->validateInitData($initData, $botToken);
+                
+                if (!$validation['valid']) {
+                    Log::warning('OrderController::index - Invalid initData', [
+                        'message' => $validation['message'] ?? 'Invalid signature',
+                    ]);
+                    return response()->json([
+                        'message' => 'Неверная подпись initData: ' . ($validation['message'] ?? 'Invalid'),
+                    ], 401);
+                }
+                
+                // Извлекаем user.id из валидированного initData
+                $user = $validation['user'] ?? null;
+                if (!$user || !isset($user['id'])) {
+                    Log::warning('OrderController::index - User data not found in validated initData');
+                    return response()->json([
+                        'message' => 'Не удалось определить пользователя из initData',
+                    ], 400);
+                }
+                
+                $telegramIdInt = (int)$user['id'];
+                Log::info('OrderController::index - Validated initData, extracted user.id', [
+                    'telegram_id' => $telegramIdInt,
+                    'user_first_name' => $user['first_name'] ?? null,
+                    'user_username' => $user['username'] ?? null,
+                ]);
+                
+                // Фильтруем заказы по telegram_id из валидированного initData
+                $query->where('telegram_id', $telegramIdInt);
+            } 
+            // Приоритет 2: Fallback для web-версии (когда нет Telegram WebApp)
+            else if ($request->has('telegram_id') && $request->get('telegram_id')) {
+                // Web-версия: используем переданный telegram_id (без валидации, но с предупреждением)
+                $telegramId = $request->get('telegram_id');
+                $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
+                
+                if (!$telegramIdInt) {
+                    Log::warning('OrderController::index - Invalid telegram_id format for web fallback');
+                    return response()->json([
+                        'message' => 'Некорректный формат telegram_id',
+                    ], 400);
+                }
+                
+                Log::info('OrderController::index - Web fallback: using telegram_id parameter', [
+                    'telegram_id' => $telegramIdInt,
+                    'note' => 'This is a fallback for web version without Telegram WebApp',
+                ]);
+                
+                $query->where('telegram_id', $telegramIdInt);
+            } 
+            // Ошибка: нет ни initData, ни telegram_id
+            else {
+                Log::warning('OrderController::index - Missing initData and telegram_id for public request', [
+                    'request_params' => $request->all(),
+                    'query_params' => $request->query(),
+                    'headers' => [
+                        'X-Telegram-Init-Data' => $request->header('X-Telegram-Init-Data'),
+                        'X-Bot-Token' => $request->header('X-Bot-Token'),
+                    ],
+                ]);
+                return response()->json([
+                    'message' => 'Для получения заказов необходимо предоставить initData (Telegram Mini App) или telegram_id (web версия)',
+                    'hint' => 'В Mini App передайте initData в заголовке X-Telegram-Init-Data. В web версии используйте параметр telegram_id.',
+                ], 400);
+            }
         }
 
         // Фильтрация по статусу

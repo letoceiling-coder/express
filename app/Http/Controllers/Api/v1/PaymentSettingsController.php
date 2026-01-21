@@ -177,11 +177,18 @@ class PaymentSettingsController extends Controller
             $object = $request->input('object');
             $paymentId = $object['id'] ?? null;
             
+            // Логируем полный входящий webhook
             Log::info('YooKassa webhook received', [
                 'event' => $event,
                 'payment_id' => $paymentId,
+                'status' => $object['status'] ?? null,
+                'captured_at' => $object['captured_at'] ?? null,
+                'paid_at' => $object['paid_at'] ?? null,
+                'amount' => $object['amount'] ?? null,
+                'metadata' => $object['metadata'] ?? null,
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'full_object' => $object, // Полный объект для отладки
             ]);
 
             $settings = PaymentSetting::forProvider('yookassa');
@@ -271,11 +278,20 @@ class PaymentSettingsController extends Controller
         $paymentId = $payment['id'] ?? null;
         $metadata = $payment['metadata'] ?? [];
         $orderId = $metadata['order_id'] ?? null;
+        $status = $payment['status'] ?? null;
+        $capturedAt = isset($payment['captured_at']) 
+            ? \Carbon\Carbon::parse($payment['captured_at']) 
+            : null;
+        $paidAt = isset($payment['paid_at']) 
+            ? \Carbon\Carbon::parse($payment['paid_at']) 
+            : null;
         
         Log::info('YooKassa webhook - payment.succeeded', [
             'payment_id' => $paymentId,
             'order_id' => $orderId,
-            'status' => $payment['status'] ?? null,
+            'status' => $status,
+            'captured_at' => $capturedAt?->toIso8601String(),
+            'paid_at' => $paidAt?->toIso8601String(),
             'amount' => $payment['amount'] ?? null,
         ]);
 
@@ -298,57 +314,93 @@ class PaymentSettingsController extends Controller
             }
         }
 
-        if ($paymentRecord) {
-            $oldStatus = $paymentRecord->status;
-            
-            \DB::beginTransaction();
-            try {
-                $paymentRecord->status = \App\Models\Payment::STATUS_SUCCEEDED;
-                $paymentRecord->paid_at = isset($payment['paid_at']) 
-                    ? \Carbon\Carbon::parse($payment['paid_at']) 
-                    : now();
-                $paymentRecord->provider_response = $payment;
-                $paymentRecord->save();
-
-                // Обновляем статус заказа
-                if ($paymentRecord->order) {
-                    $order = $paymentRecord->order;
-                    $order->payment_status = 'succeeded';
-                    $order->payment_id = (string) $paymentRecord->id;
-                    if ($order->status === 'new') {
-                        $order->status = 'accepted';
-                    }
-                    $order->save();
-                    
-                    Log::info('YooKassa webhook - payment.succeeded: статусы обновлены', [
-                        'payment_id' => $paymentRecord->id,
-                        'old_status' => $oldStatus,
-                        'new_status' => $paymentRecord->status,
-                        'order_id' => $order->id,
-                        'order_status' => $order->status,
-                        'order_payment_status' => $order->payment_status,
-                    ]);
-                } else {
-                    Log::warning('YooKassa webhook - payment.succeeded: заказ не найден', [
-                        'payment_id' => $paymentRecord->id,
-                        'order_id' => $paymentRecord->order_id,
-                    ]);
-                }
-                
-                \DB::commit();
-            } catch (\Exception $e) {
-                \DB::rollBack();
-                Log::error('YooKassa webhook - payment.succeeded: ошибка обновления', [
-                    'payment_id' => $paymentRecord->id,
-                    'error' => $e->getMessage(),
-                ]);
-                throw $e;
-            }
-        } else {
+        if (!$paymentRecord) {
             Log::warning('YooKassa webhook - payment.succeeded: платеж не найден в БД', [
                 'yookassa_payment_id' => $paymentId,
                 'order_id' => $orderId,
             ]);
+            return;
+        }
+
+        // Идемпотентность: проверяем, не обработан ли уже этот платеж
+        if ($paymentRecord->status === \App\Models\Payment::STATUS_SUCCEEDED) {
+            Log::info('YooKassa webhook - payment.succeeded: платеж уже обработан (идемпотентность)', [
+                'payment_id' => $paymentRecord->id,
+                'yookassa_payment_id' => $paymentId,
+                'current_status' => $paymentRecord->status,
+            ]);
+            
+            // Обновляем только captured_at и provider_response, если они изменились
+            $needsUpdate = false;
+            if ($capturedAt && (!$paymentRecord->captured_at || $paymentRecord->captured_at->ne($capturedAt))) {
+                $paymentRecord->captured_at = $capturedAt;
+                $needsUpdate = true;
+            }
+            if ($paymentRecord->provider_response !== $payment) {
+                $paymentRecord->provider_response = $payment;
+                $needsUpdate = true;
+            }
+            
+            if ($needsUpdate) {
+                $paymentRecord->save();
+                Log::info('YooKassa webhook - payment.succeeded: обновлены дополнительные поля', [
+                    'payment_id' => $paymentRecord->id,
+                    'captured_at' => $capturedAt?->toIso8601String(),
+                ]);
+            }
+            
+            return;
+        }
+
+        $oldStatus = $paymentRecord->status;
+        
+        \DB::beginTransaction();
+        try {
+            // Обновляем платеж
+            $paymentRecord->status = \App\Models\Payment::STATUS_SUCCEEDED;
+            $paymentRecord->paid_at = $paidAt ?: now();
+            $paymentRecord->captured_at = $capturedAt ?: $paidAt ?: now();
+            $paymentRecord->provider_response = $payment;
+            $paymentRecord->save();
+
+            // Обновляем статус заказа согласно требованиям:
+            // payment.succeeded → paid=true, payment_status='succeeded', order_status='paid'
+            if ($paymentRecord->order) {
+                $order = $paymentRecord->order;
+                $order->paid = true;
+                $order->payment_status = 'succeeded';
+                $order->payment_id = (string) $paymentRecord->id;
+                $order->status = \App\Models\Order::STATUS_PAID;
+                $order->save();
+                
+                Log::info('YooKassa webhook - payment.succeeded: статусы обновлены', [
+                    'payment_id' => $paymentRecord->id,
+                    'yookassa_payment_id' => $paymentId,
+                    'old_payment_status' => $oldStatus,
+                    'new_payment_status' => $paymentRecord->status,
+                    'order_id' => $order->id,
+                    'order_status' => $order->status,
+                    'order_payment_status' => $order->payment_status,
+                    'order_paid' => $order->paid,
+                    'captured_at' => $capturedAt?->toIso8601String(),
+                ]);
+            } else {
+                Log::warning('YooKassa webhook - payment.succeeded: заказ не найден', [
+                    'payment_id' => $paymentRecord->id,
+                    'order_id' => $paymentRecord->order_id,
+                ]);
+            }
+            
+            \DB::commit();
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            Log::error('YooKassa webhook - payment.succeeded: ошибка обновления', [
+                'payment_id' => $paymentRecord->id,
+                'yookassa_payment_id' => $paymentId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
     }
 
@@ -440,12 +492,19 @@ class PaymentSettingsController extends Controller
     {
         $paymentId = $refund['payment_id'] ?? null;
         $refundId = $refund['id'] ?? null;
+        $refundStatus = $refund['status'] ?? null;
+        $refundAmount = isset($refund['amount']['value']) 
+            ? (float) $refund['amount']['value'] 
+            : 0;
         
         Log::info('YooKassa webhook - refund.succeeded', [
             'refund_id' => $refundId,
             'payment_id' => $paymentId,
-            'refund_status' => $refund['status'] ?? null,
-            'refund_amount' => $refund['amount'] ?? null,
+            'refund_status' => $refundStatus,
+            'refund_amount' => $refundAmount,
+            'refund_created_at' => isset($refund['created_at']) 
+                ? \Carbon\Carbon::parse($refund['created_at'])->toIso8601String() 
+                : null,
         ]);
 
         if (!$paymentId) {
@@ -454,19 +513,51 @@ class PaymentSettingsController extends Controller
         }
 
         $paymentRecord = \App\Models\Payment::where('transaction_id', $paymentId)->first();
-        if ($paymentRecord) {
-            $oldStatus = $paymentRecord->status;
-            $oldRefundedAmount = $paymentRecord->refunded_amount;
-            
-            $refundAmount = isset($refund['amount']['value']) 
-                ? (float) $refund['amount']['value'] 
-                : 0;
+        if (!$paymentRecord) {
+            Log::warning('YooKassa webhook - refund.succeeded: платеж не найден в БД', [
+                'yookassa_payment_id' => $paymentId,
+                'yookassa_refund_id' => $refundId,
+            ]);
+            return;
+        }
+
+        // Идемпотентность: проверяем, не был ли уже обработан этот возврат
+        // Проверяем по refund_id в provider_response
+        $existingRefunds = $paymentRecord->provider_response['refunds'] ?? [];
+        $refundAlreadyProcessed = false;
+        if (is_array($existingRefunds)) {
+            foreach ($existingRefunds as $existingRefund) {
+                if (isset($existingRefund['id']) && $existingRefund['id'] === $refundId) {
+                    $refundAlreadyProcessed = true;
+                    break;
+                }
+            }
+        }
+
+        $oldStatus = $paymentRecord->status;
+        $oldRefundedAmount = $paymentRecord->refunded_amount;
+        
+        \DB::beginTransaction();
+        try {
+            // Обновляем информацию о возврате
             $newRefundedAmount = (float) $paymentRecord->refunded_amount + $refundAmount;
+            
+            // Сохраняем информацию о возврате в provider_response
+            $providerResponse = $paymentRecord->provider_response ?? [];
+            if (!isset($providerResponse['refunds'])) {
+                $providerResponse['refunds'] = [];
+            }
+            // Добавляем информацию о возврате, если его еще нет
+            if (!$refundAlreadyProcessed) {
+                $providerResponse['refunds'][] = $refund;
+            }
+            $providerResponse['last_refund'] = $refund;
             
             $paymentRecord->refunded_amount = $newRefundedAmount;
             $paymentRecord->refunded_at = now();
-            $paymentRecord->provider_response = $refund; // Сохраняем информацию о возврате
+            $paymentRecord->provider_response = $providerResponse;
 
+            // Определяем статус платежа
             if ($newRefundedAmount >= $paymentRecord->amount) {
                 $paymentRecord->status = \App\Models\Payment::STATUS_REFUNDED;
             } else {
@@ -474,21 +565,51 @@ class PaymentSettingsController extends Controller
             }
 
             $paymentRecord->save();
+
+            // Обновляем статус заказа согласно требованиям:
+            // refund.succeeded → refunded=true, order_status='refunded'
+            if ($paymentRecord->order) {
+                $order = $paymentRecord->order;
+                
+                // Если полный возврат, устанавливаем статус refunded и флаг refunded
+                if ($newRefundedAmount >= $paymentRecord->amount) {
+                    $order->refunded = true;
+                    $order->status = \App\Models\Order::STATUS_REFUNDED;
+                }
+                
+                $order->save();
+                
+                Log::info('YooKassa webhook - refund.succeeded: статусы обновлены', [
+                    'payment_id' => $paymentRecord->id,
+                    'yookassa_payment_id' => $paymentId,
+                    'yookassa_refund_id' => $refundId,
+                    'old_payment_status' => $oldStatus,
+                    'new_payment_status' => $paymentRecord->status,
+                    'old_refunded_amount' => $oldRefundedAmount,
+                    'refund_amount' => $refundAmount,
+                    'new_refunded_amount' => $newRefundedAmount,
+                    'order_id' => $order->id,
+                    'order_status' => $order->status,
+                    'refund_already_processed' => $refundAlreadyProcessed,
+                ]);
+            } else {
+                Log::warning('YooKassa webhook - refund.succeeded: заказ не найден', [
+                    'payment_id' => $paymentRecord->id,
+                    'order_id' => $paymentRecord->order_id,
+                ]);
+            }
             
-            Log::info('YooKassa webhook - refund.succeeded: статус обновлен', [
+            \DB::commit();
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            Log::error('YooKassa webhook - refund.succeeded: ошибка обновления', [
                 'payment_id' => $paymentRecord->id,
-                'old_status' => $oldStatus,
-                'new_status' => $paymentRecord->status,
-                'old_refunded_amount' => $oldRefundedAmount,
-                'refund_amount' => $refundAmount,
-                'new_refunded_amount' => $newRefundedAmount,
-                'yookassa_refund_id' => $refundId,
-            ]);
-        } else {
-            Log::warning('YooKassa webhook - refund.succeeded: платеж не найден в БД', [
                 'yookassa_payment_id' => $paymentId,
                 'yookassa_refund_id' => $refundId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
+            throw $e;
         }
     }
 }

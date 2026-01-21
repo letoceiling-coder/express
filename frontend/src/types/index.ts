@@ -76,9 +76,12 @@ export interface Order {
 
 export interface CreateOrderPayload {
   phone: string;
+  email?: string; // Email для чека
+  name?: string;
   deliveryAddress: string;
   deliveryTime?: string;
   deliveryType?: 'courier' | 'pickup';
+  deliveryCost?: number; // Стоимость доставки
   comment?: string;
   items: {
     productId: string;
@@ -87,7 +90,9 @@ export interface CreateOrderPayload {
     quantity: number;
     unitPrice: number;
   }[];
-  totalAmount: number;
+  totalAmount: number; // Итоговая сумма (товары + доставка)
+  originalAmount?: number; // Сумма товаров без скидки
+  discount?: number; // Размер скидки
 }
 
 // User Types

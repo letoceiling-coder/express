@@ -423,16 +423,24 @@ class PaymentController extends Controller
             }
             
             // Проверяем, что сумма платежа соответствует сумме заказа
+            // total_amount в заказе должен содержать итоговую сумму (товары + доставка)
             $requestAmount = (float) $request->get('amount');
-            $orderAmount = (float) $order->total_amount;
-            if (abs($requestAmount - $orderAmount) > 0.01) {
+            $orderTotalAmount = (float) $order->total_amount;
+            $orderDeliveryCost = (float) $order->delivery_cost;
+            $orderItemsTotal = $orderTotalAmount - $orderDeliveryCost;
+            
+            // Проверяем, что total_amount = товары + доставка
+            if (abs($requestAmount - $orderTotalAmount) > 0.01) {
                 Log::warning('PaymentController::createYooKassaPayment - Amount mismatch', [
                     'order_id' => $order->id,
                     'request_amount' => $requestAmount,
-                    'order_amount' => $orderAmount,
+                    'order_total_amount' => $orderTotalAmount,
+                    'order_items_total' => $orderItemsTotal,
+                    'order_delivery_cost' => $orderDeliveryCost,
+                    'expected_total' => $orderItemsTotal + $orderDeliveryCost,
                 ]);
                 return response()->json([
-                    'message' => 'Сумма платежа не соответствует сумме заказа',
+                    'message' => 'Сумма платежа не соответствует сумме заказа (товары + доставка)',
                 ], 400);
             }
             
@@ -464,6 +472,7 @@ class PaymentController extends Controller
             $receiptItems = [];
             $receiptTotalAmount = 0;
             
+            // Добавляем товары в чек
             if ($order->items && $order->items->count() > 0) {
                 foreach ($order->items as $item) {
                     // Получаем цену за единицу товара
@@ -485,17 +494,37 @@ class PaymentController extends Controller
                     ];
                 }
             } else {
-                // Если items не загружены, создаем один item на всю сумму заказа
-                $receiptTotalAmount = (float) $request->get('amount');
+                // Если items не загружены, создаем один item на сумму товаров
+                $itemsTotal = (float) $order->total_amount - (float) $order->delivery_cost;
+                if ($itemsTotal > 0) {
+                    $receiptTotalAmount += $itemsTotal;
+                    $receiptItems[] = [
+                        'description' => 'Товары',
+                        'quantity' => '1.00', // Формат с двумя знаками после запятой
+                        'amount' => [
+                            'value' => number_format($itemsTotal, 2, '.', ''), // Цена за единицу
+                            'currency' => 'RUB',
+                        ],
+                        'vat_code' => '1', // НДС 20% - строка, не число!
+                        'payment_subject' => 'commodity', // Признак предмета расчета: товар
+                        'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
+                    ];
+                }
+            }
+            
+            // Добавляем доставку как отдельную позицию в чек (если есть)
+            $deliveryCost = (float) $order->delivery_cost;
+            if ($deliveryCost > 0 && $order->delivery_type === 'courier') {
+                $receiptTotalAmount += $deliveryCost;
                 $receiptItems[] = [
-                    'description' => $description,
-                    'quantity' => '1.00', // Формат с двумя знаками после запятой
+                    'description' => 'Доставка',
+                    'quantity' => '1.00',
                     'amount' => [
-                        'value' => number_format($receiptTotalAmount, 2, '.', ''), // Для одного товара это и есть цена за единицу
+                        'value' => number_format($deliveryCost, 2, '.', ''),
                         'currency' => 'RUB',
                     ],
-                    'vat_code' => '1', // НДС 20% - строка, не число!
-                    'payment_subject' => 'commodity', // Признак предмета расчета: товар
+                    'vat_code' => '1', // НДС 20%
+                    'payment_subject' => 'service', // Признак предмета расчета: услуга
                     'payment_mode' => 'full_payment', // Признак способа расчета: полный расчет
                 ];
             }
@@ -530,8 +559,10 @@ class PaymentController extends Controller
             // Приоритет email для фискализации, phone - как дополнительный параметр
             $receiptCustomer = [];
             
-            // Получаем email из запроса или создаем placeholder
-            $email = $request->get('email');
+            // Получаем email из запроса, заказа или создаем placeholder
+            $email = $request->get('email') 
+                ?? ($order->email && filter_var($order->email, FILTER_VALIDATE_EMAIL) ? $order->email : null);
+            
             if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $receiptCustomer['email'] = $email;
             } else {
@@ -568,6 +599,27 @@ class PaymentController extends Controller
                 $quantity = (float) $item['quantity'];
                 $finalReceiptTotal += $unitPrice * $quantity;
             }
+            
+            // Логируем детали расчета для отладки
+            Log::info('PaymentController::createYooKassaPayment - Receipt calculation', [
+                'order_id' => $order->id,
+                'order_total_amount' => $order->total_amount,
+                'order_delivery_cost' => $order->delivery_cost,
+                'order_items_total' => (float)$order->total_amount - (float)$order->delivery_cost,
+                'receipt_items_count' => count($receiptItems),
+                'receipt_total' => $finalReceiptTotal,
+                'payment_amount' => $paymentAmount,
+                'receipt_items_breakdown' => array_map(function($item) {
+                    return [
+                        'description' => $item['description'] ?? '',
+                        'quantity' => $item['quantity'] ?? '0',
+                        'unit_price' => $item['amount']['value'] ?? '0',
+                        'item_total' => isset($item['amount']['value'], $item['quantity']) 
+                            ? (float)$item['amount']['value'] * (float)$item['quantity'] 
+                            : 0,
+                    ];
+                }, $receiptItems),
+            ]);
             
             // Формируем receipt - ОБЯЗАТЕЛЬНО, если есть данные
             // YooKassa требует receipt, если фискализация включена в аккаунте

@@ -53,6 +53,7 @@ class Order extends Model
         'telegram_id',
         'status',
         'phone',
+        'email',
         'name',
         'delivery_address',
         'delivery_type',
@@ -68,6 +69,8 @@ class Order extends Model
         'discount_amount',
         'payment_id',
         'payment_status',
+        'paid',
+        'refunded',
         'payment_method',
         'manager_id',
         'bot_id',
@@ -94,6 +97,8 @@ class Order extends Model
         'bot_id' => 'integer',
         'courier_id' => 'integer',
         'assigned_to_all_couriers' => 'boolean',
+        'paid' => 'boolean',
+        'refunded' => 'boolean',
         'version' => 'integer',
         'delivery_date' => 'date',
         'kitchen_started_at' => 'datetime',
@@ -109,6 +114,7 @@ class Order extends Model
      */
     const STATUS_NEW = 'new';
     const STATUS_ACCEPTED = 'accepted';
+    const STATUS_PAID = 'paid';
     const STATUS_SENT_TO_KITCHEN = 'sent_to_kitchen';
     const STATUS_KITCHEN_ACCEPTED = 'kitchen_accepted';
     const STATUS_PREPARING = 'preparing';
@@ -117,6 +123,7 @@ class Order extends Model
     const STATUS_IN_TRANSIT = 'in_transit';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
+    const STATUS_REFUNDED = 'refunded';
 
     /**
      * Допустимые статусы оплаты

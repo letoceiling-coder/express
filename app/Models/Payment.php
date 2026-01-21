@@ -59,6 +59,7 @@ class Payment extends Model
         'refunded_amount' => 'decimal:2',
         'provider_response' => 'array',
         'paid_at' => 'datetime',
+        'captured_at' => 'datetime',
         'refunded_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

@@ -4,7 +4,7 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { useCartStore } from '@/store/cartStore';
 import { useOrders } from '@/hooks/useOrders';
 import { toast } from 'sonner';
-import { Loader2, Check, CalendarIcon } from 'lucide-react';
+import { Loader2, Check, CalendarIcon, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTelegramUser, hapticFeedback } from '@/lib/telegram';
 import { ordersAPI, paymentMethodsAPI, paymentAPI, deliverySettingsAPI } from '@/api';
@@ -601,7 +601,11 @@ export function CheckoutPage() {
       // Подготовка данных заказа
       const phoneDigits = getPhoneDigits(formData.phone);
       const deliveryCostFinal = formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0;
-      const finalAmount = (discountInfo?.final_amount || totalAmount) + deliveryCostFinal;
+      const itemsTotal = discountInfo?.final_amount || totalAmount; // Сумма товаров (со скидкой, если есть)
+      const grandTotal = itemsTotal + deliveryCostFinal; // Итоговая сумма = товары + доставка
+      
+      // Получаем email из Telegram WebApp для чека
+      const telegramEmail = window.Telegram?.WebApp?.initDataUnsafe?.user?.email;
       
       // Формируем строку времени доставки
       let deliveryTimeStr: string | undefined;
@@ -614,11 +618,12 @@ export function CheckoutPage() {
       
       const orderData = {
         phone: phoneDigits,
+        email: telegramEmail || undefined, // Email для чека
         name: formData.name || undefined,
         deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : (deliveryValidation?.address || formData.address),
         deliveryTime: deliveryTimeStr,
         deliveryType: formData.deliveryType,
-        deliveryCost: deliveryCostFinal,
+        deliveryCost: deliveryCostFinal, // Стоимость доставки отдельно
         comment: formData.comment || undefined,
         paymentMethod: formData.paymentMethod?.code || null,
         items: items.map(item => ({
@@ -628,9 +633,9 @@ export function CheckoutPage() {
           quantity: item.quantity,
           unitPrice: item.product.price,
         })),
-        totalAmount: finalAmount,
-        originalAmount: totalAmount,
-        discount: discountInfo?.discount || 0,
+        totalAmount: grandTotal, // Итоговая сумма = товары + доставка
+        originalAmount: totalAmount, // Сумма товаров без скидки
+        discount: discountInfo?.discount || 0, // Размер скидки
       };
 
       const paymentCode = formData.paymentMethod?.code?.toLowerCase();
@@ -667,14 +672,15 @@ export function CheckoutPage() {
           const telegramEmail = window.Telegram?.WebApp?.initDataUnsafe?.user?.email;
           
           // Создаем платеж через ЮKassa
+          // Передаем итоговую сумму = товары + доставка
           const returnUrl = `${window.location.origin}/orders/${order.orderId}?payment=success`;
           const paymentData = await paymentAPI.createYooKassaPayment(
             Number(order.id),
-            finalAmount,
+            grandTotal, // Итоговая сумма = товары + доставка
             returnUrl,
             `Оплата заказа #${order.orderId}`,
             telegramId,
-            telegramEmail // Передаем email для квитанции
+            telegramEmail || order.email // Используем email из заказа или Telegram
           );
 
           console.log('Payment data received:', paymentData);
@@ -1194,10 +1200,22 @@ export function CheckoutPage() {
                     </span>
                   </div>
                 )}
+                {formData.deliveryType === 'courier' && deliveryCost !== null && deliveryCost > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Доставка</span>
+                    <span className="text-sm text-foreground">
+                      {deliveryCost.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-border flex items-center justify-between">
                   <span className="text-lg font-semibold text-foreground">К оплате</span>
                   <span className="text-xl font-bold text-primary">
-                    {(discountInfo?.final_amount || totalAmount).toLocaleString('ru-RU')} ₽
+                    {(() => {
+                      const itemsTotal = discountInfo?.final_amount || totalAmount;
+                      const deliveryFee = formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0;
+                      return (itemsTotal + deliveryFee).toLocaleString('ru-RU');
+                    })()} ₽
                   </span>
                 </div>
               </div>
@@ -1205,6 +1223,19 @@ export function CheckoutPage() {
           </div>
         )}
       </div>
+
+      {/* Legal Documents Link - Show on step 4 */}
+      {step === 4 && (
+        <div className="px-4 pb-24">
+          <button
+            onClick={() => navigate('/legal-documents')}
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors touch-feedback"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Политика конфиденциальности и оферта</span>
+          </button>
+        </div>
+      )}
 
       {/* Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background p-4 safe-area-bottom">

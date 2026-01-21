@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Minus, ChevronLeft, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { useCatalogStore } from '@/store/catalogStore';
 import { productsAPI, categoriesAPI } from '@/api';
 import { toast } from 'sonner';
 import { hapticFeedback } from '@/lib/telegram';
@@ -12,6 +13,7 @@ export function ProductDetailPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { items, addItem, updateQuantity } = useCartStore();
+  const { setScrollY } = useCatalogStore();
   const [localQuantity, setLocalQuantity] = useState(1);
   const [product, setProduct] = useState<Product | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
@@ -19,6 +21,23 @@ export function ProductDetailPage() {
   
   const cartItem = items.find((item) => item.product.id === productId);
   const quantityInCart = cartItem?.quantity || 0;
+
+  // Сохраняем позицию скролла при переходе на страницу товара
+  useEffect(() => {
+    setScrollY(window.scrollY);
+  }, [setScrollY]);
+
+  // Обработчик возврата назад
+  const handleBack = () => {
+    // Используем history.back() для возврата на предыдущую страницу
+    // Это сохранит контекст каталога (категорию, скролл)
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // Если нет истории, переходим на главную с сохранением категории
+      navigate('/');
+    }
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -44,7 +63,7 @@ export function ProductDetailPage() {
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 flex h-14 items-center px-4 bg-background border-b border-border">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="flex h-11 w-11 items-center justify-center rounded-lg touch-feedback -ml-2"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -117,7 +136,7 @@ export function ProductDetailPage() {
       {/* Header - Fixed with back button */}
       <header className="sticky top-0 z-50 flex h-11 items-center px-4 bg-background/95 backdrop-blur-sm safe-area-top">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="flex h-11 w-11 items-center justify-center rounded-lg touch-feedback -ml-2"
           aria-label="Назад"
         >

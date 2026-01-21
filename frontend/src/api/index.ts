@@ -2,9 +2,34 @@ import { Category, Product, Order, CreateOrderPayload, OrderItem } from '@/types
 
 const API_BASE = '/api/v1';
 
+// Получить initData из Telegram WebApp
+const getInitData = (): string | null => {
+  try {
+    const tg = window.Telegram?.WebApp;
+    if (tg?.initData) {
+      return tg.initData;
+    }
+    return null;
+  } catch (e) {
+    console.warn('Failed to get initData:', e);
+    return null;
+  }
+};
+
+// Проверить, запущено ли приложение в Telegram WebApp
+const isTelegramWebApp = (): boolean => {
+  try {
+    return !!window.Telegram?.WebApp;
+  } catch {
+    return false;
+  }
+};
+
 // Утилита для работы с API
 const apiRequest = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token');
+  const initData = getInitData();
+  const isInTelegram = isTelegramWebApp();
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -15,9 +40,20 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+  
+  // Передаем initData для валидации на сервере (только если есть Telegram WebApp)
+  if (initData && isInTelegram) {
+    headers['X-Telegram-Init-Data'] = initData;
+  }
 
   const fullUrl = `${API_BASE}${url}`;
-  console.log('apiRequest - Making request:', { url: fullUrl, method: options.method || 'GET', hasToken: !!token });
+  console.log('apiRequest - Making request:', { 
+    url: fullUrl, 
+    method: options.method || 'GET', 
+    hasToken: !!token,
+    hasInitData: !!initData,
+    isInTelegram,
+  });
 
   try {
     const response = await fetch(fullUrl, {
@@ -210,12 +246,16 @@ export const ordersAPI = {
       order_id: orderId,
       telegram_id: telegramId,
       phone: payload.phone,
+      email: payload.email || null, // Email для чека
       name: payload.name || null,
       delivery_address: payload.deliveryAddress,
       delivery_time: payload.deliveryTime || null,
       delivery_type: payload.deliveryType || 'courier',
+      delivery_cost: payload.deliveryCost || 0, // Стоимость доставки
       comment: payload.comment || null,
       total_amount: payload.totalAmount,
+      original_amount: payload.originalAmount || payload.totalAmount,
+      discount: payload.discount || 0,
       status: 'new',
       payment_status: 'pending',
       items: payload.items.map(item => ({
@@ -815,6 +855,52 @@ export const aboutAPI = {
       return response.data || null;
     } catch (error: any) {
       console.error('About API - get error:', error);
+      throw error;
+    }
+  },
+};
+
+// Legal Documents API
+export const legalDocumentsAPI = {
+  async getAll(): Promise<any[]> {
+    try {
+      const response = await apiRequest('/legal-documents');
+      return response.data || [];
+    } catch (error: any) {
+      console.error('Legal Documents API - getAll error:', error);
+      throw error;
+    }
+  },
+
+  async getByType(type: string): Promise<any> {
+    try {
+      const response = await apiRequest(`/legal-documents/${type}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Legal Documents API - getByType error:', error);
+      throw error;
+    }
+  },
+
+  async getAdmin(): Promise<any[]> {
+    try {
+      const response = await apiRequest('/admin/legal-documents');
+      return response.data || [];
+    } catch (error: any) {
+      console.error('Legal Documents API - getAdmin error:', error);
+      throw error;
+    }
+  },
+
+  async update(documents: any[]): Promise<any[]> {
+    try {
+      const response = await apiRequest('/admin/legal-documents', {
+        method: 'PUT',
+        body: JSON.stringify({ documents }),
+      });
+      return response.data || [];
+    } catch (error: any) {
+      console.error('Legal Documents API - update error:', error);
       throw error;
     }
   },

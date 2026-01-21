@@ -53,7 +53,18 @@ export function useOrders() {
     }
     
     const telegramId = user?.id || 0;
-    console.log('useOrders - Final telegramId:', telegramId);
+    const isInTelegram = !!window.Telegram?.WebApp;
+    console.log('useOrders - Final telegramId:', telegramId, 'isInTelegram:', isInTelegram);
+    
+    // Если нет Telegram WebApp (web-версия), показываем понятное сообщение
+    if (!isInTelegram) {
+      console.warn('useOrders - Not running in Telegram WebApp (web version)');
+      if (currentOrders.length === 0) {
+        setOrders([]);
+        setError('Это приложение работает только в Telegram Mini App. Откройте его через Telegram бота.');
+      }
+      return;
+    }
     
     if (!telegramId) {
       console.error('useOrders - No telegram user ID after all retries, returning empty orders');

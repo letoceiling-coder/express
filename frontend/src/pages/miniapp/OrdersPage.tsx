@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Filter, Loader2 } from 'lucide-react';
+import { ClipboardList, Filter, Loader2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
@@ -167,6 +167,9 @@ export function OrdersPage() {
   }
 
   if (error) {
+    const isWebVersion = !window.Telegram?.WebApp;
+    const isTelegramUserError = error.includes('Не удалось определить пользователя') || error.includes('работает только в Telegram');
+    
     return (
       <div className="min-h-screen bg-background pb-20">
         <MiniAppHeader title="Мои заказы" />
@@ -174,14 +177,25 @@ export function OrdersPage() {
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-destructive/10">
             <ClipboardList className="h-12 w-12 text-destructive" />
           </div>
-          <h2 className="mt-6 text-xl font-bold text-foreground">Ошибка загрузки</h2>
+          <h2 className="mt-6 text-xl font-bold text-foreground">
+            {isWebVersion ? 'Требуется Telegram Mini App' : 'Ошибка загрузки'}
+          </h2>
           <p className="mt-2 text-center text-muted-foreground">{error}</p>
-          <button
-            onClick={() => loadOrders()}
-            className="mt-6 rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground touch-feedback"
-          >
-            Попробовать снова
-          </button>
+          {isWebVersion && (
+            <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border">
+              <p className="text-sm text-muted-foreground text-center">
+                Для просмотра заказов откройте это приложение через Telegram бота.
+              </p>
+            </div>
+          )}
+          {!isWebVersion && !isTelegramUserError && (
+            <button
+              onClick={() => loadOrders(true)}
+              className="mt-6 rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground touch-feedback"
+            >
+              Попробовать снова
+            </button>
+          )}
         </div>
         <BottomNavigation />
       </div>
@@ -254,6 +268,17 @@ export function OrdersPage() {
             />
           ))
         )}
+      </div>
+
+      {/* Legal Documents Link */}
+      <div className="px-4 pb-20">
+        <button
+          onClick={() => navigate('/legal-documents')}
+          className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors touch-feedback"
+        >
+          <FileText className="h-4 w-4" />
+          <span>Политика конфиденциальности и оферта</span>
+        </button>
       </div>
 
       <BottomNavigation />

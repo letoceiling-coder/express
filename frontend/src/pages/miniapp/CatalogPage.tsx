@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CategoryTabs } from '@/components/miniapp/CategoryTabs';
@@ -7,6 +7,7 @@ import { ProductCard } from '@/components/miniapp/ProductCard';
 import { DeliveryModeToggle } from '@/components/miniapp/DeliveryModeToggle';
 import { DeliveryProgressIndicator } from '@/components/miniapp/DeliveryProgressIndicator';
 import { useCartStore } from '@/store/cartStore';
+import { useCatalogStore } from '@/store/catalogStore';
 import { useProducts } from '@/hooks/useProducts';
 import { deliverySettingsAPI } from '@/api';
 import { ShoppingCart, Loader2 } from 'lucide-react';
@@ -14,10 +15,26 @@ import { Product } from '@/types';
 
 export function CatalogPage() {
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { products, categories, loading, error } = useProducts();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const totalAmount = useCartStore((state) => state.getTotalAmount());
+  
+  // Используем store для сохранения состояния каталога
+  const { 
+    activeCategoryId, 
+    scrollY, 
+    setActiveCategoryId, 
+    setScrollY 
+  } = useCatalogStore();
+  
+  // Синхронизируем activeCategory с query параметрами и store
+  const categoryFromQuery = searchParams.get('cat');
+  const activeCategory = categoryFromQuery || activeCategoryId;
+  
+  // Флаг для отслеживания первого рендера (чтобы восстановить скролл только один раз)
+  const hasRestoredScroll = useRef(false);
+  const previousCategoryRef = useRef<string | null>(null);
 
   // Состояние выбора типа доставки
   const [orderMode, setOrderMode] = useState<'pickup' | 'delivery'>(() => {
@@ -29,6 +46,71 @@ export function CatalogPage() {
   useEffect(() => {
     localStorage.setItem('orderMode', orderMode);
   }, [orderMode]);
+
+  // Синхронизация activeCategory с query параметрами и store
+  useEffect(() => {
+    const categoryFromQuery = searchParams.get('cat');
+    if (categoryFromQuery !== activeCategoryId) {
+      setActiveCategoryId(categoryFromQuery);
+    }
+    
+    // Если категория изменилась (и это не первый рендер), сбрасываем скролл и флаг восстановления
+    if (previousCategoryRef.current !== null && previousCategoryRef.current !== activeCategory) {
+      setScrollY(0);
+      hasRestoredScroll.current = false;
+    }
+    
+    // Обновляем предыдущую категорию
+    previousCategoryRef.current = activeCategory;
+  }, [searchParams, activeCategoryId, setActiveCategoryId, activeCategory, setScrollY]);
+
+  // Обработчик изменения категории
+  const handleCategoryChange = (categoryId: string | null) => {
+    setActiveCategoryId(categoryId);
+    if (categoryId) {
+      setSearchParams({ cat: categoryId });
+    } else {
+      setSearchParams({});
+    }
+    // Сбрасываем скролл при смене категории
+    setScrollY(0);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    hasRestoredScroll.current = false; // Сбрасываем флаг для новой категории
+  };
+
+  // Сохранение позиции скролла при прокрутке (скролл происходит на window)
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [setScrollY]);
+
+  // Восстановление позиции скролла при монтировании
+  useEffect(() => {
+    // Восстанавливаем скролл только если:
+    // 1. Данные загружены
+    // 2. Скролл еще не был восстановлен
+    // 3. Есть сохраненная позиция скролла
+    // 4. Категория не изменилась (чтобы не восстанавливать скролл при смене категории)
+    if (!loading && !hasRestoredScroll.current && scrollY > 0 && previousCategoryRef.current === activeCategory) {
+      // Небольшая задержка для гарантии рендера контента
+      const timer = setTimeout(() => {
+        window.scrollTo({
+          top: scrollY,
+          behavior: 'instant' as ScrollBehavior,
+        });
+        hasRestoredScroll.current = true;
+      }, 150);
+      
+      return () => clearTimeout(timer);
+    } else if (!loading && scrollY === 0) {
+      // Если скролл был сброшен, помечаем как восстановленный
+      hasRestoredScroll.current = true;
+    }
+  }, [loading, scrollY, activeCategory]);
 
   // Загрузка настроек доставки
   const [minDeliveryTotal, setMinDeliveryTotal] = useState<number>(3000);
@@ -194,7 +276,7 @@ export function CatalogPage() {
         <CategoryTabs
           categories={categories}
           activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
+          onCategoryChange={handleCategoryChange}
         />
       </div>
 
@@ -207,7 +289,11 @@ export function CatalogPage() {
                 key={product.id}
                 product={product}
                 variant="grid"
-                onClick={() => navigate(`/product/${product.id}`)}
+                onClick={() => {
+                  // Сохраняем текущую позицию скролла перед переходом
+                  setScrollY(window.scrollY);
+                  navigate(`/product/${product.id}`);
+                }}
               />
             ))}
           </div>
@@ -230,7 +316,7 @@ export function CatalogPage() {
                   {getCategoryName(categoryId)}
                 </h2>
                 <button
-                  onClick={() => setActiveCategory(categoryId)}
+                  onClick={() => handleCategoryChange(categoryId)}
                   className="text-xs sm:text-sm font-medium text-primary touch-feedback"
                 >
                   Показать все
@@ -242,7 +328,11 @@ export function CatalogPage() {
                     key={product.id}
                     product={product}
                     variant="grid"
-                    onClick={() => navigate(`/product/${product.id}`)}
+                    onClick={() => {
+                  // Сохраняем текущую позицию скролла перед переходом
+                  setScrollY(window.scrollY);
+                  navigate(`/product/${product.id}`);
+                }}
                   />
                 ))}
               </div>

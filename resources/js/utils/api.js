@@ -1016,3 +1016,30 @@ export const deliverySettingsAPI = {
     },
 };
 
+// ============================================
+// Legal Documents API
+// ============================================
+export const legalDocumentsAPI = {
+    // Получить все документы (админ)
+    async getAdmin() {
+        const response = await apiGet('/admin/legal-documents');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка загрузки документов' }));
+            throw new Error(error.message || 'Ошибка загрузки документов');
+        }
+        const result = await response.json();
+        return result.data || [];
+    },
+
+    // Обновить документы (админ)
+    async update(documents) {
+        const response = await apiPut('/admin/legal-documents', { documents });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка обновления документов' }));
+            throw new Error(error.message || 'Ошибка обновления документов');
+        }
+        const result = await response.json();
+        return result.data || [];
+    },
+};
+

@@ -13,6 +13,7 @@ import {
   CreditCard,
   Truck,
   Info,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
