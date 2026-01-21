@@ -300,6 +300,13 @@ class OrderController extends Controller
                     ?? $request->input('bot_token')
                     ?? config('telegram.bot_token');
                 
+                Log::info('OrderController::index - Bot token search', [
+                    'has_x_bot_token' => $request->header('X-Bot-Token') !== null,
+                    'has_bot_token_param' => $request->has('bot_token'),
+                    'has_config_token' => !empty(config('telegram.bot_token')),
+                    'token_found' => !empty($botToken),
+                ]);
+                
                 // Пробуем найти бота по ID из запроса или из initData
                 if (!$botToken) {
                     $botId = $request->input('bot_id');
@@ -307,12 +314,32 @@ class OrderController extends Controller
                         $bot = Bot::find($botId);
                         if ($bot) {
                             $botToken = $bot->token;
+                            Log::info('OrderController::index - Bot token found by bot_id', [
+                                'bot_id' => $botId,
+                            ]);
                         }
                     }
                 }
                 
+                // Fallback: получаем токен первого активного бота
                 if (!$botToken) {
-                    Log::warning('OrderController::index - Bot token not found for initData validation');
+                    $bot = Bot::where('is_active', true)->first();
+                    if ($bot) {
+                        $botToken = $bot->token;
+                        Log::info('OrderController::index - Using first active bot token', [
+                            'bot_id' => $bot->id,
+                            'bot_username' => $bot->username,
+                        ]);
+                    } else {
+                        Log::warning('OrderController::index - No active bots found in database');
+                    }
+                }
+                
+                if (!$botToken) {
+                    Log::warning('OrderController::index - Bot token not found for initData validation', [
+                        'active_bots_count' => Bot::where('is_active', true)->count(),
+                        'total_bots_count' => Bot::count(),
+                    ]);
                     return response()->json([
                         'message' => 'Токен бота не найден для валидации',
                     ], 400);
