@@ -41,13 +41,25 @@ export function OrdersPage() {
     } else {
       console.log('OrdersPage - Orders already loaded, refreshing silently...');
       // Обновляем заказы в фоне без показа загрузки
+      // Принудительно обновляем, чтобы синхронизировать статусы платежей
       const timer = setTimeout(() => {
-        loadOrders(false); // Тихая проверка обновлений
+        loadOrders(true); // Принудительное обновление для синхронизации статусов
       }, 1000);
       
       return () => clearTimeout(timer);
     }
   }, []); // Запускаем только при монтировании
+  
+  // Обновляем заказы при возврате на страницу (например, после оплаты)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('OrdersPage - Window focused, refreshing orders...');
+      loadOrders(true);
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadOrders]);
 
   useEffect(() => {
     console.log('OrdersPage - Orders state changed:', {

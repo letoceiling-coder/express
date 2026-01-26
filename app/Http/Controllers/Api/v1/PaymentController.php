@@ -254,7 +254,7 @@ class PaymentController extends Controller
         ]);
 
         try {
-            $payment = Payment::findOrFail($id);
+            $payment = Payment::with('order.items')->findOrFail($id);
 
             if (!$payment->canRefund()) {
                 return response()->json([
@@ -294,11 +294,60 @@ class PaymentController extends Controller
                         'description' => $request->get('description') ?? 'Возврат платежа #' . ($payment->order->order_id ?? $payment->id),
                     ];
                     
+                    // Для частичного возврата ЮKassa требует receipt
+                    // Проверяем, является ли возврат частичным
+                    $isPartialRefund = $refundAmount < $payment->amount;
+                    
+                    if ($isPartialRefund && $payment->order) {
+                        // Получаем receipt из оригинального платежа или формируем новый
+                        $originalReceipt = $payment->provider_response['receipt'] ?? null;
+                        
+                        if ($originalReceipt) {
+                            // Используем receipt из оригинального платежа
+                            $refundReceipt = $this->buildRefundReceipt($originalReceipt, $refundAmount, $payment->amount);
+                            $refundData['receipt'] = $refundReceipt;
+                            
+                            Log::info('PaymentController::refund - receipt для частичного возврата сформирован', [
+                                'payment_id' => $payment->id,
+                                'refund_amount' => $refundAmount,
+                                'original_amount' => $payment->amount,
+                                'receipt_items_count' => count($refundReceipt['items'] ?? []),
+                            ]);
+                        } else {
+                            // Если receipt нет в provider_response, формируем новый на основе заказа
+                            if (!$payment->order) {
+                                $payment->load('order.items');
+                            }
+                            
+                            $order = $payment->order;
+                            if (!$order) {
+                                throw new \Exception('Заказ не найден для платежа');
+                            }
+                            
+                            if (!$order->relationLoaded('items')) {
+                                $order->load('items');
+                            }
+                            
+                            $refundReceipt = $this->buildRefundReceiptFromOrder($order, $refundAmount, $payment->amount);
+                            $refundData['receipt'] = $refundReceipt;
+                            
+                            Log::info('PaymentController::refund - receipt для частичного возврата сформирован из заказа', [
+                                'payment_id' => $payment->id,
+                                'order_id' => $order->id,
+                                'refund_amount' => $refundAmount,
+                                'original_amount' => $payment->amount,
+                                'receipt_items_count' => count($refundReceipt['items'] ?? []),
+                            ]);
+                        }
+                    }
+                    
                     Log::info('PaymentController::refund - создание возврата через YooKassa API', [
                         'payment_id' => $payment->id,
                         'transaction_id' => $payment->transaction_id,
                         'refund_amount' => $refundAmount,
                         'currency' => $refundData['currency'],
+                        'is_partial' => $isPartialRefund,
+                        'has_receipt' => isset($refundData['receipt']),
                     ]);
                     
                     $refundResponse = $yooKassaService->createRefund($payment->transaction_id, $refundData);
@@ -1108,5 +1157,157 @@ class PaymentController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+    
+    /**
+     * Построить receipt для возврата на основе оригинального receipt
+     * 
+     * @param array $originalReceipt
+     * @param float $refundAmount
+     * @param float $originalAmount
+     * @return array
+     */
+    protected function buildRefundReceipt(array $originalReceipt, float $refundAmount, float $originalAmount): array
+    {
+        $refundRatio = $refundAmount / $originalAmount;
+        
+        $refundItems = [];
+        $refundTotal = 0;
+        
+        // Пропорционально распределяем возврат по позициям
+        foreach ($originalReceipt['items'] ?? [] as $item) {
+            $itemAmount = (float) ($item['amount']['value'] ?? 0);
+            $itemQuantity = (float) ($item['quantity'] ?? 1);
+            $itemTotal = $itemAmount * $itemQuantity;
+            
+            // Вычисляем сумму возврата для этой позиции
+            $refundItemTotal = $itemTotal * $refundRatio;
+            $refundItemAmount = $refundItemTotal / $itemQuantity; // Цена за единицу
+            
+            $refundItems[] = [
+                'description' => $item['description'] ?? 'Товар',
+                'quantity' => $item['quantity'] ?? '1.00',
+                'amount' => [
+                    'value' => number_format($refundItemAmount, 2, '.', ''),
+                    'currency' => $item['amount']['currency'] ?? 'RUB',
+                ],
+                'vat_code' => $item['vat_code'] ?? '1',
+                'payment_subject' => $item['payment_subject'] ?? 'commodity',
+                'payment_mode' => $item['payment_mode'] ?? 'full_payment',
+            ];
+            
+            $refundTotal += $refundItemTotal;
+        }
+        
+        // Корректируем последний элемент, чтобы сумма точно совпадала
+        if (count($refundItems) > 0 && abs($refundTotal - $refundAmount) > 0.01) {
+            $lastItem = &$refundItems[count($refundItems) - 1];
+            $adjustment = $refundAmount - $refundTotal;
+            $lastQuantity = (float) $lastItem['quantity'];
+            $lastUnitPrice = (float) $lastItem['amount']['value'];
+            $newUnitPrice = ($lastUnitPrice * $lastQuantity + $adjustment) / $lastQuantity;
+            $lastItem['amount']['value'] = number_format($newUnitPrice, 2, '.', '');
+        }
+        
+        return [
+            'customer' => $originalReceipt['customer'] ?? [],
+            'items' => $refundItems,
+        ];
+    }
+    
+    /**
+     * Построить receipt для возврата на основе заказа
+     * 
+     * @param \App\Models\Order $order
+     * @param float $refundAmount
+     * @param float $originalAmount
+     * @return array
+     */
+    protected function buildRefundReceiptFromOrder(\App\Models\Order $order, float $refundAmount, float $originalAmount): array
+    {
+        $refundRatio = $refundAmount / $originalAmount;
+        
+        $refundItems = [];
+        $refundTotal = 0;
+        
+        // Формируем customer данные
+        $customer = [];
+        
+        // Email
+        if ($order->email && filter_var($order->email, FILTER_VALIDATE_EMAIL)) {
+            $customer['email'] = $order->email;
+        } else {
+            $customer['email'] = 'order-' . $order->order_id . '@neekloai.ru';
+        }
+        
+        // Phone
+        if ($order->phone) {
+            $phone = preg_replace('/[^0-9]/', '', $order->phone);
+            if (strlen($phone) === 11 && $phone[0] === '7') {
+                $customer['phone'] = '+' . $phone;
+            } elseif (strlen($phone) === 10) {
+                $customer['phone'] = '+7' . $phone;
+            } elseif (strlen($phone) > 0) {
+                $customer['phone'] = '+7' . substr($phone, -10);
+            }
+        }
+        
+        // Добавляем товары
+        if ($order->items && $order->items->count() > 0) {
+            foreach ($order->items as $item) {
+                $itemTotal = (float) $item->unit_price * (float) $item->quantity;
+                $refundItemTotal = $itemTotal * $refundRatio;
+                $refundItemAmount = $refundItemTotal / (float) $item->quantity;
+                
+                $refundItems[] = [
+                    'description' => $item->product_name ?? 'Товар',
+                    'quantity' => number_format((float) $item->quantity, 2, '.', ''),
+                    'amount' => [
+                        'value' => number_format($refundItemAmount, 2, '.', ''),
+                        'currency' => 'RUB',
+                    ],
+                    'vat_code' => '1',
+                    'payment_subject' => 'commodity',
+                    'payment_mode' => 'full_payment',
+                ];
+                
+                $refundTotal += $refundItemTotal;
+            }
+        }
+        
+        // Добавляем доставку, если есть
+        $deliveryCost = (float) $order->delivery_cost;
+        if ($deliveryCost > 0 && $order->delivery_type === 'courier') {
+            $refundDeliveryTotal = $deliveryCost * $refundRatio;
+            
+            $refundItems[] = [
+                'description' => 'Доставка',
+                'quantity' => '1.00',
+                'amount' => [
+                    'value' => number_format($refundDeliveryTotal, 2, '.', ''),
+                    'currency' => 'RUB',
+                ],
+                'vat_code' => '1',
+                'payment_subject' => 'service',
+                'payment_mode' => 'full_payment',
+            ];
+            
+            $refundTotal += $refundDeliveryTotal;
+        }
+        
+        // Корректируем последний элемент, чтобы сумма точно совпадала
+        if (count($refundItems) > 0 && abs($refundTotal - $refundAmount) > 0.01) {
+            $lastItem = &$refundItems[count($refundItems) - 1];
+            $adjustment = $refundAmount - $refundTotal;
+            $lastQuantity = (float) $lastItem['quantity'];
+            $lastUnitPrice = (float) $lastItem['amount']['value'];
+            $newUnitPrice = ($lastUnitPrice * $lastQuantity + $adjustment) / $lastQuantity;
+            $lastItem['amount']['value'] = number_format($newUnitPrice, 2, '.', '');
+        }
+        
+        return [
+            'customer' => $customer,
+            'items' => $refundItems,
+        ];
     }
 }

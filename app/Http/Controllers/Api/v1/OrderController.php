@@ -114,6 +114,28 @@ class OrderController extends Controller
                 'request_all' => $request->all(),
             ]);
             
+            // Определяем статус заказа
+            // Для нового заказа всегда 'new', независимо от того, что передано в запросе
+            // Статус 'paid' устанавливается только при успешной оплате через webhook или синхронизацию
+            $orderStatus = Order::STATUS_NEW;
+            
+            // Определяем статус оплаты
+            // Если в запросе явно указан payment_status и он валиден, используем его
+            // Иначе для нового заказа всегда 'pending'
+            $paymentStatus = $request->get('payment_status');
+            if (!$paymentStatus || !in_array($paymentStatus, [
+                Order::PAYMENT_STATUS_PENDING,
+                Order::PAYMENT_STATUS_SUCCEEDED,
+                Order::PAYMENT_STATUS_FAILED,
+                Order::PAYMENT_STATUS_CANCELLED,
+            ])) {
+                $paymentStatus = Order::PAYMENT_STATUS_PENDING;
+            }
+            
+            // ВАЖНО: Если payment_status = 'succeeded', но заказ только создается,
+            // статус заказа все равно должен быть 'new', а не 'paid'
+            // Статус 'paid' устанавливается только при обработке успешного платежа
+            
             $order = Order::create([
                 'order_id' => $orderId,
                 'telegram_id' => $telegramId,
@@ -130,8 +152,8 @@ class OrderController extends Controller
                 'original_amount' => $request->get('original_amount'),
                 'discount_amount' => $request->get('discount', 0),
                 'payment_method' => $request->get('payment_method'),
-                'status' => Order::STATUS_NEW,
-                'payment_status' => Order::PAYMENT_STATUS_PENDING,
+                'status' => $orderStatus,
+                'payment_status' => $paymentStatus,
             ]);
             
             Log::info('OrderController::store - Order created successfully', [

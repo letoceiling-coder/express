@@ -90,6 +90,33 @@ export function useOrders() {
       const data = await ordersAPI.getByTelegramId(telegramId);
       console.log('useOrders - Received orders:', data, 'count:', data.length);
       
+      // Синхронизируем статусы платежей для заказов со статусом pending
+      // Это нужно, чтобы обновить статус после оплаты
+      const pendingPaymentOrders = data.filter(order => order.paymentStatus === 'pending');
+      if (pendingPaymentOrders.length > 0 && forceRefresh) {
+        console.log('useOrders - Syncing payment statuses for', pendingPaymentOrders.length, 'orders with pending payment');
+        // Синхронизируем статусы в фоне, не блокируя отображение
+        Promise.all(
+          pendingPaymentOrders.map(order => 
+            ordersAPI.syncPaymentStatus(order.orderId).catch(err => {
+              console.warn('useOrders - Failed to sync payment status for order', order.orderId, err);
+              return null;
+            })
+          )
+        ).then(() => {
+          // После синхронизации перезагружаем заказы, чтобы получить актуальные статусы
+          console.log('useOrders - Payment statuses synced, reloading orders...');
+          ordersAPI.getByTelegramId(telegramId).then(updatedData => {
+            setOrders(updatedData);
+            lastLoadTimeRef.current = Date.now();
+          }).catch(err => {
+            console.error('useOrders - Failed to reload orders after sync:', err);
+          });
+        }).catch(err => {
+          console.error('useOrders - Error during payment status sync:', err);
+        });
+      }
+      
       // Умное обновление: сверяем заказы и обновляем только при расхождении
       if (currentOrders.length > 0 && !forceRefresh) {
         const currentOrderIds = new Set(currentOrders.map(o => o.orderId));

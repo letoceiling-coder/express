@@ -123,6 +123,7 @@
                                 <option value="courier_assigned">Курьер назначен</option>
                                 <option value="in_transit">В пути</option>
                                 <option value="delivered">Доставлен</option>
+                                <option value="paid">Оплачен</option>
                                 <option value="cancelled">Отменен</option>
                                 <option value="refunded">Возвращен</option>
                             </select>
@@ -247,6 +248,7 @@ export default {
                 courier_assigned: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
                 in_transit: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
                 delivered: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                 cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
                 refunded: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
             };

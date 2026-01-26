@@ -368,11 +368,17 @@ class YooKassaService
                 $refundPayload['description'] = $data['description'];
             }
             
+            // Добавляем receipt, если он передан (обязателен для частичного возврата)
+            if (isset($data['receipt'])) {
+                $refundPayload['receipt'] = $data['receipt'];
+            }
+            
             Log::info('YooKassa createRefund request', [
                 'payment_id' => $paymentId,
                 'refund_amount' => $data['amount'],
                 'currency' => $data['currency'] ?? 'RUB',
                 'idempotence_key' => $idempotenceKey,
+                'has_receipt' => isset($data['receipt']),
             ]);
             
             $response = Http::withHeaders($this->getHeaders($idempotenceKey))
