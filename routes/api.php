@@ -61,6 +61,10 @@ Route::prefix('v1')->group(function () {
     Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
         ->name('payments.yookassa.create.public');
     
+    // Публичный роут для синхронизации статуса платежа по заказу (из MiniApp)
+    Route::post('orders/{orderId}/payments/sync-status', [PaymentController::class, 'syncStatusByOrder'])
+        ->name('orders.payments.sync-status.public');
+    
     // Публичный роут для получения настроек доставки (из MiniApp)
     Route::get('delivery-settings', [DeliverySettingsController::class, 'getSettings'])
         ->name('delivery-settings.get.public');
@@ -170,8 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payments.sync-status');
         Route::post('payments/sync-all-statuses', [PaymentController::class, 'syncAllStatuses'])
             ->name('payments.sync-all-statuses');
-        Route::post('orders/{orderId}/payments/sync-status', [PaymentController::class, 'syncStatusByOrder'])
-            ->name('orders.payments.sync-status');
+        // syncStatusByOrder вынесен в публичные роуты для MiniApp
         Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])
             ->name('payments.refund');
         Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])

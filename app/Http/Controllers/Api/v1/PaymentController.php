@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PaymentRequest;
 use App\Models\Payment;
 use App\Models\PaymentSetting;
+use App\Models\Bot;
 use App\Services\Payment\YooKassaService;
+use App\Services\Telegram\TelegramMiniAppService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,12 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
+    protected TelegramMiniAppService $telegramMiniAppService;
+
+    public function __construct(TelegramMiniAppService $telegramMiniAppService)
+    {
+        $this->telegramMiniAppService = $telegramMiniAppService;
+    }
     /**
      * Получить список платежей
      * 
@@ -482,10 +490,72 @@ class PaymentController extends Controller
      * @param int $orderId
      * @return JsonResponse
      */
-    public function syncStatusByOrder($orderId)
+    public function syncStatusByOrder(Request $request, $orderId)
     {
         try {
             $order = \App\Models\Order::findOrFail($orderId);
+            
+            // Проверяем авторизацию: если запрос не авторизован, проверяем через initData
+            $hasAuth = $request->user() !== null;
+            $authHeader = $request->header('Authorization');
+            $hasToken = !empty($authHeader) && str_starts_with($authHeader, 'Bearer ');
+            
+            if (!$hasAuth && !$hasToken) {
+                // Публичный запрос - требуется валидация через initData
+                $initData = $request->header('X-Telegram-Init-Data');
+                
+                if ($initData) {
+                    // Получаем токен бота
+                    $botToken = $request->header('X-Bot-Token') 
+                        ?? $request->input('bot_token')
+                        ?? config('telegram.bot_token');
+                    
+                    // Fallback: получаем токен первого активного бота
+                    if (!$botToken) {
+                        $bot = Bot::where('is_active', true)->first();
+                        if ($bot) {
+                            $botToken = $bot->token;
+                        }
+                    }
+                    
+                    if (!$botToken) {
+                        return response()->json([
+                            'message' => 'Токен бота не найден для валидации',
+                        ], 400);
+                    }
+                    
+                    // Валидируем initData
+                    $validation = $this->telegramMiniAppService->validateInitData($initData, $botToken);
+                    
+                    if (!$validation['valid']) {
+                        return response()->json([
+                            'message' => 'Неверная подпись initData: ' . ($validation['message'] ?? 'Invalid'),
+                        ], 401);
+                    }
+                    
+                    // Извлекаем user.id из валидированного initData
+                    $user = $validation['user'] ?? null;
+                    if (!$user || !isset($user['id'])) {
+                        return response()->json([
+                            'message' => 'Не удалось определить пользователя из initData',
+                        ], 400);
+                    }
+                    
+                    $telegramIdInt = (int)$user['id'];
+                    
+                    // Проверяем, что заказ принадлежит этому пользователю
+                    if ($order->telegram_id !== $telegramIdInt) {
+                        return response()->json([
+                            'message' => 'Доступ запрещен: заказ не принадлежит вам',
+                        ], 403);
+                    }
+                } else {
+                    // Нет initData - возвращаем ошибку авторизации
+                    return response()->json([
+                        'message' => 'Требуется авторизация или initData от Telegram',
+                    ], 401);
+                }
+            }
             
             // Находим платеж через ЮKassa для этого заказа
             $payment = Payment::where('order_id', $orderId)
