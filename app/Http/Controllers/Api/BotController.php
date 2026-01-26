@@ -101,6 +101,7 @@ class BotController extends Controller
                 'webhook_url' => null, // Будет установлен после создания
                 'webhook_registered' => false,
                 'welcome_message' => $request->welcome_message ?? null,
+                'button_text' => $request->button_text ?? 'Сделать заказ',
                 'settings' => $settings,
                 'is_active' => true,
             ]);
@@ -163,6 +164,7 @@ class BotController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'token' => 'sometimes|required|string',
             'welcome_message' => 'nullable|string',
+            'button_text' => 'nullable|string|max:255',
             'settings' => 'nullable|array',
             'is_active' => 'sometimes|boolean',
         ]);
@@ -216,6 +218,7 @@ class BotController extends Controller
                 'name',
                 'token',
                 'welcome_message',
+                'button_text',
                 'settings',
                 'is_active',
             ]));
@@ -393,12 +396,15 @@ class BotController extends Controller
                         'final_url' => $miniAppUrlWithVersion,
                     ]);
                     
+                    // Получаем текст кнопки из настроек бота или используем значение по умолчанию
+                    $buttonText = $bot->button_text ?? 'Сделать заказ';
+                    
                     // Формируем клавиатуру с кнопкой для запуска miniApp
                     $keyboard = [
                         'inline_keyboard' => [
                             [
                                 [
-                                    'text' => '🚀 Открыть приложение',
+                                    'text' => $buttonText,
                                     'web_app' => [
                                         'url' => $miniAppUrlWithVersion
                                     ]

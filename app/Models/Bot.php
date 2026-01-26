@@ -15,6 +15,7 @@ class Bot extends Model
         'webhook_url',
         'webhook_registered',
         'welcome_message',
+        'button_text',
         'settings',
         'is_active',
     ];

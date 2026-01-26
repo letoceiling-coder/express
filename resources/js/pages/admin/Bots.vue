@@ -143,6 +143,16 @@
                         ></textarea>
                     </div>
                     <div>
+                        <label class="text-sm font-medium mb-1 block">Текст кнопки</label>
+                        <input
+                            v-model="form.button_text"
+                            type="text"
+                            placeholder="Сделать заказ"
+                            class="w-full h-10 px-3 border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <p class="text-xs text-muted-foreground mt-1">Текст кнопки, которая открывает мини-приложение при команде /start</p>
+                    </div>
+                    <div>
                         <label class="text-sm font-medium mb-1 block">Активен</label>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input
@@ -272,6 +282,7 @@ export default {
             name: '',
             token: '',
             welcome_message: '',
+            button_text: 'Сделать заказ',
             is_active: true,
             settings: {},
             webhook_allowed_updates: 'message, callback_query',
@@ -323,6 +334,7 @@ export default {
                 name: bot.name || '',
                 token: bot.token || '',
                 welcome_message: bot.welcome_message || '',
+                button_text: bot.button_text || 'Сделать заказ',
                 is_active: bot.is_active !== undefined ? bot.is_active : true,
                 settings: settings,
                 webhook_allowed_updates: Array.isArray(webhookSettings.allowed_updates) 
@@ -381,6 +393,7 @@ export default {
                     name: form.value.name.trim(),
                     token: form.value.token.trim(),
                     welcome_message: form.value.welcome_message?.trim() || null,
+                    button_text: form.value.button_text?.trim() || 'Сделать заказ',
                     is_active: form.value.is_active,
                 }
 
