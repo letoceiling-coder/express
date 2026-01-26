@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { Loader2, Phone, MapPin, Copy, Check, MessageCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
-import { aboutAPI } from '@/api';
+import { aboutAPI, supportSettingsAPI } from '@/api';
 import { useNavigate } from 'react-router-dom';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { openTelegramLink } from '@/lib/telegram';
@@ -29,14 +29,23 @@ export function AboutPage() {
   const [error, setError] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [phoneCopied, setPhoneCopied] = useState(false);
+  const [supportSettings, setSupportSettings] = useState<{
+    enabled: boolean;
+    label: string;
+    telegram_url: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await aboutAPI.get();
-        setData(response);
+        const [aboutData, supportData] = await Promise.all([
+          aboutAPI.get(),
+          supportSettingsAPI.get().catch(() => null), // Не критично, если не загрузится
+        ]);
+        setData(aboutData);
+        setSupportSettings(supportData);
       } catch (err: any) {
         console.error('Error loading about page:', err);
         setError(err.message || 'Ошибка при загрузке данных');
@@ -304,17 +313,18 @@ export function AboutPage() {
             )}
 
             {/* Support Button */}
-            {data.support_telegram_url && (
+            {supportSettings?.enabled && supportSettings?.telegram_url && (
               <button
                 onClick={() => {
-                  const supportUrl = data.support_telegram_url || 'https://t.me/+79826824368';
-                  handleSupportClick(supportUrl);
+                  handleSupportClick(supportSettings.telegram_url!);
                 }}
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
-                aria-label="Поддержка"
+                aria-label={supportSettings.label || 'Поддержка'}
               >
                 <MessageCircle className="h-5 w-5 text-primary" />
-                <span className="text-xs text-foreground text-center leading-tight">Поддержка</span>
+                <span className="text-xs text-foreground text-center leading-tight">
+                  {supportSettings.label || 'Поддержка'}
+                </span>
               </button>
             )}
 

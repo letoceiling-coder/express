@@ -129,18 +129,21 @@ class NotificationSetting extends Model
                         $buttonData['callback_data'] = $button['value'] ?? '';
                         break;
                     case 'open_chat':
-                        // Для open_chat используем URL напрямую, если указан support_chat_id
-                        if ($this->support_chat_id) {
-                            // Проверяем, является ли support_chat_id числом (user_id) или строкой (username)
+                        // Для open_chat используем настройки из AboutPage
+                        $aboutPage = \App\Models\AboutPage::getPage();
+                        if ($aboutPage->support_enabled && $aboutPage->support_telegram_url) {
+                            // Используем URL из AboutPage напрямую
+                            $buttonData['url'] = $aboutPage->support_telegram_url;
+                        } elseif ($this->support_chat_id) {
+                            // Fallback: используем support_chat_id если указан
                             if (is_numeric($this->support_chat_id)) {
                                 $buttonData['url'] = "tg://user?id={$this->support_chat_id}";
                             } else {
-                                // Если это username (начинается с @), используем resolve
                                 $username = ltrim($this->support_chat_id, '@');
                                 $buttonData['url'] = "tg://resolve?domain={$username}";
                             }
                         } else {
-                            // Если support_chat_id не указан, используем callback для обработки в боте
+                            // Если ничего не указано, используем callback для обработки в боте
                             $buttonData['callback_data'] = "open_support_chat:{$button['value']}";
                         }
                         break;

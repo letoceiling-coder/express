@@ -3,6 +3,7 @@
 namespace App\Services\Order;
 
 use App\Jobs\SendOrderNotificationJob;
+use App\Models\AboutPage;
 use App\Models\Bot;
 use App\Models\NotificationSetting;
 use App\Models\Order;
@@ -560,6 +561,32 @@ class OrderNotificationService
                         'order_id' => $order->id,
                     ]);
                     $buttons = $keyboard['inline_keyboard'] ?? [];
+                    
+                    // Добавляем кнопку поддержки из AboutPage, если она включена
+                    $aboutPage = AboutPage::getPage();
+                    if ($aboutPage->support_enabled && $aboutPage->support_telegram_url) {
+                        // Проверяем, есть ли уже кнопка поддержки в настройках
+                        $hasSupportButton = false;
+                        foreach ($buttons as $row) {
+                            foreach ($row as $button) {
+                                if (isset($button['url']) && str_contains($button['url'], 't.me')) {
+                                    $hasSupportButton = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                        
+                        // Если кнопки поддержки нет, добавляем её
+                        if (!$hasSupportButton) {
+                            if (empty($buttons)) {
+                                $buttons = [[]];
+                            }
+                            $buttons[0][] = [
+                                'text' => $aboutPage->support_label ?: '💬 Написать в поддержку',
+                                'url' => $aboutPage->support_telegram_url,
+                            ];
+                        }
+                    }
                     
                     return $this->updateClientNotification($order, $message, $buttons);
                 }

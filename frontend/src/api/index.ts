@@ -929,6 +929,23 @@ export const notificationSettingsAPI = {
   },
 };
 
+// Support Settings API
+export const supportSettingsAPI = {
+  async get(): Promise<{
+    enabled: boolean;
+    label: string;
+    telegram_url: string | null;
+  } | null> {
+    try {
+      const response = await apiRequest('/settings/support');
+      return response.data || null;
+    } catch (error: any) {
+      console.error('Support Settings API - get error:', error);
+      throw error;
+    }
+  },
+};
+
 export const legalDocumentsAPI = {
   async getAll(): Promise<any[]> {
     try {

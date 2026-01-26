@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Mini App Pages
 import { CatalogPage } from "./pages/miniapp/CatalogPage";
@@ -61,7 +61,9 @@ const App = () => (
             <Route path="about" element={<AdminAbout />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
-            <Route path="settings/notifications" element={<NotificationSettings />} />
+            <Route path="notifications" element={<NotificationSettings />} />
+            {/* Redirect from old route */}
+            <Route path="settings/notifications" element={<Navigate to="/admin/notifications" replace />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

@@ -19,6 +19,8 @@ export function AdminAbout() {
     bullets: [] as string[],
     yandex_maps_url: '',
     support_telegram_url: '',
+    support_enabled: true,
+    support_label: 'Написать в поддержку',
     cover_image_url: '',
   });
 
@@ -90,6 +92,8 @@ export function AdminAbout() {
           bullets: data.bullets && Array.isArray(data.bullets) ? data.bullets : [],
           yandex_maps_url: data.yandex_maps_url || '',
           support_telegram_url: data.support_telegram_url || '',
+          support_enabled: data.support_enabled !== undefined ? data.support_enabled : true,
+          support_label: data.support_label || 'Написать в поддержку',
           cover_image_url: data.cover_image_url || '',
         });
       }
@@ -352,10 +356,38 @@ export function AdminAbout() {
             <CardHeader>
               <CardTitle className="text-slate-800 dark:text-slate-100">Поддержка</CardTitle>
               <CardDescription>
-                Ссылка на Telegram для поддержки клиентов
+                Настройки кнопки поддержки для Mini App и Telegram бота
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="support_enabled">Включить поддержку</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Если выключено, кнопка поддержки не будет отображаться
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  id="support_enabled"
+                  checked={formData.support_enabled}
+                  onChange={(e) => setFormData({ ...formData, support_enabled: e.target.checked })}
+                  className="w-4 h-4"
+                />
+              </div>
+              <div>
+                <Label htmlFor="support_label">Текст кнопки</Label>
+                <Input
+                  id="support_label"
+                  placeholder="Написать в поддержку"
+                  value={formData.support_label}
+                  onChange={(e) => setFormData({ ...formData, support_label: e.target.value })}
+                  className="mt-1"
+                />
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Текст, который будет отображаться на кнопке поддержки
+                </p>
+              </div>
               <div>
                 <Label htmlFor="support_telegram_url">URL Telegram поддержки</Label>
                 <Input
@@ -367,7 +399,7 @@ export function AdminAbout() {
                   className="mt-1"
                 />
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Ссылка будет отображаться в блоке "Поддержка" на странице "О нас"
+                  Ссылка на Telegram-чат для поддержки. Будет использоваться в Mini App и боте
                 </p>
               </div>
             </CardContent>

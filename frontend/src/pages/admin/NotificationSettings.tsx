@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Bell, Plus, Trash2, Save } from 'lucide-react';
+import { Loader2, Bell, Plus, Trash2, Save, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { notificationSettingsAPI } from '@/api';
 
@@ -43,18 +43,35 @@ const EVENT_LABELS: Record<string, { title: string; description: string }> = {
 export function NotificationSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [originalSettings, setOriginalSettings] = useState<NotificationSetting[]>([]);
   const [settings, setSettings] = useState<NotificationSetting[]>([]);
   const [errors, setErrors] = useState<Record<string, any>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  // Отслеживание изменений
+  useEffect(() => {
+    const changed = JSON.stringify(originalSettings) !== JSON.stringify(settings);
+    setHasChanges(changed);
+    if (changed) {
+      setSaveSuccess(false);
+    }
+  }, [settings, originalSettings]);
+
   const loadSettings = async () => {
     try {
       setIsLoadingData(true);
       const data = await notificationSettingsAPI.getAll();
-      setSettings(data || []);
+      const settingsData = data || [];
+      setSettings(settingsData);
+      setOriginalSettings(JSON.parse(JSON.stringify(settingsData))); // Deep copy
+      setHasChanges(false);
+      setSaveSuccess(false);
     } catch (error: any) {
       console.error('Error loading notification settings:', error);
       toast.error('Ошибка при загрузке настроек уведомлений');
@@ -63,27 +80,73 @@ export function NotificationSettings() {
     }
   };
 
-  const handleUpdate = async (event: string, updates: Partial<NotificationSetting>) => {
+  const handleSaveAll = async () => {
+    if (!hasChanges) {
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const updated = await notificationSettingsAPI.update(event, updates);
-      
-      setSettings(prev => prev.map(s => 
-        s.event === event ? { ...s, ...updated } : s
-      ));
-      
-      toast.success('Настройки успешно сохранены');
       setErrors({});
+      
+      // Сохраняем все настройки последовательно
+      const savePromises = settings.map(async (setting) => {
+        const original = originalSettings.find(s => s.event === setting.event);
+        if (!original) return;
+
+        // Проверяем, есть ли изменения
+        const hasSettingChanges = 
+          original.enabled !== setting.enabled ||
+          original.message_template !== setting.message_template ||
+          JSON.stringify(original.buttons) !== JSON.stringify(setting.buttons) ||
+          original.support_chat_id !== setting.support_chat_id;
+
+        if (!hasSettingChanges) return;
+
+        try {
+          await notificationSettingsAPI.update(setting.event, {
+            enabled: setting.enabled,
+            message_template: setting.message_template,
+            buttons: setting.buttons,
+            support_chat_id: setting.support_chat_id,
+          });
+        } catch (error: any) {
+          const errorData = error?.response?.data;
+          if (errorData?.errors) {
+            setErrors(prev => ({ ...prev, [setting.event]: errorData.errors }));
+          }
+          throw error;
+        }
+      });
+
+      await Promise.all(savePromises);
+      
+      // Обновляем оригинальные данные
+      setOriginalSettings(JSON.parse(JSON.stringify(settings)));
+      setHasChanges(false);
+      setSaveSuccess(true);
+      
+      toast.success('Все настройки успешно сохранены', {
+        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+        duration: 3000,
+      });
+
+      // Скрываем success state через 3 секунды
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
-      console.error('Error updating notification setting:', error);
+      console.error('Error saving notification settings:', error);
       const errorData = error?.response?.data;
-      if (errorData?.errors) {
-        setErrors(prev => ({ ...prev, [event]: errorData.errors }));
-      }
       toast.error(errorData?.message || 'Ошибка при сохранении настроек');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Локальные обновления без сохранения
+  const updateSettingLocal = (event: string, updates: Partial<NotificationSetting>) => {
+    setSettings(prev => prev.map(s => 
+      s.event === event ? { ...s, ...updates } : s
+    ));
   };
 
   const addButton = (event: string, rowIndex: number) => {
@@ -100,7 +163,7 @@ export function NotificationSettings() {
       value: '',
     });
 
-    handleUpdate(event, { buttons: newButtons });
+    updateSettingLocal(event, { buttons: newButtons });
   };
 
   const removeButton = (event: string, rowIndex: number, buttonIndex: number) => {
@@ -111,7 +174,7 @@ export function NotificationSettings() {
       idx === rowIndex ? row.filter((_, btnIdx) => btnIdx !== buttonIndex) : row
     ).filter(row => row.length > 0);
 
-    handleUpdate(event, { buttons: newButtons.length > 0 ? newButtons : null });
+    updateSettingLocal(event, { buttons: newButtons.length > 0 ? newButtons : null });
   };
 
   const updateButton = (event: string, rowIndex: number, buttonIndex: number, updates: Partial<ButtonConfig>) => {
@@ -126,7 +189,7 @@ export function NotificationSettings() {
         : row
     );
 
-    handleUpdate(event, { buttons: newButtons });
+    updateSettingLocal(event, { buttons: newButtons });
   };
 
   const addButtonRow = (event: string) => {
@@ -134,7 +197,7 @@ export function NotificationSettings() {
     if (!setting) return;
 
     const newButtons = setting.buttons ? [...setting.buttons, []] : [[]];
-    handleUpdate(event, { buttons: newButtons });
+    updateSettingLocal(event, { buttons: newButtons });
   };
 
   const removeButtonRow = (event: string, rowIndex: number) => {
@@ -142,7 +205,7 @@ export function NotificationSettings() {
     if (!setting || !setting.buttons) return;
 
     const newButtons = setting.buttons.filter((_, idx) => idx !== rowIndex);
-    handleUpdate(event, { buttons: newButtons.length > 0 ? newButtons : null });
+    updateSettingLocal(event, { buttons: newButtons.length > 0 ? newButtons : null });
   };
 
   if (isLoadingData) {
@@ -154,14 +217,14 @@ export function NotificationSettings() {
   }
 
   return (
-    <div className="p-4 lg:p-8">
+    <div className="p-4 lg:p-8 pb-24" ref={formRef}>
       <div className="mb-6 lg:mb-8">
         <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
           <Bell className="h-6 w-6" />
-          Настройки уведомлений заказов
+          Центр управления уведомлениями
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Управление уведомлениями при создании и обработке заказов
+          Настройка уведомлений при создании и обработке заказов. Все изменения применяются после нажатия кнопки «Сохранить изменения».
         </p>
       </div>
 
@@ -190,7 +253,7 @@ export function NotificationSettings() {
                       id={`enabled-${setting.event}`}
                       checked={setting.enabled}
                       onCheckedChange={(checked) => 
-                        handleUpdate(setting.event, { enabled: checked })
+                        updateSettingLocal(setting.event, { enabled: checked })
                       }
                     />
                   </div>
@@ -206,7 +269,7 @@ export function NotificationSettings() {
                     id={`template-${setting.event}`}
                     value={setting.message_template || ''}
                     onChange={(e) => 
-                      handleUpdate(setting.event, { message_template: e.target.value || null })
+                      updateSettingLocal(setting.event, { message_template: e.target.value || null })
                     }
                     placeholder="Используйте {order_id} для подстановки номера заказа"
                     className="mt-1 min-h-[100px]"
@@ -226,7 +289,7 @@ export function NotificationSettings() {
                       id={`support-${setting.event}`}
                       value={setting.support_chat_id || ''}
                       onChange={(e) => 
-                        handleUpdate(setting.event, { support_chat_id: e.target.value || null })
+                        updateSettingLocal(setting.event, { support_chat_id: e.target.value || null })
                       }
                       placeholder="Например: 123456789 или @username"
                       className="mt-1"
@@ -369,6 +432,61 @@ export function NotificationSettings() {
             </Card>
           );
         })}
+      </div>
+
+      {/* Sticky Save Button */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shadow-lg z-40 p-4 safe-area-inset-bottom">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {hasChanges && (
+              <span className="text-amber-600 dark:text-amber-400">
+                Есть несохранённые изменения
+              </span>
+            )}
+            {!hasChanges && !saveSuccess && (
+              <span>Все изменения сохранены</span>
+            )}
+            {saveSuccess && (
+              <span className="text-green-600 dark:text-green-400 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Настройки успешно сохранены
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={loadSettings}
+              disabled={isLoading || !hasChanges}
+            >
+              Отменить
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={isLoading || !hasChanges}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white min-w-[180px]"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Сохранение...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Сохранено
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Сохранить изменения
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

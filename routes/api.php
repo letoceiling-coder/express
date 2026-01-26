@@ -80,6 +80,10 @@ Route::prefix('v1')->group(function () {
     // Публичный роут для страницы "О нас"
     Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
     
+    // Публичный роут для настроек поддержки
+    Route::get('settings/support', [\App\Http\Controllers\Api\v1\SupportSettingsController::class, 'show'])
+        ->name('settings.support.show.public');
+    
     // Публичные роуты для документов
     Route::get('legal-documents', [LegalDocumentsController::class, 'index'])->name('legal-documents.index.public');
     Route::get('legal-documents/{type}', [LegalDocumentsController::class, 'show'])->name('legal-documents.show.public');

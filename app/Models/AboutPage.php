@@ -41,6 +41,8 @@ class AboutPage extends Model
         'bullets',
         'yandex_maps_url',
         'support_telegram_url',
+        'support_enabled',
+        'support_label',
         'cover_image_url',
         'cover_images',
     ];
@@ -53,6 +55,7 @@ class AboutPage extends Model
     protected $casts = [
         'bullets' => 'array',
         'cover_images' => 'array',
+        'support_enabled' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -80,6 +83,8 @@ class AboutPage extends Model
                 ],
                 'yandex_maps_url' => null,
                 'support_telegram_url' => 'https://t.me/+79826824368',
+                'support_enabled' => true,
+                'support_label' => 'Написать в поддержку',
                 'cover_image_url' => null,
             ]);
         }

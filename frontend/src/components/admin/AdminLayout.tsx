@@ -26,9 +26,9 @@ const navItems = [
   { path: '/admin/products', icon: Package, label: 'Товары' },
   { path: '/admin/categories', icon: Tags, label: 'Категории' },
   { path: '/admin/about', icon: Info, label: 'О нас' },
+  { path: '/admin/notifications', icon: Bell, label: 'Уведомления' },
   { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },
   { path: '/admin/settings/delivery', icon: Truck, label: 'Доставка' },
-  { path: '/admin/settings/notifications', icon: Bell, label: 'Уведомления' },
 ];
 
 export function AdminLayout() {

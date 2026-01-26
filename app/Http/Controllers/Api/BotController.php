@@ -2442,26 +2442,10 @@ class BotController extends Controller
                 return;
             }
 
-            // Получаем настройки для события order_accepted_client
-            $setting = \App\Models\NotificationSetting::getByEvent('order_accepted_client');
+            // Получаем настройки поддержки из AboutPage
+            $aboutPage = \App\Models\AboutPage::getPage();
             
-            // Получаем ID чата поддержки из настроек или первого администратора
-            $supportChatId = null;
-            if ($setting && $setting->support_chat_id) {
-                $supportChatId = $setting->support_chat_id;
-            } else {
-                // Получаем первого администратора
-                $admin = TelegramUser::where('bot_id', $bot->id)
-                    ->where('role', TelegramUser::ROLE_ADMIN)
-                    ->where('is_blocked', false)
-                    ->first();
-                
-                if ($admin) {
-                    $supportChatId = $admin->telegram_id;
-                }
-            }
-
-            if (!$supportChatId) {
+            if (!$aboutPage->support_enabled || !$aboutPage->support_telegram_url) {
                 $this->telegramService->sendMessage(
                     $bot->token,
                     $telegramUser->telegram_id,
@@ -2471,15 +2455,14 @@ class BotController extends Controller
             }
 
             // Отправляем сообщение с кнопкой для открытия чата
-            // Используем формат tg://user?id=USER_ID для открытия чата с пользователем
             $message = "💬 Нажмите на кнопку ниже, чтобы написать в поддержку:";
             
             $keyboard = [
                 'inline_keyboard' => [
                     [
                         [
-                            'text' => '💬 Написать в поддержку',
-                            'url' => "tg://user?id={$supportChatId}"
+                            'text' => $aboutPage->support_label ?: '💬 Написать в поддержку',
+                            'url' => $aboutPage->support_telegram_url
                         ]
                     ]
                 ]
