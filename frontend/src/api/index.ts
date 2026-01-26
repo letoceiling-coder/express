@@ -581,6 +581,27 @@ export const ordersAPI = {
       }),
     });
   },
+
+  /**
+   * Синхронизировать статус платежа для заказа с ЮKassa
+   * @param orderId - строковый идентификатор заказа (ORD-...)
+   */
+  async syncPaymentStatus(orderId: string): Promise<any> {
+    try {
+      const order = await this.getByOrderId(orderId);
+      if (!order) throw new Error('Заказ не найден');
+
+      // Используем числовой ID заказа из БД
+      const response = await apiRequest(`/orders/${order.id}/payments/sync-status`, {
+        method: 'POST',
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Orders API - syncPaymentStatus error:', error);
+      // Не пробрасываем ошибку дальше, чтобы не ломать UI
+      return null;
+    }
+  },
 };
 
 // Payment Methods API

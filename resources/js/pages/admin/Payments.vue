@@ -296,7 +296,10 @@ export default {
         },
     },
     mounted() {
-        this.loadPayments();
+        this.loadPayments().then(() => {
+            // Автоматически синхронизируем статусы платежей через ЮKassa при загрузке
+            this.syncYooKassaPayments();
+        });
     },
     methods: {
         async loadPayments() {
@@ -305,8 +308,10 @@ export default {
             try {
                 const response = await paymentsAPI.getAll();
                 this.payments = response.data?.data || response.data || [];
+                return this.payments;
             } catch (error) {
                 this.error = error.message || 'Ошибка загрузки платежей';
+                return [];
             } finally {
                 this.loading = false;
             }
@@ -437,6 +442,7 @@ export default {
                 
                 // Синхронизируем все платежи через ЮKassa
                 await paymentsAPI.syncAllStatuses();
+                // Перезагружаем платежи после синхронизации
                 await this.loadPayments();
             } catch (error) {
                 // Не показываем ошибку пользователю, просто логируем

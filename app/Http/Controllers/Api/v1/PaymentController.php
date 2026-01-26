@@ -388,6 +388,45 @@ class PaymentController extends Controller
             ],
         ]);
     }
+    
+    /**
+     * Синхронизировать статус платежа для заказа
+     * 
+     * @param int $orderId
+     * @return JsonResponse
+     */
+    public function syncStatusByOrder($orderId)
+    {
+        try {
+            $order = \App\Models\Order::findOrFail($orderId);
+            
+            // Находим платеж через ЮKassa для этого заказа
+            $payment = Payment::where('order_id', $orderId)
+                ->where('payment_provider', 'yookassa')
+                ->whereNotNull('transaction_id')
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if (!$payment) {
+                return response()->json([
+                    'message' => 'Платеж через ЮKassa не найден для этого заказа',
+                ], 404);
+            }
+            
+            // Используем существующий метод синхронизации
+            return $this->syncStatus($payment->id);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при синхронизации статуса платежа по заказу: ' . $e->getMessage(), [
+                'order_id' => $orderId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Ошибка при синхронизации статуса платежа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     /**
      * Создать платеж через ЮKassa

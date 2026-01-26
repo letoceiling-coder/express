@@ -76,6 +76,15 @@ export function OrderDetailPage() {
       // Если возврат с оплаты - обязательно загружаем актуальные данные с сервера
       if (paymentStatus === 'success' || paymentStatus === 'error') {
         setLoading(true);
+        
+        // Синхронизируем статус платежа с ЮKassa перед загрузкой заказа
+        try {
+          await ordersAPI.syncPaymentStatus(orderId);
+        } catch (error) {
+          // Не показываем ошибку пользователю, просто логируем
+          console.error('Ошибка синхронизации статуса платежа:', error);
+        }
+        
         // Загружаем актуальные данные заказа с сервера
         const freshOrder = await getOrderById(orderId);
         setOrder(freshOrder);
@@ -90,8 +99,23 @@ export function OrderDetailPage() {
             setShowPaymentSuccess(true);
             toast.success('Оплата успешно выполнена!');
           } else if (freshOrder && freshOrder.paymentStatus === 'pending') {
-            // Платеж еще обрабатывается
-            toast.info('Платеж обрабатывается. Проверьте статус позже.');
+            // Платеж еще обрабатывается - пробуем синхронизировать еще раз через 2 секунды
+            setTimeout(async () => {
+              try {
+                await ordersAPI.syncPaymentStatus(orderId);
+                const updatedOrder = await getOrderById(orderId);
+                if (updatedOrder) {
+                  setOrder(updatedOrder);
+                  if (updatedOrder.paymentStatus === 'succeeded') {
+                    setShowPaymentSuccess(true);
+                    toast.success('Оплата успешно выполнена!');
+                  }
+                }
+              } catch (error) {
+                console.error('Ошибка повторной синхронизации статуса платежа:', error);
+              }
+            }, 2000);
+            toast.info('Платеж обрабатывается. Проверяем статус...');
           } else if (freshOrder && freshOrder.paymentStatus === 'failed') {
             setShowPaymentError(true);
             toast.error('Произошла ошибка при обработке платежа');

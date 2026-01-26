@@ -170,6 +170,8 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('payments.sync-status');
         Route::post('payments/sync-all-statuses', [PaymentController::class, 'syncAllStatuses'])
             ->name('payments.sync-all-statuses');
+        Route::post('orders/{orderId}/payments/sync-status', [PaymentController::class, 'syncStatusByOrder'])
+            ->name('orders.payments.sync-status');
         Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])
             ->name('payments.refund');
         Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])
