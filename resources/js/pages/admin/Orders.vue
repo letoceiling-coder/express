@@ -124,6 +124,7 @@
                                 <option value="in_transit">В пути</option>
                                 <option value="delivered">Доставлен</option>
                                 <option value="cancelled">Отменен</option>
+                                <option value="refunded">Возвращен</option>
                             </select>
                         </td>
                         <td class="px-6 py-4">
@@ -247,6 +248,7 @@ export default {
                 in_transit: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
                 delivered: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                 cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                refunded: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
             };
             return classes[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
         },
@@ -256,6 +258,8 @@ export default {
                 succeeded: 'bg-green-100 text-green-800',
                 failed: 'bg-red-100 text-red-800',
                 cancelled: 'bg-gray-100 text-gray-800',
+                refunded: 'bg-gray-100 text-gray-800',
+                partially_refunded: 'bg-orange-100 text-orange-800',
             };
             return classes[status] || '';
         },
@@ -265,6 +269,8 @@ export default {
                 succeeded: 'Оплачен',
                 failed: 'Ошибка',
                 cancelled: 'Отменен',
+                refunded: 'Возвращен',
+                partially_refunded: 'Частично возвращен',
             };
             return labels[status] || status;
         },

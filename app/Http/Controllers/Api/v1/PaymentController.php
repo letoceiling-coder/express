@@ -337,6 +337,44 @@ class PaymentController extends Controller
 
             $payment->save();
 
+            // Обновляем статус заказа при возврате платежа
+            if ($payment->order) {
+                $order = $payment->order;
+                $oldOrderStatus = $order->status;
+                $oldOrderPaymentStatus = $order->payment_status;
+                
+                // Если полный возврат, устанавливаем статус refunded и флаг refunded
+                if ($newRefundedAmount >= $payment->amount) {
+                    $order->refunded = true;
+                    $order->status = \App\Models\Order::STATUS_REFUNDED;
+                    $order->payment_status = 'refunded';
+                } else {
+                    // При частичном возврате обновляем только payment_status
+                    // Статус заказа остается прежним, но отмечаем частичный возврат
+                    $order->payment_status = 'partially_refunded';
+                }
+                
+                $order->save();
+                
+                Log::info('PaymentController::refund - статус заказа обновлен', [
+                    'order_id' => $order->id,
+                    'order_order_id' => $order->order_id,
+                    'old_order_status' => $oldOrderStatus,
+                    'new_order_status' => $order->status,
+                    'old_order_payment_status' => $oldOrderPaymentStatus,
+                    'new_order_payment_status' => $order->payment_status,
+                    'order_refunded' => $order->refunded,
+                    'refund_amount' => $refundAmount,
+                    'total_refunded' => $newRefundedAmount,
+                    'payment_status' => $payment->status,
+                ]);
+            } else {
+                Log::warning('PaymentController::refund - заказ не найден', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $payment->order_id,
+                ]);
+            }
+
             DB::commit();
 
             Log::info('PaymentController::refund - возврат выполнен', [
