@@ -172,9 +172,19 @@ class PaymentController extends Controller
         ]);
 
         try {
+            $payment = Payment::findOrFail($id);
+            
+            // Запрещаем ручное изменение статусов для платежей через ЮKassa
+            // Статусы должны синхронизироваться только через webhook или API синхронизацию
+            if ($payment->payment_provider === 'yookassa' && $payment->transaction_id) {
+                return response()->json([
+                    'message' => 'Нельзя изменить статус платежа через ЮKassa вручную. Статусы синхронизируются автоматически с ЮKassa API.',
+                    'error' => 'manual_status_change_forbidden',
+                ], 403);
+            }
+            
             DB::beginTransaction();
             
-            $payment = Payment::findOrFail($id);
             $oldStatus = $payment->status;
             $newStatus = $request->get('status');
             
@@ -205,6 +215,7 @@ class PaymentController extends Controller
                 'new_status' => $newStatus,
                 'order_id' => $payment->order_id,
                 'transaction_id' => $payment->transaction_id,
+                'payment_provider' => $payment->payment_provider,
             ]);
 
             $payment->load('order');
@@ -778,6 +789,220 @@ class PaymentController extends Controller
 
             return response()->json([
                 'message' => 'Ошибка при создании платежа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Синхронизировать статус платежа с ЮKassa API
+     * 
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function syncStatus($id)
+    {
+        try {
+            $payment = Payment::findOrFail($id);
+            
+            // Синхронизация возможна только для платежей через ЮKassa
+            if ($payment->payment_provider !== 'yookassa' || !$payment->transaction_id) {
+                return response()->json([
+                    'message' => 'Синхронизация доступна только для платежей через ЮKassa',
+                ], 400);
+            }
+            
+            $settings = PaymentSetting::forProvider('yookassa');
+            
+            if (!$settings || !$settings->is_enabled) {
+                return response()->json([
+                    'message' => 'Интеграция с ЮKassa отключена или не настроена',
+                ], 400);
+            }
+            
+            $yooKassaService = new YooKassaService($settings);
+            
+            // Получаем актуальный статус платежа из ЮKassa API
+            $yooKassaPayment = $yooKassaService->getPayment($payment->transaction_id);
+            
+            $yooKassaStatus = $yooKassaPayment['status'] ?? null;
+            
+            if (!$yooKassaStatus) {
+                return response()->json([
+                    'message' => 'Не удалось получить статус платежа из ЮKassa',
+                ], 500);
+            }
+            
+            // Маппинг статусов ЮKassa на наши статусы
+            $statusMap = [
+                'pending' => Payment::STATUS_PENDING,
+                'waiting_for_capture' => Payment::STATUS_PROCESSING,
+                'succeeded' => Payment::STATUS_SUCCEEDED,
+                'canceled' => Payment::STATUS_CANCELLED,
+            ];
+            
+            $newStatus = $statusMap[$yooKassaStatus] ?? $payment->status;
+            
+            DB::beginTransaction();
+            
+            $oldStatus = $payment->status;
+            $payment->status = $newStatus;
+            $payment->provider_response = $yooKassaPayment;
+            
+            // Обновляем даты
+            if (isset($yooKassaPayment['paid_at'])) {
+                $payment->paid_at = \Carbon\Carbon::parse($yooKassaPayment['paid_at']);
+            }
+            if (isset($yooKassaPayment['captured_at'])) {
+                $payment->captured_at = \Carbon\Carbon::parse($yooKassaPayment['captured_at']);
+            }
+            
+            $payment->save();
+            
+            // Обновляем статус заказа, если платеж успешен
+            if ($newStatus === Payment::STATUS_SUCCEEDED && $payment->order) {
+                $order = $payment->order;
+                $order->paid = true;
+                $order->payment_status = 'succeeded';
+                $order->payment_id = (string) $payment->id;
+                if ($order->status === 'new') {
+                    $order->status = \App\Models\Order::STATUS_PAID;
+                }
+                $order->save();
+            }
+            
+            DB::commit();
+            
+            Log::info('PaymentController::syncStatus - статус платежа синхронизирован с ЮKassa', [
+                'payment_id' => $payment->id,
+                'transaction_id' => $payment->transaction_id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'yookassa_status' => $yooKassaStatus,
+                'order_id' => $payment->order_id,
+            ]);
+            
+            $payment->load('order');
+            
+            return response()->json([
+                'data' => $payment,
+                'message' => 'Статус платежа успешно синхронизирован с ЮKassa',
+                'yookassa_status' => $yooKassaStatus,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Ошибка при синхронизации статуса платежа: ' . $e->getMessage(), [
+                'payment_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Ошибка при синхронизации статуса платежа',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    
+    /**
+     * Синхронизировать статусы всех платежей через ЮKassa
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function syncAllStatuses(Request $request)
+    {
+        try {
+            $settings = PaymentSetting::forProvider('yookassa');
+            
+            if (!$settings || !$settings->is_enabled) {
+                return response()->json([
+                    'message' => 'Интеграция с ЮKassa отключена или не настроена',
+                ], 400);
+            }
+            
+            // Получаем все платежи через ЮKassa со статусом pending или processing
+            $payments = Payment::where('payment_provider', 'yookassa')
+                ->whereNotNull('transaction_id')
+                ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_PROCESSING])
+                ->get();
+            
+            $synced = 0;
+            $errors = 0;
+            
+            $yooKassaService = new YooKassaService($settings);
+            
+            foreach ($payments as $payment) {
+                try {
+                    $yooKassaPayment = $yooKassaService->getPayment($payment->transaction_id);
+                    $yooKassaStatus = $yooKassaPayment['status'] ?? null;
+                    
+                    if (!$yooKassaStatus) {
+                        $errors++;
+                        continue;
+                    }
+                    
+                    $statusMap = [
+                        'pending' => Payment::STATUS_PENDING,
+                        'waiting_for_capture' => Payment::STATUS_PROCESSING,
+                        'succeeded' => Payment::STATUS_SUCCEEDED,
+                        'canceled' => Payment::STATUS_CANCELLED,
+                    ];
+                    
+                    $newStatus = $statusMap[$yooKassaStatus] ?? $payment->status;
+                    
+                    if ($newStatus !== $payment->status) {
+                        DB::beginTransaction();
+                        
+                        $payment->status = $newStatus;
+                        $payment->provider_response = $yooKassaPayment;
+                        
+                        if (isset($yooKassaPayment['paid_at'])) {
+                            $payment->paid_at = \Carbon\Carbon::parse($yooKassaPayment['paid_at']);
+                        }
+                        if (isset($yooKassaPayment['captured_at'])) {
+                            $payment->captured_at = \Carbon\Carbon::parse($yooKassaPayment['captured_at']);
+                        }
+                        
+                        $payment->save();
+                        
+                        if ($newStatus === Payment::STATUS_SUCCEEDED && $payment->order) {
+                            $order = $payment->order;
+                            $order->paid = true;
+                            $order->payment_status = 'succeeded';
+                            $order->payment_id = (string) $payment->id;
+                            if ($order->status === 'new') {
+                                $order->status = \App\Models\Order::STATUS_PAID;
+                            }
+                            $order->save();
+                        }
+                        
+                        DB::commit();
+                        $synced++;
+                    }
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $errors++;
+                    Log::error('PaymentController::syncAllStatuses - ошибка синхронизации платежа', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            
+            return response()->json([
+                'message' => 'Синхронизация завершена',
+                'synced' => $synced,
+                'errors' => $errors,
+                'total' => $payments->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Ошибка при синхронизации всех статусов: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Ошибка при синхронизации статусов',
                 'error' => $e->getMessage(),
             ], 500);
         }

@@ -676,6 +676,26 @@ export const paymentsAPI = {
         return response.json();
     },
 
+    // Синхронизировать статус платежа с ЮKassa
+    async syncStatus(id) {
+        const response = await apiPost(`/payments/${id}/sync-status`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка синхронизации статуса');
+        }
+        return response.json();
+    },
+
+    // Синхронизировать все статусы платежей через ЮKassa
+    async syncAllStatuses() {
+        const response = await apiPost('/payments/sync-all-statuses');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка синхронизации статусов');
+        }
+        return response.json();
+    },
+
     // Возврат платежа
     async refund(id, amount = null) {
         const response = await apiPost(`/payments/${id}/refund`, amount ? { amount } : {});

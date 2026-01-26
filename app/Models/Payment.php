@@ -43,6 +43,7 @@ class Payment extends Model
         'transaction_id',
         'provider_response',
         'paid_at',
+        'captured_at',
         'refunded_amount',
         'refunded_at',
         'notes',

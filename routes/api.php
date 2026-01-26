@@ -166,6 +166,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // createYooKassaPayment вынесен в публичные роуты для MiniApp
         Route::put('payments/{id}/status', [PaymentController::class, 'updateStatus'])
             ->name('payments.status');
+        Route::post('payments/{id}/sync-status', [PaymentController::class, 'syncStatus'])
+            ->name('payments.sync-status');
+        Route::post('payments/sync-all-statuses', [PaymentController::class, 'syncAllStatuses'])
+            ->name('payments.sync-all-statuses');
         Route::post('payments/{id}/refund', [PaymentController::class, 'refund'])
             ->name('payments.refund');
         Route::get('orders/{orderId}/payments', [PaymentController::class, 'getByOrder'])

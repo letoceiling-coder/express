@@ -120,7 +120,24 @@
                             <span class="text-sm text-muted-foreground">{{ payment.payment_provider || '—' }}</span>
                         </td>
                         <td class="px-6 py-4">
+                            <div v-if="isYooKassaPayment(payment)" class="flex items-center gap-2">
+                                <span
+                                    class="text-xs px-2 py-1 rounded"
+                                    :class="getStatusClass(payment.status)"
+                                >
+                                    {{ getStatusLabel(payment.status) }}
+                                </span>
+                                <button
+                                    @click="syncPaymentStatus(payment)"
+                                    :disabled="syncingStatus === payment.id"
+                                    class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 disabled:opacity-50"
+                                    title="Синхронизировать статус с ЮKassa"
+                                >
+                                    {{ syncingStatus === payment.id ? '...' : '🔄' }}
+                                </button>
+                            </div>
                             <select
+                                v-else
                                 :value="payment.status"
                                 @change="handleStatusChange(payment.id, $event.target.value)"
                                 class="text-xs px-2 py-1 rounded border border-input bg-background"
@@ -237,6 +254,7 @@ export default {
             selectedPaymentForRefund: null,
             refundAmount: null,
             refunding: false,
+            syncingStatus: null,
         };
     },
     computed: {
@@ -301,6 +319,37 @@ export default {
                 await swal.error(error.message || 'Ошибка изменения статуса');
                 await this.loadPayments();
             }
+        },
+        isYooKassaPayment(payment) {
+            return payment.payment_provider === 'yookassa' && payment.transaction_id;
+        },
+        async syncPaymentStatus(payment) {
+            if (!this.isYooKassaPayment(payment)) {
+                return;
+            }
+            
+            this.syncingStatus = payment.id;
+            try {
+                await paymentsAPI.syncStatus(payment.id);
+                await this.loadPayments();
+                await swal.success('Статус платежа синхронизирован с ЮKassa');
+            } catch (error) {
+                await swal.error(error.message || 'Ошибка синхронизации статуса');
+            } finally {
+                this.syncingStatus = null;
+            }
+        },
+        getStatusLabel(status) {
+            const labels = {
+                pending: 'Ожидает',
+                processing: 'Обрабатывается',
+                succeeded: 'Успешен',
+                failed: 'Ошибка',
+                refunded: 'Возвращен',
+                partially_refunded: 'Частично возвращен',
+                cancelled: 'Отменен',
+            };
+            return labels[status] || status;
         },
         handleRefund(payment) {
             this.selectedPaymentForRefund = payment;
@@ -373,6 +422,26 @@ export default {
             if (!dateString) return '—';
             const date = new Date(dateString);
             return date.toLocaleDateString('ru-RU');
+        },
+        async syncYooKassaPayments() {
+            try {
+                // Синхронизируем только платежи со статусом pending или processing
+                const yooKassaPayments = this.payments.filter(p => 
+                    this.isYooKassaPayment(p) && 
+                    (p.status === 'pending' || p.status === 'processing')
+                );
+                
+                if (yooKassaPayments.length === 0) {
+                    return;
+                }
+                
+                // Синхронизируем все платежи через ЮKassa
+                await paymentsAPI.syncAllStatuses();
+                await this.loadPayments();
+            } catch (error) {
+                // Не показываем ошибку пользователю, просто логируем
+                console.error('Ошибка автоматической синхронизации статусов:', error);
+            }
         },
     },
 };
