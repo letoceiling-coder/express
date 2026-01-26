@@ -26,6 +26,7 @@ import { AdminCategories } from "./pages/admin/AdminCategories";
 import { AdminAbout } from "./pages/admin/AdminAbout";
 import { YooKassaSettings } from "./pages/admin/YooKassaSettings";
 import { DeliverySettings } from "./pages/admin/DeliverySettings";
+import { NotificationSettings } from "./pages/admin/NotificationSettings";
 
 import NotFound from "./pages/NotFound";
 
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="about" element={<AdminAbout />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
+            <Route path="settings/notifications" element={<NotificationSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

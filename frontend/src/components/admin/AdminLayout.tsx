@@ -14,6 +14,7 @@ import {
   Truck,
   Info,
   FileText,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -27,6 +28,7 @@ const navItems = [
   { path: '/admin/about', icon: Info, label: 'О нас' },
   { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },
   { path: '/admin/settings/delivery', icon: Truck, label: 'Доставка' },
+  { path: '/admin/settings/notifications', icon: Bell, label: 'Уведомления' },
 ];
 
 export function AdminLayout() {

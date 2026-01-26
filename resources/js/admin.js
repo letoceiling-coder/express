@@ -493,6 +493,13 @@ const routes = [
                 component: () => import('./pages/admin/DeliverySettings.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки доставки' },
             },
+            // Notification Settings
+            {
+                path: 'settings/notifications',
+                name: 'admin.settings.notifications',
+                component: () => import('./pages/admin/NotificationSettings.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки уведомлений' },
+            },
             // Legal Documents
             {
                 path: 'legal-documents',

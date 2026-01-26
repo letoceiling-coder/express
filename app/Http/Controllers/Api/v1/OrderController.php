@@ -219,6 +219,16 @@ class OrderController extends Controller
                 }
             }
 
+            // Отправляем уведомление клиенту о создании заказа
+            try {
+                $this->orderNotificationService->notifyClientNewOrder($order);
+            } catch (\Exception $e) {
+                Log::error('Error notifying client about new order: ' . $e->getMessage(), [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Отправляем уведомление администратору о новом заказе
             // Статус остается 'new' до принятия администратором
             try {

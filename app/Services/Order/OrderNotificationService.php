@@ -4,6 +4,7 @@ namespace App\Services\Order;
 
 use App\Jobs\SendOrderNotificationJob;
 use App\Models\Bot;
+use App\Models\NotificationSetting;
 use App\Models\Order;
 use App\Models\OrderNotification;
 use App\Models\TelegramUser;
@@ -21,6 +22,51 @@ class OrderNotificationService
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
+    }
+
+    /**
+     * Уведомить клиента о создании заказа
+     *
+     * @param Order $order
+     * @return bool
+     */
+    public function notifyClientNewOrder(Order $order): bool
+    {
+        try {
+            $bot = $order->bot;
+            if (!$bot || !$bot->token || !$order->telegram_id) {
+                return false;
+            }
+
+            // Получаем настройки для события order_created_client
+            $setting = NotificationSetting::getByEvent('order_created_client');
+            
+            if (!$setting || !$setting->enabled) {
+                // Если настройки нет или отключена, используем дефолт
+                $message = "Спасибо! Ваш заказ #{$order->order_id} принят и ожидает подтверждения администратора.";
+                $buttons = [];
+            } else {
+                // Используем шаблон из настроек
+                $message = $setting->replacePlaceholders([
+                    'order_id' => $order->order_id,
+                ]);
+                
+                // Получаем кнопки из настроек
+                $keyboard = $setting->formatButtonsForTelegram([
+                    'order_id' => $order->id,
+                ]);
+                $buttons = $keyboard['inline_keyboard'] ?? [];
+            }
+
+            // Отправляем уведомление клиенту
+            return $this->createClientNotification($order, $message, $buttons);
+        } catch (\Exception $e) {
+            Log::error('Error notifying client about new order: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -64,21 +110,31 @@ class OrderNotificationService
             // Форматируем сообщение для нового заказа
             $message = $this->formatAdminNewOrderMessage($order);
             
-            // Формируем клавиатуру с кнопками "Принять" и "Отменить"
-            $keyboard = [
-                'inline_keyboard' => [
-                    [
+            // Получаем настройки для события order_created_admin
+            $setting = NotificationSetting::getByEvent('order_created_admin');
+            
+            // Формируем клавиатуру с кнопками из настроек или дефолтную
+            if ($setting && $setting->enabled && $setting->buttons) {
+                $keyboard = $setting->formatButtonsForTelegram([
+                    'order_id' => $order->id,
+                ]);
+            } else {
+                // Дефолтная клавиатура
+                $keyboard = [
+                    'inline_keyboard' => [
                         [
-                            'text' => '✅ Принять',
-                            'callback_data' => "order_admin_action:{$order->id}:accept"
-                        ],
-                        [
-                            'text' => '❌ Отменить',
-                            'callback_data' => "order_admin_action:{$order->id}:cancel"
+                            [
+                                'text' => '✅ Принять',
+                                'callback_data' => "order_admin_action:{$order->id}:accept"
+                            ],
+                            [
+                                'text' => '❌ Отменить',
+                                'callback_data' => "order_admin_action:{$order->id}:cancel"
+                            ]
                         ]
                     ]
-                ]
-            ];
+                ];
+            }
 
             $sent = false;
             foreach ($admins as $admin) {
@@ -489,6 +545,27 @@ class OrderNotificationService
                 return false;
             }
 
+            // Для статуса accepted используем настройки из order_accepted_client
+            if ($status === Order::STATUS_ACCEPTED) {
+                $setting = NotificationSetting::getByEvent('order_accepted_client');
+                
+                if ($setting && $setting->enabled) {
+                    // Используем шаблон из настроек
+                    $message = $setting->replacePlaceholders([
+                        'order_id' => $order->order_id,
+                    ]);
+                    
+                    // Получаем кнопки из настроек
+                    $keyboard = $setting->formatButtonsForTelegram([
+                        'order_id' => $order->id,
+                    ]);
+                    $buttons = $keyboard['inline_keyboard'] ?? [];
+                    
+                    return $this->updateClientNotification($order, $message, $buttons);
+                }
+            }
+
+            // Для остальных статусов используем стандартную логику
             $message = $this->formatClientStatusMessage($order, $status, $details);
             
             // Добавляем кнопку отмены только если заказ принят администратором

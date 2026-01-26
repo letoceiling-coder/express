@@ -234,6 +234,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('order-settings', [OrderSettingsController::class, 'updateSettings'])
             ->name('order-settings.update');
         
+        // Notification Settings
+        Route::get('notification-settings', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'index'])
+            ->name('notification-settings.index');
+        Route::get('notification-settings/{event}', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'show'])
+            ->name('notification-settings.show');
+        Route::put('notification-settings/{event}', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'update'])
+            ->name('notification-settings.update');
+        Route::post('notification-settings', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'store'])
+            ->name('notification-settings.store');
+        
         // About Page (Admin)
         Route::get('admin/about', [AboutPageController::class, 'getAdmin'])
             ->name('admin.about.get');

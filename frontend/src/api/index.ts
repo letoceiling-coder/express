@@ -882,6 +882,53 @@ export const aboutAPI = {
 };
 
 // Legal Documents API
+// Notification Settings API
+export const notificationSettingsAPI = {
+  async getAll(): Promise<any[]> {
+    const response = await apiRequest('/notification-settings');
+    return response.data || [];
+  },
+
+  async getByEvent(event: string): Promise<any | null> {
+    try {
+      const response = await apiRequest(`/notification-settings/${event}`);
+      return response.data || null;
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async update(event: string, data: {
+    enabled?: boolean;
+    message_template?: string;
+    buttons?: any[];
+    support_chat_id?: string;
+  }): Promise<any> {
+    const response = await apiRequest(`/notification-settings/${event}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  async create(data: {
+    event: string;
+    enabled?: boolean;
+    message_template?: string;
+    buttons?: any[];
+    support_chat_id?: string;
+  }): Promise<any> {
+    const response = await apiRequest('/notification-settings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+};
+
 export const legalDocumentsAPI = {
   async getAll(): Promise<any[]> {
     try {

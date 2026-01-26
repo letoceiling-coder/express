@@ -866,6 +866,10 @@ class BotController extends Controller
                     $this->handleOrderCancelRequest($bot, $orderId, $from);
                     break;
 
+                case 'open_support_chat':
+                    $this->handleOpenSupportChat($bot, $param, $from);
+                    break;
+
                 default:
                     \Illuminate\Support\Facades\Log::warning('Unknown callback action', [
                         'action' => $action,
@@ -2414,6 +2418,87 @@ class BotController extends Controller
             });
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error handling admin cancel order reason: ' . $e->getMessage(), [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Обработка открытия чата поддержки
+     */
+    private function handleOpenSupportChat(Bot $bot, string $param, array $from): void
+    {
+        try {
+            $telegramUser = TelegramUser::where('bot_id', $bot->id)
+                ->where('telegram_id', $from['id'] ?? null)
+                ->first();
+
+            if (!$telegramUser) {
+                \Illuminate\Support\Facades\Log::warning('User not found for support chat', [
+                    'bot_id' => $bot->id,
+                    'telegram_id' => $from['id'] ?? null,
+                ]);
+                return;
+            }
+
+            // Получаем настройки для события order_accepted_client
+            $setting = \App\Models\NotificationSetting::getByEvent('order_accepted_client');
+            
+            // Получаем ID чата поддержки из настроек или первого администратора
+            $supportChatId = null;
+            if ($setting && $setting->support_chat_id) {
+                $supportChatId = $setting->support_chat_id;
+            } else {
+                // Получаем первого администратора
+                $admin = TelegramUser::where('bot_id', $bot->id)
+                    ->where('role', TelegramUser::ROLE_ADMIN)
+                    ->where('is_blocked', false)
+                    ->first();
+                
+                if ($admin) {
+                    $supportChatId = $admin->telegram_id;
+                }
+            }
+
+            if (!$supportChatId) {
+                $this->telegramService->sendMessage(
+                    $bot->token,
+                    $telegramUser->telegram_id,
+                    "❌ К сожалению, поддержка временно недоступна. Пожалуйста, попробуйте позже."
+                );
+                return;
+            }
+
+            // Отправляем сообщение с кнопкой для открытия чата
+            // Используем формат tg://user?id=USER_ID для открытия чата с пользователем
+            $message = "💬 Нажмите на кнопку ниже, чтобы написать в поддержку:";
+            
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => '💬 Написать в поддержку',
+                            'url' => "tg://user?id={$supportChatId}"
+                        ]
+                    ]
+                ]
+            ];
+
+            $this->telegramService->sendMessage(
+                $bot->token,
+                $telegramUser->telegram_id,
+                $message,
+                ['reply_markup' => json_encode($keyboard)]
+            );
+
+            \Illuminate\Support\Facades\Log::info('Support chat opened', [
+                'user_id' => $telegramUser->id,
+                'support_chat_id' => $supportChatId,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error handling open support chat: ' . $e->getMessage(), [
+                'bot_id' => $bot->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
