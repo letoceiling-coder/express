@@ -20,7 +20,7 @@ export function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { getOrderById, orders } = useOrders();
+  const { getOrderById, orders, loadOrders } = useOrders();
   const { addItem } = useCartStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,16 +78,34 @@ export function OrderDetailPage() {
         setLoading(true);
         
         // Синхронизируем статус платежа с ЮKassa перед загрузкой заказа
-        try {
-          await ordersAPI.syncPaymentStatus(orderId);
-        } catch (error) {
-          // Не показываем ошибку пользователю, просто логируем
-          console.error('Ошибка синхронизации статуса платежа:', error);
+        // Делаем несколько попыток для надежности
+        let syncAttempts = 0;
+        const maxSyncAttempts = 3;
+        
+        while (syncAttempts < maxSyncAttempts) {
+          try {
+            console.log(`OrderDetailPage - Синхронизация статуса платежа, попытка ${syncAttempts + 1}`);
+            await ordersAPI.syncPaymentStatus(orderId);
+            // Небольшая задержка после синхронизации, чтобы сервер успел обновить данные
+            await new Promise(resolve => setTimeout(resolve, 500));
+            break;
+          } catch (error) {
+            syncAttempts++;
+            console.error(`OrderDetailPage - Ошибка синхронизации статуса платежа (попытка ${syncAttempts}):`, error);
+            if (syncAttempts < maxSyncAttempts) {
+              // Ждем перед следующей попыткой
+              await new Promise(resolve => setTimeout(resolve, 1000 * syncAttempts));
+            }
+          }
         }
         
-        // Загружаем актуальные данные заказа с сервера
+        // Загружаем актуальные данные заказа с сервера (принудительно, без кеша)
         const freshOrder = await getOrderById(orderId);
-        setOrder(freshOrder);
+        if (freshOrder) {
+          setOrder(freshOrder);
+          // Обновляем заказ в кеше useOrders
+          loadOrders(true); // Принудительное обновление списка заказов
+        }
         setLoading(false);
         
         // Убираем параметр из URL
@@ -99,22 +117,40 @@ export function OrderDetailPage() {
             setShowPaymentSuccess(true);
             toast.success('Оплата успешно выполнена!');
           } else if (freshOrder && freshOrder.paymentStatus === 'pending') {
-            // Платеж еще обрабатывается - пробуем синхронизировать еще раз через 2 секунды
-            setTimeout(async () => {
-              try {
-                await ordersAPI.syncPaymentStatus(orderId);
-                const updatedOrder = await getOrderById(orderId);
-                if (updatedOrder) {
-                  setOrder(updatedOrder);
-                  if (updatedOrder.paymentStatus === 'succeeded') {
-                    setShowPaymentSuccess(true);
-                    toast.success('Оплата успешно выполнена!');
+            // Платеж еще обрабатывается - пробуем синхронизировать еще раз через 2, 4, 6 секунд
+            const retrySync = async (delay: number, attempt: number) => {
+              if (attempt > 3) {
+                toast.warning('Платеж обрабатывается. Статус будет обновлен автоматически.');
+                return;
+              }
+              
+              setTimeout(async () => {
+                try {
+                  console.log(`OrderDetailPage - Повторная синхронизация статуса платежа, попытка ${attempt}`);
+                  await ordersAPI.syncPaymentStatus(orderId);
+                  const updatedOrder = await getOrderById(orderId);
+                  if (updatedOrder) {
+                    setOrder(updatedOrder);
+                    loadOrders(true); // Обновляем список заказов
+                    
+                    if (updatedOrder.paymentStatus === 'succeeded') {
+                      setShowPaymentSuccess(true);
+                      toast.success('Оплата успешно выполнена!');
+                    } else if (updatedOrder.paymentStatus === 'pending') {
+                      // Пробуем еще раз
+                      retrySync(delay + 2000, attempt + 1);
+                    }
+                  }
+                } catch (error) {
+                  console.error(`OrderDetailPage - Ошибка повторной синхронизации (попытка ${attempt}):`, error);
+                  if (attempt < 3) {
+                    retrySync(delay + 2000, attempt + 1);
                   }
                 }
-              } catch (error) {
-                console.error('Ошибка повторной синхронизации статуса платежа:', error);
-              }
-            }, 2000);
+              }, delay);
+            };
+            
+            retrySync(2000, 1);
             toast.info('Платеж обрабатывается. Проверяем статус...');
           } else if (freshOrder && freshOrder.paymentStatus === 'failed') {
             setShowPaymentError(true);
@@ -139,6 +175,25 @@ export function OrderDetailPage() {
         console.log('OrderDetailPage - Found order in cache:', cachedOrder.orderId);
         setOrder(cachedOrder);
         setLoading(false);
+        
+        // Если заказ в статусе pending, синхронизируем статус в фоне
+        if (cachedOrder.paymentStatus === 'pending') {
+          // Синхронизируем статус в фоне, не блокируя UI
+          ordersAPI.syncPaymentStatus(orderId).then(() => {
+            // После синхронизации обновляем заказ
+            getOrderById(orderId).then(updatedOrder => {
+              if (updatedOrder && updatedOrder.paymentStatus !== cachedOrder.paymentStatus) {
+                setOrder(updatedOrder);
+                loadOrders(true); // Обновляем список заказов
+              }
+            }).catch(err => {
+              console.error('OrderDetailPage - Ошибка обновления заказа после синхронизации:', err);
+            });
+          }).catch(err => {
+            console.error('OrderDetailPage - Ошибка фоновой синхронизации статуса:', err);
+          });
+        }
+        
         return;
       }
       
