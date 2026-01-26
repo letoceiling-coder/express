@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { Loader2, Phone, MapPin, Copy, Check, MessageCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
-import { aboutAPI, supportSettingsAPI } from '@/api';
+import { aboutAPI } from '@/api';
 import { useNavigate } from 'react-router-dom';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { openTelegramLink } from '@/lib/telegram';
@@ -17,7 +17,6 @@ interface AboutPageData {
   description?: string | null;
   bullets?: string[];
   yandex_maps_url?: string | null;
-  support_telegram_url?: string | null;
   cover_image_url?: string | null;
   cover_images?: string[] | null;
 }
@@ -29,23 +28,14 @@ export function AboutPage() {
   const [error, setError] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [phoneCopied, setPhoneCopied] = useState(false);
-  const [supportSettings, setSupportSettings] = useState<{
-    enabled: boolean;
-    label: string;
-    telegram_url: string | null;
-  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const [aboutData, supportData] = await Promise.all([
-          aboutAPI.get(),
-          supportSettingsAPI.get().catch(() => null), // Не критично, если не загрузится
-        ]);
+        const aboutData = await aboutAPI.get();
         setData(aboutData);
-        setSupportSettings(supportData);
       } catch (err: any) {
         console.error('Error loading about page:', err);
         setError(err.message || 'Ошибка при загрузке данных');
@@ -161,10 +151,8 @@ export function AboutPage() {
     }
   };
 
-  const handleSupportClick = (url: string) => {
-    if (url) {
-      openTelegramLink(url);
-    }
+  const handleSupportClick = () => {
+    openTelegramLink('https://t.me/+79826824368');
   };
 
   // Функция для обрезки описания до 4-6 строк
@@ -279,7 +267,7 @@ export function AboutPage() {
         )}
 
         {/* Quick Actions - 4 buttons in a row */}
-        {(data.phone || data.address || data.yandex_maps_url || data.support_telegram_url) && (
+        {(data.phone || data.address || data.yandex_maps_url) && (
           <div className="grid grid-cols-4 gap-2">
             {/* Phone Button */}
             {data.phone && (
@@ -313,20 +301,16 @@ export function AboutPage() {
             )}
 
             {/* Support Button */}
-            {supportSettings?.enabled && supportSettings?.telegram_url && (
-              <button
-                onClick={() => {
-                  handleSupportClick(supportSettings.telegram_url!);
-                }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
-                aria-label={supportSettings.label || 'Поддержка'}
-              >
-                <MessageCircle className="h-5 w-5 text-primary" />
-                <span className="text-xs text-foreground text-center leading-tight">
-                  {supportSettings.label || 'Поддержка'}
-                </span>
-              </button>
-            )}
+            <button
+              onClick={handleSupportClick}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 touch-feedback hover:bg-muted transition-colors"
+              aria-label="Поддержка"
+            >
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <span className="text-xs text-foreground text-center leading-tight">
+                Поддержка
+              </span>
+            </button>
 
             {/* Documents Button */}
             <button
