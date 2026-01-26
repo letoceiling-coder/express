@@ -839,6 +839,85 @@ class TelegramService
     }
 
     /**
+     * Установить кнопку меню для чата (Menu Button)
+     * 
+     * @param string $token Токен бота
+     * @param int|string $chatId ID чата
+     * @param string $url URL Mini App
+     * @param string|null $text Текст кнопки (опционально)
+     * @return array
+     */
+    public function setChatMenuButton(string $token, int|string $chatId, string $url, ?string $text = null): array
+    {
+        return $this->retryWithBackoff(function () use ($token, $chatId, $url, $text) {
+            $menuButton = [
+                'type' => 'web_app',
+                'text' => $text ?: 'Открыть приложение',
+                'web_app' => [
+                    'url' => $url,
+                ],
+            ];
+            
+            $params = [
+                'chat_id' => $chatId,
+                'menu_button' => $menuButton,
+            ];
+            
+            Log::info('🔘 Setting chat menu button', [
+                'chat_id' => $chatId,
+                'url' => $url,
+                'text' => $menuButton['text'],
+                'payload' => $params,
+            ]);
+            
+            $response = Http::timeout(10)->post($this->apiBaseUrl . $token . '/setChatMenuButton', $params);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if ($data['ok'] ?? false) {
+                    Log::info('✅ Chat menu button set successfully', [
+                        'chat_id' => $chatId,
+                        'result' => $data['result'] ?? null,
+                    ]);
+                    return [
+                        'success' => true,
+                        'data' => $data['result'] ?? [],
+                    ];
+                }
+                
+                $errorCode = $data['error_code'] ?? null;
+                $description = $data['description'] ?? 'Unknown error';
+                
+                Log::error('❌ Telegram API error setting menu button', [
+                    'chat_id' => $chatId,
+                    'description' => $description,
+                    'error_code' => $errorCode,
+                    'response' => $data,
+                ]);
+                
+                return [
+                    'success' => false,
+                    'error_code' => $errorCode,
+                    'message' => $description,
+                ];
+            }
+            
+            $errorBody = $response->body();
+            Log::error('❌ HTTP error setting menu button', [
+                'chat_id' => $chatId,
+                'status' => $response->status(),
+                'body' => $errorBody,
+            ]);
+            
+            return [
+                'success' => false,
+                'message' => 'HTTP error: ' . $response->status(),
+            ];
+        });
+    }
+    
+    /**
      * Retry logic с экспоненциальной задержкой
      *
      * @param callable $callback

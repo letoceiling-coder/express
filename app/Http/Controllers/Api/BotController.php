@@ -11,9 +11,11 @@ use App\Models\TelegramUserRoleRequest;
 use App\Services\TelegramService;
 use App\Services\Order\OrderStatusService;
 use App\Services\Order\OrderNotificationService;
+use App\Helpers\TelegramHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 
 class BotController extends Controller
 {
@@ -347,9 +349,10 @@ class BotController extends Controller
                 ]);
                 
                 // Синхронизация пользователя
+                $telegramUser = null;
                 if ($from) {
                     try {
-                        $this->telegramUserService->syncUser($bot->id, $from);
+                        $telegramUser = $this->telegramUserService->syncUser($bot->id, $from);
                     } catch (\Exception $e) {
                         \Illuminate\Support\Facades\Log::error('Error syncing telegram user', [
                             'bot_id' => $bot->id,
@@ -363,87 +366,181 @@ class BotController extends Controller
                     \Illuminate\Support\Facades\Log::info('🚀 /start command received', [
                         'bot_id' => $bot->id,
                         'chat_id' => $chatId,
+                        'telegram_user_id' => $telegramUser?->id,
                     ]);
                     
-                    // Получаем базовый URL для miniApp (из настроек бота или конфига)
-                    $miniAppUrl = $bot->settings['mini_app_url'] ?? config('telegram.mini_app_url', env('APP_URL'));
-                    
-                    // Добавляем версию к URL для принудительного сброса кеша Telegram
-                    // Используем хеш от последнего коммита или timestamp для гарантированного сброса кеша
-                    $appVersion = config('app.version');
-                    
-                    // Пытаемся получить хеш последнего коммита для более надёжной версии
-                    $gitHash = null;
-                    if (function_exists('exec') && is_dir(base_path('.git'))) {
-                        $gitHash = @exec('git rev-parse --short HEAD 2>/dev/null');
-                        if (!empty($gitHash)) {
-                            $appVersion = $gitHash;
+                    try {
+                        // Получаем URL Mini App через хелпер
+                        $miniAppUrl = TelegramHelper::getMiniAppUrl($bot, true);
+                        
+                        // Получаем тексты через хелпер
+                        $welcomeText = TelegramHelper::getWelcomeMessage($bot);
+                        $inlineButtonText = TelegramHelper::getInlineButtonLabel($bot);
+                        $menuButtonText = TelegramHelper::getMenuButtonLabel($bot);
+                        
+                        // Антиспам: проверяем, не отправляли ли мы приветствие недавно
+                        $spamCacheKey = "start_welcome_{$bot->id}_{$chatId}";
+                        $lastWelcomeTime = Cache::get($spamCacheKey);
+                        $shouldSendNew = true;
+                        $lastMessageId = null;
+                        
+                        if ($lastWelcomeTime && (time() - $lastWelcomeTime) < 300) { // 5 минут
+                            // Недавно отправляли - редактируем существующее сообщение
+                            $shouldSendNew = false;
+                            
+                            // Пытаемся получить message_id из БД
+                            if ($telegramUser && $telegramUser->last_welcome_message_id) {
+                                $lastMessageId = $telegramUser->last_welcome_message_id;
+                                
+                                // Формируем клавиатуру
+                                $keyboard = [
+                                    'inline_keyboard' => [
+                                        [
+                                            [
+                                                'text' => $inlineButtonText,
+                                                'web_app' => [
+                                                    'url' => $miniAppUrl
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ];
+                                
+                                // Пытаемся отредактировать сообщение
+                                $editResult = $this->telegramService->editMessageText(
+                                    $bot->token,
+                                    $chatId,
+                                    $lastMessageId,
+                                    $welcomeText,
+                                    ['reply_markup' => json_encode($keyboard)]
+                                );
+                                
+                                if ($editResult['success']) {
+                                    \Illuminate\Support\Facades\Log::info('✅ Welcome message edited', [
+                                        'bot_id' => $bot->id,
+                                        'chat_id' => $chatId,
+                                        'message_id' => $lastMessageId,
+                                    ]);
+                                } else {
+                                    // Если редактирование не удалось, отправляем новое
+                                    $shouldSendNew = true;
+                                }
+                            } else {
+                                // Нет message_id - отправляем новое
+                                $shouldSendNew = true;
+                            }
                         }
-                    }
-                    
-                    // Если не удалось получить git hash, используем timestamp с микросекундами для уникальности
-                    if (empty($appVersion) || $appVersion === date('YmdHis')) {
-                        // Используем timestamp с микросекундами для гарантированной уникальности
-                        $appVersion = (int)(microtime(true) * 1000); // миллисекунды
-                    }
-                    
-                    $separator = strpos($miniAppUrl, '?') !== false ? '&' : '?';
-                    $miniAppUrlWithVersion = $miniAppUrl . $separator . 'v=' . $appVersion;
-                    
-                    \Illuminate\Support\Facades\Log::info('🔗 Mini App URL with version', [
-                        'original_url' => $miniAppUrl,
-                        'version' => $appVersion,
-                        'final_url' => $miniAppUrlWithVersion,
-                    ]);
-                    
-                    // Получаем текст кнопки из настроек бота или используем значение по умолчанию
-                    $buttonText = $bot->button_text ?? 'Сделать заказ';
-                    
-                    // Формируем клавиатуру с кнопкой для запуска miniApp
-                    $keyboard = [
-                        'inline_keyboard' => [
-                            [
-                                [
-                                    'text' => $buttonText,
-                                    'web_app' => [
-                                        'url' => $miniAppUrlWithVersion
+                        
+                        // Отправляем новое приветственное сообщение
+                        if ($shouldSendNew) {
+                            // Формируем клавиатуру с кнопкой для запуска miniApp
+                            $keyboard = [
+                                'inline_keyboard' => [
+                                    [
+                                        [
+                                            'text' => $inlineButtonText,
+                                            'web_app' => [
+                                                'url' => $miniAppUrl
+                                            ]
+                                        ]
                                     ]
                                 ]
-                            ]
-                        ]
-                    ];
-                    
-                    // Отправляем приветственное сообщение
-                    if ($bot->welcome_message) {
+                            ];
+                            
+                            $sendResult = $this->telegramService->sendMessage(
+                                $bot->token,
+                                $chatId,
+                                $welcomeText,
+                                [
+                                    'reply_markup' => json_encode($keyboard)
+                                ]
+                            );
+                            
+                            if ($sendResult['success'] && isset($sendResult['data']['message_id'])) {
+                                $lastMessageId = $sendResult['data']['message_id'];
+                                
+                                // Сохраняем message_id в метаданных пользователя
+                                if ($telegramUser) {
+                                    $metadata = $telegramUser->metadata ?? [];
+                                    $metadata['last_welcome_message_id'] = $lastMessageId;
+                                    $telegramUser->update(['metadata' => $metadata]);
+                                }
+                                
+                                // Устанавливаем кеш антиспама
+                                Cache::put($spamCacheKey, time(), 300); // 5 минут
+                                
+                                \Illuminate\Support\Facades\Log::info('✅ Welcome message sent with miniApp button', [
+                                    'bot_id' => $bot->id,
+                                    'chat_id' => $chatId,
+                                    'message_id' => $lastMessageId,
+                                    'mini_app_url' => $miniAppUrl,
+                                ]);
+                            }
+                        }
+                        
+                        // Устанавливаем Menu Button (постоянная кнопка внизу слева)
+                        // Проверяем, не устанавливали ли уже (в БД или кеше)
+                        $menuButtonSet = false;
+                        if ($telegramUser) {
+                            $menuButtonSet = $telegramUser->menu_button_set ?? false;
+                        }
+                        
+                        if (!$menuButtonSet) {
+                            $menuButtonCacheKey = "menu_button_set_{$bot->id}_{$chatId}";
+                            $menuButtonSet = Cache::get($menuButtonCacheKey, false);
+                        }
+                        
+                        // Устанавливаем menu button (даже если уже установлен, для надежности)
+                        $menuButtonResult = $this->telegramService->setChatMenuButton(
+                            $bot->token,
+                            $chatId,
+                            $miniAppUrl,
+                            $menuButtonText
+                        );
+                        
+                        if ($menuButtonResult['success']) {
+                            // Сохраняем в БД
+                            if ($telegramUser && !$telegramUser->menu_button_set) {
+                                $telegramUser->update(['menu_button_set' => true]);
+                            }
+                            
+                            // Кешируем на 24 часа
+                            $menuButtonCacheKey = "menu_button_set_{$bot->id}_{$chatId}";
+                            Cache::put($menuButtonCacheKey, true, 86400);
+                            
+                            \Illuminate\Support\Facades\Log::info('✅ Menu button set successfully', [
+                                'bot_id' => $bot->id,
+                                'chat_id' => $chatId,
+                                'text' => $menuButtonText,
+                                'result' => $menuButtonResult['data'] ?? null,
+                            ]);
+                        } else {
+                            \Illuminate\Support\Facades\Log::warning('⚠️ Failed to set menu button', [
+                                'bot_id' => $bot->id,
+                                'chat_id' => $chatId,
+                                'error' => $menuButtonResult['message'] ?? 'Unknown error',
+                                'error_code' => $menuButtonResult['error_code'] ?? null,
+                                'payload' => [
+                                    'url' => $miniAppUrl,
+                                    'text' => $menuButtonText,
+                                ],
+                            ]);
+                        }
+                        
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('❌ Error processing /start command', [
+                            'bot_id' => $bot->id,
+                            'chat_id' => $chatId,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        
+                        // Отправляем сообщение об ошибке пользователю
                         $this->telegramService->sendMessage(
                             $bot->token,
                             $chatId,
-                            $bot->welcome_message,
-                            [
-                                'reply_markup' => json_encode($keyboard)
-                            ]
+                            '⚠️ Произошла ошибка при обработке команды. Попробуйте позже.',
                         );
-                        \Illuminate\Support\Facades\Log::info('✅ Welcome message sent with miniApp button', [
-                            'bot_id' => $bot->id,
-                            'chat_id' => $chatId,
-                            'mini_app_url' => $miniAppUrl,
-                        ]);
-                    } else {
-                        // Если нет приветственного сообщения, отправляем стандартное с кнопкой
-                        $defaultMessage = '👋 Добро пожаловать! Нажмите на кнопку ниже, чтобы открыть приложение.';
-                        $this->telegramService->sendMessage(
-                            $bot->token,
-                            $chatId,
-                            $defaultMessage,
-                            [
-                                'reply_markup' => json_encode($keyboard)
-                            ]
-                        );
-                        \Illuminate\Support\Facades\Log::info('✅ Default welcome message sent with miniApp button', [
-                            'bot_id' => $bot->id,
-                            'chat_id' => $chatId,
-                            'mini_app_url' => $miniAppUrl,
-                        ]);
                     }
                 }
                 
