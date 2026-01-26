@@ -43,7 +43,7 @@ class OrderNotificationLogController extends Controller
             $query->where('telegram_user_id', $request->telegram_user_id);
         }
 
-        // Поиск по ID заказа
+        // Поиск по номеру заказа
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->whereHas('order', function ($q) use ($search) {
@@ -86,6 +86,8 @@ class OrderNotificationLogController extends Controller
                 ->toArray(),
         ];
 
-        return response()->json(['data' => $stats]);
+        return response()->json([
+            'data' => $stats,
+        ]);
     }
 }

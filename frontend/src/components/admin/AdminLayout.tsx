@@ -15,6 +15,7 @@ import {
   Info,
   FileText,
   Bell,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -27,6 +28,7 @@ const navItems = [
   { path: '/admin/categories', icon: Tags, label: 'Категории' },
   { path: '/admin/about', icon: Info, label: 'О нас' },
   { path: '/admin/notifications', icon: Bell, label: 'Уведомления' },
+  { path: '/admin/notifications/logs', icon: History, label: 'История уведомлений', indent: true },
   { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },
   { path: '/admin/settings/delivery', icon: Truck, label: 'Доставка' },
 ];
@@ -88,6 +90,7 @@ export function AdminLayout() {
         <nav className="space-y-1 p-4">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isSubItem = item.indent === true;
             return (
               <NavLink
                 key={item.path}
@@ -97,13 +100,14 @@ export function AdminLayout() {
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
+                    isSubItem && 'ml-8 text-xs',
                     isActive
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30'
                       : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   )
                 }
               >
-                <Icon className="h-5 w-5" />
+                <Icon className={cn('h-5 w-5', isSubItem && 'h-4 w-4')} />
                 {item.label}
               </NavLink>
             );

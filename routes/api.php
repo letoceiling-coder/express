@@ -241,12 +241,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Notification Settings
         Route::get('notification-settings', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'index'])
             ->name('notification-settings.index');
+        Route::put('notification-settings', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'updateAll'])
+            ->name('notification-settings.update-all');
         Route::get('notification-settings/{event}', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'show'])
             ->name('notification-settings.show');
         Route::put('notification-settings/{event}', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'update'])
             ->name('notification-settings.update');
         Route::post('notification-settings', [\App\Http\Controllers\Api\v1\NotificationSettingsController::class, 'store'])
             ->name('notification-settings.store');
+        
+        // Order Notification Logs
+        Route::get('order-notification-logs', [\App\Http\Controllers\Api\v1\OrderNotificationLogController::class, 'index'])
+            ->name('order-notification-logs.index');
+        Route::get('order-notification-logs/stats', [\App\Http\Controllers\Api\v1\OrderNotificationLogController::class, 'stats'])
+            ->name('order-notification-logs.stats');
         
         // About Page (Admin)
         Route::get('admin/about', [AboutPageController::class, 'getAdmin'])

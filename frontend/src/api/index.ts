@@ -901,6 +901,22 @@ export const notificationSettingsAPI = {
     }
   },
 
+  /**
+   * Сохранить все настройки разом
+   */
+  async updateAll(notifications: Record<string, {
+    enabled?: boolean;
+    message_template?: string | null;
+    buttons?: any[] | null;
+    support_chat_id?: string | null;
+  }>): Promise<any> {
+    const response = await apiRequest('/notification-settings', {
+      method: 'PUT',
+      body: JSON.stringify({ notifications }),
+    });
+    return response.data;
+  },
+
   async update(event: string, data: {
     enabled?: boolean;
     message_template?: string;
@@ -926,6 +942,53 @@ export const notificationSettingsAPI = {
       body: JSON.stringify(data),
     });
     return response.data;
+  },
+};
+
+// Order Notification Logs API
+export const orderNotificationLogsAPI = {
+  async getLogs(params?: {
+    type?: string;
+    status?: string;
+    order_id?: number;
+    telegram_user_id?: number;
+    search?: string;
+    per_page?: number;
+    page?: number;
+  }): Promise<{
+    data: any[];
+    meta: {
+      current_page: number;
+      last_page: number;
+      per_page: number;
+      total: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    const url = `/order-notification-logs${queryString ? `?${queryString}` : ''}`;
+    const response = await apiRequest(url);
+    return {
+      data: response.data || [],
+      meta: response.meta || {
+        current_page: 1,
+        last_page: 1,
+        per_page: 50,
+        total: 0,
+      },
+    };
+  },
+
+  async getStats(): Promise<any> {
+    const response = await apiRequest('/order-notification-logs/stats');
+    return response.data || {};
   },
 };
 

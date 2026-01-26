@@ -89,37 +89,25 @@ export function NotificationSettings() {
       setIsLoading(true);
       setErrors({});
       
-      // Сохраняем все настройки последовательно
-      const savePromises = settings.map(async (setting) => {
-        const original = originalSettings.find(s => s.event === setting.event);
-        if (!original) return;
+      // Формируем payload для единого сохранения
+      const notificationsPayload: Record<string, {
+        enabled: boolean;
+        message_template: string | null;
+        buttons: ButtonConfig[][] | null;
+        support_chat_id: string | null;
+      }> = {};
 
-        // Проверяем, есть ли изменения
-        const hasSettingChanges = 
-          original.enabled !== setting.enabled ||
-          original.message_template !== setting.message_template ||
-          JSON.stringify(original.buttons) !== JSON.stringify(setting.buttons) ||
-          original.support_chat_id !== setting.support_chat_id;
-
-        if (!hasSettingChanges) return;
-
-        try {
-          await notificationSettingsAPI.update(setting.event, {
-            enabled: setting.enabled,
-            message_template: setting.message_template,
-            buttons: setting.buttons,
-            support_chat_id: setting.support_chat_id,
-          });
-        } catch (error: any) {
-          const errorData = error?.response?.data;
-          if (errorData?.errors) {
-            setErrors(prev => ({ ...prev, [setting.event]: errorData.errors }));
-          }
-          throw error;
-        }
+      settings.forEach((setting) => {
+        notificationsPayload[setting.event] = {
+          enabled: setting.enabled,
+          message_template: setting.message_template,
+          buttons: setting.buttons,
+          support_chat_id: setting.support_chat_id,
+        };
       });
 
-      await Promise.all(savePromises);
+      // Сохраняем все настройки одним запросом
+      await notificationSettingsAPI.updateAll(notificationsPayload);
       
       // Обновляем оригинальные данные
       setOriginalSettings(JSON.parse(JSON.stringify(settings)));
@@ -136,6 +124,21 @@ export function NotificationSettings() {
     } catch (error: any) {
       console.error('Error saving notification settings:', error);
       const errorData = error?.response?.data;
+      if (errorData?.errors) {
+        // Обрабатываем ошибки валидации по событиям
+        const eventErrors: Record<string, any> = {};
+        Object.keys(errorData.errors).forEach((key) => {
+          const match = key.match(/notifications\.(.+?)\./);
+          if (match) {
+            const event = match[1];
+            if (!eventErrors[event]) {
+              eventErrors[event] = {};
+            }
+            eventErrors[event][key.replace(`notifications.${event}.`, '')] = errorData.errors[key];
+          }
+        });
+        setErrors(eventErrors);
+      }
       toast.error(errorData?.message || 'Ошибка при сохранении настроек');
     } finally {
       setIsLoading(false);

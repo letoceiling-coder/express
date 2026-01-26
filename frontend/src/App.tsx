@@ -27,6 +27,7 @@ import { AdminAbout } from "./pages/admin/AdminAbout";
 import { YooKassaSettings } from "./pages/admin/YooKassaSettings";
 import { DeliverySettings } from "./pages/admin/DeliverySettings";
 import { NotificationSettings } from "./pages/admin/NotificationSettings";
+import { NotificationLogsPage } from "./pages/admin/NotificationLogsPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
             <Route path="notifications" element={<NotificationSettings />} />
+            <Route path="notifications/logs" element={<NotificationLogsPage />} />
             {/* Redirect from old route */}
             <Route path="settings/notifications" element={<Navigate to="/admin/notifications" replace />} />
           </Route>
