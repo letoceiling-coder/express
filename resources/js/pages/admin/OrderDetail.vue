@@ -66,6 +66,16 @@
                         </div>
 
                         <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Способ оплаты</label>
+                            <input
+                                :value="getPaymentMethodLabel(order?.payment_method)"
+                                type="text"
+                                disabled
+                                class="w-full h-10 px-3 rounded-lg border border-input bg-muted text-muted-foreground cursor-not-allowed"
+                            />
+                        </div>
+
+                        <div>
                             <label class="block text-sm font-medium text-foreground mb-2">Телефон</label>
                             <input
                                 v-model="form.phone"
@@ -324,7 +334,67 @@ export default {
                 this.saving = false;
             }
         },
+        getPaymentMethodLabel(method) {
+            if (!method) return 'Не указан';
+            
+            const labels = {
+                'cash': 'Наличные при получении',
+                'yookassa': 'Онлайн оплата (ЮKassa)',
+                'card': 'Банковская карта',
+                'online': 'Онлайн оплата',
+            };
+            
+            return labels[method.toLowerCase()] || method;
+        },
     },
 };
 </script>
 
+<style scoped>
+/* Мобильная адаптация для детальной карточки заказа */
+@media (max-width: 768px) {
+    /* Сетка становится одной колонкой на мобильных */
+    .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Уменьшаем отступы на мобильных */
+    .p-6 {
+        padding: 1rem !important;
+    }
+    
+    .px-6 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* Заголовки и текст более компактные */
+    .text-2xl {
+        font-size: 1.5rem !important;
+    }
+    
+    .text-lg {
+        font-size: 1.125rem !important;
+    }
+    
+    /* Кнопки на всю ширину на мобильных */
+    .flex.gap-4 {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    button[type="submit"],
+    .h-10 {
+        width: 100% !important;
+    }
+    
+    /* Уменьшаем gap в сетках */
+    .gap-4 {
+        gap: 0.75rem !important;
+    }
+    
+    .gap-6 {
+        gap: 1rem !important;
+    }
+}
+</style>

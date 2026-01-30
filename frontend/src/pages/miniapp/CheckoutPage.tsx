@@ -270,7 +270,7 @@ export function CheckoutPage() {
           setFormData(prev => ({
             ...prev,
             phone: phoneValue || prev.phone,
-            address: lastOrder.deliveryAddress || prev.address,
+            address: (lastOrder.deliveryAddress && lastOrder.deliveryAddress !== 'Самовывоз' ? lastOrder.deliveryAddress : '') || prev.address,
             name: lastOrder.name || prev.name || '', // Имя берем из заказа
           }));
           

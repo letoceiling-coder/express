@@ -145,7 +145,10 @@ class OrderNotificationService
                         $bot->token,
                         $admin->telegram_id,
                         $message,
-                        ['reply_markup' => json_encode($keyboard)]
+                        [
+                            'reply_markup' => json_encode($keyboard),
+                            'parse_mode' => 'HTML'
+                        ]
                     );
 
                     if ($result['success'] ?? false) {
@@ -637,6 +640,12 @@ class OrderNotificationService
         if ($order->name) {
             $message .= "👤 Клиент: {$order->name}\n";
         }
+        
+        // Добавляем кликабельную ссылку на USER ID в Telegram
+        if ($order->telegram_id) {
+            $message .= "👤 Telegram: <a href=\"tg://user?id={$order->telegram_id}\">{$order->telegram_id}</a>\n";
+        }
+        
         $message .= "📞 Телефон: {$order->phone}\n";
         $message .= "📍 Адрес: {$order->delivery_address}\n";
         if ($order->delivery_time) {

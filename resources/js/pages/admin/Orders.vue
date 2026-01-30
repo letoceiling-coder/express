@@ -75,7 +75,8 @@
 
         <!-- Таблица заказов -->
         <div v-else class="bg-card rounded-lg border border-border overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[800px]">
                 <thead class="bg-muted/50">
                     <tr>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Номер</th>
@@ -147,6 +148,7 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
 
             <!-- Пусто -->
             <div v-if="filteredOrders.length === 0" class="p-12 text-center">
@@ -291,3 +293,29 @@ export default {
 };
 </script>
 
+<style scoped>
+/* Мобильная адаптация для таблицы заказов */
+@media (max-width: 768px) {
+    /* Горизонтальный скролл для таблицы */
+    .overflow-x-auto {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Минимальная ширина таблицы для прокрутки */
+    table {
+        min-width: 800px;
+    }
+    
+    /* Уменьшаем отступы на мобильных */
+    .px-6 {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .py-4 {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+}
+</style>
