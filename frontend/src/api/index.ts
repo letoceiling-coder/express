@@ -253,6 +253,7 @@ export const ordersAPI = {
       delivery_type: payload.deliveryType || 'courier',
       delivery_cost: payload.deliveryCost || 0, // Стоимость доставки
       comment: payload.comment || null,
+      payment_method: payload.paymentMethod || null, // ✅ Способ оплаты (cash, yookassa)
       total_amount: payload.totalAmount,
       original_amount: payload.originalAmount || payload.totalAmount,
       discount: payload.discount || 0,

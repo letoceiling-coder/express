@@ -83,6 +83,7 @@ export interface CreateOrderPayload {
   deliveryType?: 'courier' | 'pickup';
   deliveryCost?: number; // Стоимость доставки
   comment?: string;
+  paymentMethod?: string; // Способ оплаты (cash, yookassa)
   items: {
     productId: string;
     productName: string;
