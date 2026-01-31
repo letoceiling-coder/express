@@ -76,7 +76,7 @@
         <!-- Таблица заказов -->
         <div v-else class="bg-card rounded-lg border border-border overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[800px]">
+                <table class="w-full min-w-[1000px]">
                 <thead class="bg-muted/50">
                     <tr>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Номер</th>
@@ -85,7 +85,8 @@
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Адрес</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Сумма</th>
                         <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Статус</th>
-                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Оплата</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Статус оплаты</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-foreground">Способ оплаты</th>
                         <th class="px-6 py-3 text-right text-sm font-medium text-foreground">Действия</th>
                     </tr>
                 </thead>
@@ -135,6 +136,11 @@
                                 class="px-2 py-1 rounded-full text-xs font-medium"
                             >
                                 {{ getPaymentStatusLabel(order.payment_status) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-sm text-foreground">
+                                {{ getPaymentMethodLabel(order.payment_method) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-right">
@@ -278,6 +284,18 @@ export default {
             };
             return labels[status] || status;
         },
+        getPaymentMethodLabel(method) {
+            if (!method) return 'Не указан';
+            
+            const labels = {
+                'cash': 'Наличные',
+                'yookassa': 'ЮKassa',
+                'online': 'Онлайн оплата',
+                'card': 'Банковская карта',
+            };
+            
+            return labels[method.toLowerCase()] || method;
+        },
         formatDate(dateString) {
             if (!dateString) return '';
             const date = new Date(dateString);
@@ -304,7 +322,7 @@ export default {
     
     /* Минимальная ширина таблицы для прокрутки */
     table {
-        min-width: 800px;
+        min-width: 1000px;
     }
     
     /* Уменьшаем отступы на мобильных */
