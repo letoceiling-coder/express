@@ -460,11 +460,14 @@ class OrderNotificationService
             }
             $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n";
             
-            // Проверяем статус оплаты
-            $paymentStatus = $order->payment_status === Order::PAYMENT_STATUS_PENDING 
-                ? "⚠️ Оплата не получена (принять при доставке)" 
-                : "✅ Оплата получена";
-            $message .= "\n{$paymentStatus}";
+            // Блок оплаты
+            $message .= "\n━━━━━━━━━━━━━━━━\n";
+            $message .= "💳 ОПЛАТА\n";
+            $paymentStatus = $this->getPaymentStatusLabel($order->payment_status);
+            $paymentMethod = $this->getPaymentMethodLabel($order->payment_method);
+            $message .= "Статус: {$paymentStatus}\n";
+            $message .= "Способ: {$paymentMethod}\n";
+            $message .= "━━━━━━━━━━━━━━━━";
 
             $keyboard = [
                 'inline_keyboard' => [
@@ -637,21 +640,63 @@ class OrderNotificationService
         
         $message = "🆕 Новый заказ #{$order->order_id}\n\n";
         
-        if ($order->name) {
-            $message .= "👤 Клиент: {$order->name}\n";
+        // Получаем информацию о пользователе Telegram
+        $telegramUser = null;
+        if ($order->telegram_id && $order->bot_id) {
+            $telegramUser = TelegramUser::where('bot_id', $order->bot_id)
+                ->where('telegram_id', $order->telegram_id)
+                ->first();
         }
         
-        // Добавляем кликабельную ссылку на USER ID в Telegram
-        if ($order->telegram_id) {
-            $message .= "👤 Telegram: <a href=\"tg://user?id={$order->telegram_id}\">{$order->telegram_id}</a>\n";
+        // Клиент с кликабельной ссылкой
+        if ($order->name) {
+            if ($telegramUser && $telegramUser->username) {
+                // Если есть username, используем https://t.me/{username}
+                $message .= "👤 Клиент: <a href=\"https://t.me/{$telegramUser->username}\">{$order->name}</a>\n";
+            } elseif ($order->telegram_id) {
+                // Если username нет, используем tg://user?id={telegram_id}
+                $message .= "👤 Клиент: <a href=\"tg://user?id={$order->telegram_id}\">{$order->name}</a>\n";
+            } else {
+                $message .= "👤 Клиент: {$order->name}\n";
+            }
+        }
+        
+        // Telegram ID/username с кликабельной ссылкой
+        if ($telegramUser) {
+            if ($telegramUser->username) {
+                $message .= "📱 Telegram: <a href=\"https://t.me/{$telegramUser->username}\">@{$telegramUser->username}</a>\n";
+            } else {
+                $message .= "📱 Telegram ID: <a href=\"tg://user?id={$order->telegram_id}\">{$order->telegram_id}</a>\n";
+            }
+        } elseif ($order->telegram_id) {
+            $message .= "📱 Telegram ID: <a href=\"tg://user?id={$order->telegram_id}\">{$order->telegram_id}</a>\n";
         }
         
         $message .= "📞 Телефон: {$order->phone}\n";
+        
+        // Тип доставки
+        $deliveryType = $order->delivery_type === 'pickup' ? '🏪 Самовывоз' : '🚚 Доставка';
+        $message .= "🚚 Тип: {$deliveryType}\n";
         $message .= "📍 Адрес: {$order->delivery_address}\n";
+        
         if ($order->delivery_time) {
             $message .= "🕐 Время доставки: {$order->delivery_time}\n";
         }
+        
         $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n\n";
+        
+        // Блок оплаты (обязательный и визуально выделенный)
+        $message .= "━━━━━━━━━━━━━━━━\n";
+        $message .= "💳 <b>ОПЛАТА</b>\n";
+        
+        // Статус оплаты
+        $paymentStatus = $this->getPaymentStatusLabel($order->payment_status);
+        $message .= "Статус: {$paymentStatus}\n";
+        
+        // Способ оплаты
+        $paymentMethod = $this->getPaymentMethodLabel($order->payment_method);
+        $message .= "Способ: {$paymentMethod}\n";
+        $message .= "━━━━━━━━━━━━━━━━\n\n";
         
         $message .= "📦 Товары:\n";
         foreach ($order->items as $item) {
@@ -666,6 +711,51 @@ class OrderNotificationService
         }
 
         return $message;
+    }
+    
+    /**
+     * Получить читаемую метку статуса оплаты
+     *
+     * @param string|null $status
+     * @return string
+     */
+    protected function getPaymentStatusLabel(?string $status): string
+    {
+        if ($status === Order::PAYMENT_STATUS_SUCCEEDED) {
+            return '✅ Оплачен';
+        } elseif ($status === Order::PAYMENT_STATUS_PENDING) {
+            return '⚠️ Не оплачен';
+        } elseif ($status === Order::PAYMENT_STATUS_FAILED) {
+            return '❌ Ошибка оплаты';
+        } elseif ($status === Order::PAYMENT_STATUS_CANCELLED) {
+            return '🚫 Отменен';
+        }
+        
+        return '⚠️ Не оплачен';
+    }
+    
+    /**
+     * Получить читаемую метку способа оплаты
+     *
+     * @param string|null $method
+     * @return string
+     */
+    protected function getPaymentMethodLabel(?string $method): string
+    {
+        if (!$method) {
+            return 'Не указан';
+        }
+        
+        $labels = [
+            'cash' => 'Наличные при получении',
+            'yookassa' => 'Онлайн оплата',
+            'online' => 'Онлайн оплата',
+            'card' => 'Банковская карта',
+            'cash_on_delivery' => 'Наличные при доставке',
+            'cash_on_pickup' => 'Наличные при самовывозе',
+        ];
+        
+        return $labels[strtolower($method)] ?? $method;
     }
 
     /**
@@ -713,14 +803,32 @@ class OrderNotificationService
         $order->load('items');
         
         $message = "👨‍🍳 Новый заказ для кухни #{$order->order_id}\n\n";
-        $message .= "📦 Товары:\n";
+        
+        // Тип доставки
+        $deliveryType = $order->delivery_type === 'pickup' ? '🏪 Самовывоз' : '🚚 Доставка';
+        $message .= "{$deliveryType}\n";
+        
+        if ($order->delivery_time) {
+            $message .= "🕐 Время: {$order->delivery_time}\n";
+        }
+        
+        $message .= "\n📦 Товары:\n";
         
         foreach ($order->items as $item) {
             $message .= "• {$item->product_name} × {$item->quantity}\n";
         }
         
+        // Блок оплаты
+        $message .= "\n━━━━━━━━━━━━━━━━\n";
+        $message .= "💳 ОПЛАТА\n";
+        $paymentStatus = $this->getPaymentStatusLabel($order->payment_status);
+        $paymentMethod = $this->getPaymentMethodLabel($order->payment_method);
+        $message .= "Статус: {$paymentStatus}\n";
+        $message .= "Способ: {$paymentMethod}\n";
+        $message .= "━━━━━━━━━━━━━━━━";
+        
         if ($order->comment) {
-            $message .= "\n💬 Комментарий: {$order->comment}";
+            $message .= "\n\n💬 Комментарий: {$order->comment}";
         }
 
         return $message;
@@ -739,8 +847,16 @@ class OrderNotificationService
         if ($order->delivery_time) {
             $message .= "⏰ Время: {$order->delivery_time}\n";
         }
-        $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽";
-        $message .= "\n💳 Оплата: " . ($order->payment_status === Order::PAYMENT_STATUS_SUCCEEDED ? 'Оплачен' : 'При получении');
+        $message .= "💰 Сумма: " . number_format($order->total_amount, 2, '.', ' ') . " ₽\n";
+        
+        // Блок оплаты
+        $message .= "\n━━━━━━━━━━━━━━━━\n";
+        $message .= "💳 ОПЛАТА\n";
+        $paymentStatus = $this->getPaymentStatusLabel($order->payment_status);
+        $paymentMethod = $this->getPaymentMethodLabel($order->payment_method);
+        $message .= "Статус: {$paymentStatus}\n";
+        $message .= "Способ: {$paymentMethod}\n";
+        $message .= "━━━━━━━━━━━━━━━━";
 
         return $message;
     }
