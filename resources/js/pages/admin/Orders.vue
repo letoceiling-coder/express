@@ -1,8 +1,21 @@
 <template>
     <div class="orders-page">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-foreground">Заказы</h1>
-            <p class="text-muted-foreground mt-1">Управление заказами</p>
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-foreground">Заказы</h1>
+                <p class="text-muted-foreground mt-1">Управление заказами</p>
+            </div>
+            <button
+                type="button"
+                @click="syncPaymentStatuses"
+                :disabled="syncingPayments"
+                class="h-10 px-4 rounded-lg border border-border bg-background hover:bg-muted/50 inline-flex items-center gap-2 disabled:opacity-50"
+                title="Синхронизировать статусы оплаты с ЮKassa"
+            >
+                <span v-if="syncingPayments">...</span>
+                <span v-else>🔄</span>
+                <span>Синхр. оплаты</span>
+            </button>
         </div>
 
         <!-- Поиск и фильтры -->
@@ -165,7 +178,7 @@
 </template>
 
 <script>
-import { ordersAPI } from '../../utils/api.js';
+import { ordersAPI, paymentsAPI } from '../../utils/api.js';
 import swal from '../../utils/swal.js';
 
 export default {
@@ -179,6 +192,7 @@ export default {
             statusFilter: '',
             paymentStatusFilter: '',
             sortBy: 'created_at',
+            syncingPayments: false,
         };
     },
     computed: {
@@ -306,6 +320,23 @@ export default {
                 hour: '2-digit',
                 minute: '2-digit',
             });
+        },
+        async syncPaymentStatuses() {
+            this.syncingPayments = true;
+            try {
+                const result = await paymentsAPI.syncAllStatuses();
+                await this.loadOrders();
+                const synced = result?.synced ?? 0;
+                if (synced > 0) {
+                    await swal.success(`Обновлено: ${synced} платеж(ей)`);
+                } else {
+                    await swal.success('Статусы актуальны');
+                }
+            } catch (err) {
+                await swal.error(err.message || 'Ошибка синхронизации');
+            } finally {
+                this.syncingPayments = false;
+            }
         },
     },
 };

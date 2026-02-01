@@ -542,6 +542,16 @@ export const ordersAPI = {
         }
         return true;
     },
+
+    // Синхронизировать статус оплаты с ЮKassa по заказу
+    async syncPaymentStatus(orderId) {
+        const response = await apiPost(`/orders/${orderId}/payments/sync-status`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка синхронизации статуса оплаты');
+        }
+        return response.json();
+    },
 };
 
 // ============================================

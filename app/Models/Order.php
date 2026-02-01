@@ -194,6 +194,73 @@ class Order extends Model
     }
 
     /**
+     * Связь с платежами (источник правды для статуса оплаты при YooKassa)
+     *
+     * @return HasMany
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'order_id', 'id');
+    }
+
+    /**
+     * Актуальный статус оплаты: из Payment (YooKassa) если есть, иначе из Order.
+     * Гарантирует соответствие с /admin/payments.
+     */
+    public function getPaymentStatusAttribute($value): string
+    {
+        $payment = $this->getLatestYooKassaPayment();
+        if ($payment) {
+            return $this->mapPaymentStatusToOrderStatus($payment->status);
+        }
+        return $value ?? self::PAYMENT_STATUS_PENDING;
+    }
+
+    /**
+     * Последний платёж через YooKassa по заказу
+     */
+    public function getLatestYooKassaPayment(): ?Payment
+    {
+        if ($this->relationLoaded('payments')) {
+            return $this->payments
+                ->where('payment_provider', 'yookassa')
+                ->whereNotNull('transaction_id')
+                ->sortByDesc('created_at')
+                ->first();
+        }
+        return $this->payments()
+            ->where('payment_provider', 'yookassa')
+            ->whereNotNull('transaction_id')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    /**
+     * Маппинг статуса Payment в формат Order.payment_status
+     */
+    protected function mapPaymentStatusToOrderStatus(string $paymentStatus): string
+    {
+        $map = [
+            Payment::STATUS_PENDING => self::PAYMENT_STATUS_PENDING,
+            Payment::STATUS_PROCESSING => self::PAYMENT_STATUS_PENDING,
+            Payment::STATUS_SUCCEEDED => self::PAYMENT_STATUS_SUCCEEDED,
+            Payment::STATUS_FAILED => self::PAYMENT_STATUS_FAILED,
+            Payment::STATUS_CANCELLED => self::PAYMENT_STATUS_CANCELLED,
+            Payment::STATUS_REFUNDED => 'refunded',
+            Payment::STATUS_PARTIALLY_REFUNDED => 'partially_refunded',
+        ];
+        return $map[$paymentStatus] ?? $this->getRawPaymentStatus();
+    }
+
+    /**
+     * Сырое значение payment_status из БД (без accessor)
+     */
+    public function getRawPaymentStatus(): string
+    {
+        return $this->getRawOriginal('payment_status') ?? self::PAYMENT_STATUS_PENDING;
+    }
+
+    /**
      * Статистика времени приготовления блюд
      */
     public function kitchenPreparationStatistics(): HasMany

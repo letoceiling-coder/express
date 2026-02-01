@@ -54,15 +54,27 @@
 
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-2">Статус оплаты</label>
-                            <select
-                                v-model="form.payment_status"
-                                class="w-full h-10 px-3 rounded-lg border border-input bg-background"
-                            >
-                                <option value="pending">Ожидает</option>
-                                <option value="succeeded">Оплачен</option>
-                                <option value="failed">Ошибка</option>
-                                <option value="cancelled">Отменен</option>
-                            </select>
+                            <div class="flex gap-2 items-center">
+                                <select
+                                    v-model="form.payment_status"
+                                    class="flex-1 h-10 px-3 rounded-lg border border-input bg-background"
+                                >
+                                    <option value="pending">Ожидает</option>
+                                    <option value="succeeded">Оплачен</option>
+                                    <option value="failed">Ошибка</option>
+                                    <option value="cancelled">Отменен</option>
+                                </select>
+                                <button
+                                    v-if="canSyncPayment"
+                                    type="button"
+                                    @click="syncPaymentStatus"
+                                    :disabled="syncingPayment"
+                                    class="h-10 px-3 rounded-lg border border-border bg-background hover:bg-muted/50 disabled:opacity-50"
+                                    title="Синхронизировать с ЮKassa"
+                                >
+                                    {{ syncingPayment ? '...' : '🔄' }}
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -269,7 +281,14 @@ export default {
             loading: false,
             saving: false,
             error: null,
+            syncingPayment: false,
         };
+    },
+    computed: {
+        canSyncPayment() {
+            const method = (this.order?.payment_method || '').toLowerCase();
+            return method === 'yookassa' && this.order?.id;
+        },
     },
     mounted() {
         this.loadOrder();
@@ -345,6 +364,20 @@ export default {
             };
             
             return labels[method.toLowerCase()] || method;
+        },
+        async syncPaymentStatus() {
+            if (!this.order?.id || this.syncingPayment) return;
+            this.syncingPayment = true;
+            try {
+                await ordersAPI.syncPaymentStatus(this.order.id);
+                await this.loadOrder();
+                await this.loadPayments();
+                await swal.success('Статус оплаты обновлён');
+            } catch (err) {
+                await swal.error(err.message || 'Ошибка синхронизации');
+            } finally {
+                this.syncingPayment = false;
+            }
         },
     },
 };

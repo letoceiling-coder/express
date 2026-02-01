@@ -303,7 +303,7 @@ class OrderController extends Controller
             'path' => $request->path(),
         ]);
 
-        $query = Order::query()->with(['items', 'manager', 'bot']);
+        $query = Order::query()->with(['items', 'manager', 'bot', 'payments']);
         $telegramIdInt = null;
 
         // Если запрос авторизован (админ), разрешаем все фильтры
@@ -556,7 +556,7 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with(['items.product', 'manager', 'bot'])->findOrFail($id);
+        $order = Order::with(['items.product', 'manager', 'bot', 'payments'])->findOrFail($id);
 
         return response()->json([
             'data' => $order,
