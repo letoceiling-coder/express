@@ -18,8 +18,8 @@ export function CategorySection({
         <h2 className="mb-3 text-lg font-bold tracking-tight">
           Категории
         </h2>
-        <div className="overflow-x-auto whitespace-nowrap pb-2 -mx-4 px-4">
-          <div className="inline-flex gap-2">
+        <div className="overflow-x-auto lg:overflow-visible whitespace-nowrap lg:whitespace-normal pb-2 -mx-4 px-4 lg:mx-0">
+          <div className="inline-flex lg:flex lg:flex-wrap gap-2">
           <button
             onClick={() => onCategoryChange(null)}
             className={cn(

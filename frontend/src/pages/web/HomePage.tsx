@@ -67,13 +67,13 @@ export function HomePage() {
 
       {!loading && !error && (
         <>
-          <div className="px-4 py-3">
+          <div className="py-3">
             <input
               type="text"
               placeholder="Поиск товаров..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full lg:max-w-md px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <CategorySection

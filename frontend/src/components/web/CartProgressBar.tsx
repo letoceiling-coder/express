@@ -34,7 +34,7 @@ export function CartProgressBar() {
   }
 
   return (
-    <div className="w-full bg-white dark:bg-card px-4 py-2 border-b border-border">
+    <div className="lg:hidden w-full bg-white dark:bg-card px-4 py-2 border-b border-border">
       <p className="text-xs font-medium text-foreground mb-1.5">
         {message}
       </p>

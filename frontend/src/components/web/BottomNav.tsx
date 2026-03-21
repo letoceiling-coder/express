@@ -15,7 +15,7 @@ export function BottomNav() {
   const totalItems = useCartStore((state) => state.getTotalItems());
 
   return (
-    <nav className="border-t border-border bg-background safe-area-bottom">
+    <nav className="lg:hidden border-t border-border bg-background safe-area-bottom">
       <div className="flex h-14 items-center justify-around">
         {navItems.map((item) => {
           const isActive =
