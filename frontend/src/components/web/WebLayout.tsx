@@ -23,15 +23,6 @@ export function WebLayout() {
     console.error('orderMode is undefined in WebLayout');
   }
 
-  const scrollToSection = (sectionId: string) => {
-    const el = document.getElementById(sectionId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else if (location.pathname !== '/') {
-      navigate(`/#${sectionId}`, { replace: true });
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-background w-full">
       {/* MOBILE: MiniAppHeader - FIXED, 1:1 as MiniApp, search IN header */}
@@ -78,20 +69,6 @@ export function WebLayout() {
             >
               Каталог
             </Link>
-            <button
-              type="button"
-              onClick={() => scrollToSection('categories')}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Категории
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('benefits')}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Преимущества
-            </button>
             <Link
               to="/about"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
