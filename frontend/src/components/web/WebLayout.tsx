@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,17 @@ interface WebLayoutProps {
 
 export function WebLayout({ children }: WebLayoutProps) {
   const totalItems = useCartStore((state) => state.getTotalItems());
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const scrollToSection = (sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else if (location.pathname !== '/') {
+      navigate(`/#${sectionId}`, { replace: true });
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -31,18 +42,20 @@ export function WebLayout({ children }: WebLayoutProps) {
             >
               Каталог
             </Link>
-            <Link
-              to="/#categories"
+            <button
+              type="button"
+              onClick={() => scrollToSection('categories')}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Категории
-            </Link>
-            <Link
-              to="/#benefits"
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('benefits')}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Преимущества
-            </Link>
+            </button>
             <Link
               to="/about"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

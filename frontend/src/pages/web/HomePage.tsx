@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { WebLayout } from '@/components/web/WebLayout';
 import { HeroSlider } from '@/components/web/HeroSlider';
 import { CategorySection } from '@/components/web/CategorySection';
@@ -10,6 +11,15 @@ import { Loader2 } from 'lucide-react';
 export function HomePage() {
   const { products, categories, loading, error } = useProducts();
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const hash = location.hash?.slice(1);
+    if (hash && (hash === 'categories' || hash === 'benefits')) {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash, loading]);
 
   const filteredProducts = useMemo(() => {
     if (!activeCategoryId) return products;
