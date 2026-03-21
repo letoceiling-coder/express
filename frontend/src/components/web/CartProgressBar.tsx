@@ -3,23 +3,18 @@ import { useCartStore } from '@/store/cartStore';
 import { deliverySettingsAPI } from '@/api';
 
 export function CartProgressBar() {
-  console.log('CartProgressBar mounted');
   const totalAmount = useCartStore((state) => state.getTotalAmount());
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
 
   useEffect(() => {
     deliverySettingsAPI.getSettings().then((settings) => {
-      console.log('[CartProgressBar] API settings:', settings);
       const threshold =
         settings?.free_delivery_threshold ??
         settings?.free_delivery_threshold_rub ??
         settings?.freeDeliveryThreshold;
       const value = threshold != null ? Number(threshold) : null;
       setFreeDeliveryThreshold(value && value > 0 ? value : null);
-    }).catch((err) => {
-      console.error('[CartProgressBar] API error:', err);
-      setFreeDeliveryThreshold(null);
-    });
+    }).catch(() => setFreeDeliveryThreshold(null));
   }, []);
 
   // DEBUG: force render with fallback threshold
@@ -39,13 +34,13 @@ export function CartProgressBar() {
   }
 
   return (
-    <div className="fixed top-[64px] left-0 right-0 z-50 border-2 border-red-500 border-b border-border bg-white dark:bg-card shadow-md px-4 py-3">
-      <p className="text-sm font-medium text-foreground mb-2">
+    <div className="w-full bg-white dark:bg-card px-4 py-2 border-b border-border">
+      <p className="text-xs font-medium text-foreground mb-1.5">
         {message}
       </p>
-      <div className="w-full bg-gray-200 dark:bg-muted rounded-full h-4 overflow-hidden">
+      <div className="w-full bg-gray-200 dark:bg-muted rounded-full h-1.5 overflow-hidden">
         <div
-          className="bg-green-500 h-4 rounded-full transition-all duration-300"
+          className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
           style={{ width: `${progress * 100}%` }}
           role="progressbar"
           aria-valuenow={progress * 100}

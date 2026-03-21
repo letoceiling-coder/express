@@ -13,16 +13,17 @@ export function CategorySection({
   onCategoryChange,
 }: CategorySectionProps) {
   return (
-    <section id="categories" className="border-b border-border bg-background py-6">
-      <div className="container mx-auto px-4 lg:px-8">
-        <h2 className="mb-4 text-xl font-bold tracking-tight md:text-2xl">
+    <section id="categories" className="border-b border-border bg-background py-4">
+      <div className="px-4">
+        <h2 className="mb-3 text-lg font-bold tracking-tight">
           Категории
         </h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="overflow-x-auto whitespace-nowrap pb-2 -mx-4 px-4">
+          <div className="inline-flex gap-2">
           <button
             onClick={() => onCategoryChange(null)}
             className={cn(
-              'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+              'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
               activeCategoryId === null
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -35,7 +36,7 @@ export function CategorySection({
               key={cat.id}
               onClick={() => onCategoryChange(cat.id)}
               className={cn(
-                'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
                 activeCategoryId === cat.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -44,6 +45,7 @@ export function CategorySection({
               {cat.name}
             </button>
           ))}
+          </div>
         </div>
       </div>
     </section>

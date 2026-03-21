@@ -1,12 +1,8 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { ShoppingCart, User } from 'lucide-react';
-import { useCartStore } from '@/store/cartStore';
-import { cn } from '@/lib/utils';
 import { CartProgressBar } from './CartProgressBar';
+import { BottomNav } from './BottomNav';
 
 export function WebLayout() {
-  console.log('WebLayout mounted');
-  const totalItems = useCartStore((state) => state.getTotalItems());
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -20,87 +16,44 @@ export function WebLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background max-w-[480px] mx-auto">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
+        <div className="flex h-14 items-center justify-between px-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-foreground">
+            <span className="text-lg font-bold tracking-tight text-foreground">
               Свой Хлеб
             </span>
           </Link>
 
-          {/* Nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link
-              to="/"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Каталог
-            </Link>
+          <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => scrollToSection('categories')}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="rounded-lg p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent"
             >
               Категории
             </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('benefits')}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Преимущества
-            </button>
-            <Link
-              to="/about"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              О нас
-            </Link>
-          </nav>
-
-          {/* Actions */}
-          <div className="flex items-center gap-3">
-            <Link
-              to="/cart"
-              className={cn(
-                "relative flex items-center justify-center rounded-lg p-2",
-                "text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              )}
-              aria-label="Корзина"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {totalItems > 99 ? '99+' : totalItems}
-                </span>
-              )}
-            </Link>
-            <Link
-              to="/orders"
-              className="flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              aria-label="Профиль / Заказы"
-            >
-              <User className="h-5 w-5" />
-            </Link>
           </div>
         </div>
       </header>
 
-      {/* Cart progress bar (free delivery) */}
-      <CartProgressBar />
-
       {/* Main */}
-      <main className="flex-1 pt-[80px]">
+      <main className="flex-1 pb-24">
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-muted/30">
-        <div className="container mx-auto px-4 py-12 lg:px-8">
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+      {/* Bottom: Progress bar + Nav (fixed above bottom) */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50">
+        <CartProgressBar />
+        <BottomNav />
+      </div>
+
+      {/* Footer - compact on mobile */}
+      <footer className="border-t border-border bg-muted/30 mt-auto">
+        <div className="px-4 py-6">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <h3 className="mb-4 text-sm font-semibold text-foreground">Свой Хлеб</h3>
               <p className="text-sm text-muted-foreground">
@@ -129,7 +82,7 @@ export function WebLayout() {
               </p>
             </div>
           </div>
-          <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
+          <div className="mt-6 border-t border-border pt-6 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} Свой Хлеб. Все права защищены.
           </div>
         </div>

@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 export function HomePage() {
   const { products, categories, loading, error } = useProducts();
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const location = useLocation();
 
   useEffect(() => {
@@ -21,9 +22,16 @@ export function HomePage() {
   }, [location.hash, loading]);
 
   const filteredProducts = useMemo(() => {
-    if (!activeCategoryId) return products;
-    return products.filter((p) => p.categoryId === activeCategoryId);
-  }, [products, activeCategoryId]);
+    let list = products;
+    if (activeCategoryId) {
+      list = list.filter((p) => p.categoryId === activeCategoryId);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [products, activeCategoryId, search]);
 
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
@@ -59,13 +67,22 @@ export function HomePage() {
 
       {!loading && !error && (
         <>
+          <div className="px-4 py-3">
+            <input
+              type="text"
+              placeholder="Поиск товаров..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
           <CategorySection
             categories={categories}
             activeCategoryId={activeCategoryId}
             onCategoryChange={setActiveCategoryId}
           />
 
-          <div id="products" className="container mx-auto px-4 py-12 lg:px-8">
+          <div id="products" className="px-4 py-8">
             <ProductGrid
               products={sortedProducts}
               title={activeCategoryId ? undefined : 'Популярные товары'}
