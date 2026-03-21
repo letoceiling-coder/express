@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'telegram_id')) {
+            return;
+        }
         Schema::table('users', function (Blueprint $table) {
             $table->unsignedBigInteger('telegram_id')->nullable()->unique()->after('id');
         });
@@ -21,6 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasColumn('users', 'telegram_id')) {
+            return;
+        }
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('telegram_id');
         });
