@@ -18,7 +18,12 @@ class BannerController extends Controller
      */
     public function index(): JsonResponse
     {
-        $banners = Banner::active()->ordered()->get();
+        try {
+            $banners = Banner::active()->ordered()->get();
+        } catch (\Throwable $e) {
+            Log::warning('BannerController::index: ' . $e->getMessage());
+            return response()->json(['data' => []]);
+        }
 
         return response()->json([
             'data' => $banners->map(fn ($b) => [

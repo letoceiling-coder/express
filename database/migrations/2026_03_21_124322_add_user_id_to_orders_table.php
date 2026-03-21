@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('orders', 'user_id')) {
+            return;
+        }
         Schema::table('orders', function (Blueprint $table) {
             $table->foreignId('user_id')->nullable()->after('telegram_id')->constrained()->nullOnDelete();
         });
@@ -21,6 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasColumn('orders', 'user_id')) {
+            return;
+        }
         Schema::table('orders', function (Blueprint $table) {
             $table->dropConstrainedForeignId('user_id');
         });
