@@ -4,9 +4,45 @@ interface DeliveryModeToggleProps {
   value: 'pickup' | 'delivery';
   onChange: (value: 'pickup' | 'delivery') => void;
   className?: string;
+  compact?: boolean;
 }
 
-export function DeliveryModeToggle({ value, onChange, className }: DeliveryModeToggleProps) {
+export function DeliveryModeToggle({ value, onChange, className, compact }: DeliveryModeToggleProps) {
+  if (compact) {
+    return (
+      <div className={cn('flex items-center', className)}>
+        <div className="flex h-8 rounded-md bg-secondary p-0.5 gap-0.5">
+          <button
+            type="button"
+            onClick={() => onChange('delivery')}
+            className={cn(
+              'flex flex-1 items-center justify-center rounded px-2 py-1 text-sm font-medium transition-all',
+              value === 'delivery'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
+            )}
+            aria-label="Доставка"
+          >
+            Доставка
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange('pickup')}
+            className={cn(
+              'flex flex-1 items-center justify-center rounded px-2 py-1 text-sm font-medium transition-all',
+              value === 'pickup'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
+            )}
+            aria-label="Самовывоз"
+          >
+            Самовывоз
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('flex items-center gap-2 px-4 py-2 bg-background', className)}>
       <div className="flex rounded-full bg-secondary p-1 w-full">

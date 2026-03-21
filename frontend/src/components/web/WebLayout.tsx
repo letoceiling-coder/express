@@ -54,11 +54,11 @@ export function WebLayout() {
             />
           </div>
 
-          <div className="w-44 shrink-0">
+          <div className="flex shrink-0 items-center">
             <DeliveryModeToggle
               value={orderMode ?? 'pickup'}
               onChange={setOrderMode ?? (() => {})}
-              className="py-0 px-0"
+              compact
             />
           </div>
 
