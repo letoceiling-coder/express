@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Minus, ChevronLeft, Loader2 } from 'lucide-react';
-import { WebLayout } from '@/components/web/WebLayout';
 import { useCartStore } from '@/store/cartStore';
 import { productsAPI, categoriesAPI } from '@/api';
 import { toast } from 'sonner';
@@ -48,30 +47,25 @@ export function WebProductDetailPage() {
 
   if (loading) {
     return (
-      <WebLayout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Загрузка...</p>
-        </div>
-      </WebLayout>
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Загрузка...</p>
+      </div>
     );
   }
 
   if (!product) {
     return (
-      <WebLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
-          <p className="text-muted-foreground">Товар не найден</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>
-            Вернуться в каталог
-          </Button>
-        </div>
-      </WebLayout>
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p className="text-muted-foreground">Товар не найден</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate('/')}>
+          Вернуться в каталог
+        </Button>
+      </div>
     );
   }
 
   return (
-    <WebLayout>
       <div className="container mx-auto px-4 py-8 lg:px-8">
         <button
           onClick={() => navigate(-1)}
@@ -138,6 +132,5 @@ export function WebProductDetailPage() {
           </div>
         </div>
       </div>
-    </WebLayout>
   );
 }

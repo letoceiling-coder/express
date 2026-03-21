@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
-import { WebLayout } from '@/components/web/WebLayout';
 import { useCartStore } from '@/store/cartStore';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/OptimizedImage';
@@ -15,8 +14,7 @@ export function WebCartPage() {
 
   if (items.length === 0) {
     return (
-      <WebLayout>
-        <div className="container mx-auto flex flex-col items-center justify-center px-4 py-24">
+      <div className="container mx-auto flex flex-col items-center justify-center px-4 py-24">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted">
             <ShoppingBag className="h-12 w-12 text-muted-foreground" />
           </div>
@@ -28,12 +26,10 @@ export function WebCartPage() {
             В каталог
           </Button>
         </div>
-      </WebLayout>
     );
   }
 
   return (
-    <WebLayout>
       <div className="container mx-auto px-4 py-8 lg:px-8">
         <h1 className="mb-8 text-2xl font-bold md:text-3xl">Корзина</h1>
 
@@ -112,6 +108,5 @@ export function WebCartPage() {
           </div>
         </div>
       </div>
-    </WebLayout>
   );
 }

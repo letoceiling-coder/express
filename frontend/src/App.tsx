@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { WebLayout } from "./components/web/WebLayout";
 import { isTelegramWebApp } from "@/lib/telegram";
 
 // Web Pages (when NOT in Telegram)
@@ -39,6 +40,7 @@ import { DeliverySettings } from "./pages/admin/DeliverySettings";
 import { SmsSettings } from "./pages/admin/SmsSettings";
 import { NotificationSettings } from "./pages/admin/NotificationSettings";
 import { NotificationLogsPage } from "./pages/admin/NotificationLogsPage";
+import { AdminBanners } from "./pages/admin/AdminBanners";
 
 import NotFound from "./pages/NotFound";
 
@@ -47,12 +49,8 @@ const queryClient = new QueryClient();
 const App = () => {
   const inTelegram = isTelegramWebApp();
 
-  // DEBUG: выяснить, почему всегда MiniApp
-  console.log('Telegram check:', {
-    tg: !!window.Telegram?.WebApp,
-    initData: window.Telegram?.WebApp?.initData,
-    initDataLength: window.Telegram?.WebApp?.initData?.length,
-    initDataType: typeof window.Telegram?.WebApp?.initData,
+  console.log('Telegram detection:', {
+    hash: window.location.hash,
     isTelegram: inTelegram,
   });
 
@@ -63,17 +61,17 @@ const App = () => {
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Web Routes (when NOT in Telegram) */}
+          {/* Web Routes (when NOT in Telegram) — Layout routing */}
           {!inTelegram && (
-            <>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/product/:productId" element={<WebProductDetailPage />} />
-              <Route path="/cart" element={<WebCartPage />} />
-              <Route path="/orders" element={<WebOrdersPage />} />
-              <Route path="/about" element={<WebAboutPage />} />
-              <Route path="/checkout" element={<WebCheckoutPage />} />
-              <Route path="/legal-documents" element={<WebLegalDocumentsPage />} />
-            </>
+            <Route element={<WebLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="product/:productId" element={<WebProductDetailPage />} />
+              <Route path="cart" element={<WebCartPage />} />
+              <Route path="orders" element={<WebOrdersPage />} />
+              <Route path="about" element={<WebAboutPage />} />
+              <Route path="checkout" element={<WebCheckoutPage />} />
+              <Route path="legal-documents" element={<WebLegalDocumentsPage />} />
+            </Route>
           )}
 
           {/* Mini App Routes (when in Telegram) */}
@@ -107,6 +105,7 @@ const App = () => {
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="about" element={<AdminAbout />} />
+            <Route path="banners" element={<AdminBanners />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
             <Route path="sms-settings" element={<SmsSettings />} />

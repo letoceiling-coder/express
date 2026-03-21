@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { WebLayout } from '@/components/web/WebLayout';
 import { HeroSlider } from '@/components/web/HeroSlider';
 import { CategorySection } from '@/components/web/CategorySection';
 import { ProductGrid } from '@/components/web/ProductGrid';
@@ -36,7 +35,7 @@ export function HomePage() {
   }, [filteredProducts]);
 
   return (
-    <WebLayout>
+    <>
       <HeroSlider />
 
       {loading && (
@@ -76,6 +75,6 @@ export function HomePage() {
           <Benefits />
         </>
       )}
-    </WebLayout>
+    </>
   );
 }

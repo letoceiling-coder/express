@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { WebLayout } from '@/components/web/WebLayout';
 import { aboutAPI } from '@/api';
 import { Loader2 } from 'lucide-react';
 import { OptimizedImage } from '@/components/OptimizedImage';
@@ -36,27 +35,22 @@ export function WebAboutPage() {
 
   if (loading) {
     return (
-      <WebLayout>
-        <div className="flex flex-col items-center justify-center py-20">
+      <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="mt-4 text-muted-foreground">Загрузка...</p>
         </div>
-      </WebLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <WebLayout>
-        <div className="container mx-auto px-4 py-16 text-center">
+      <div className="container mx-auto px-4 py-16 text-center">
           <p className="text-destructive">{error || 'Данные не найдены'}</p>
         </div>
-      </WebLayout>
     );
   }
 
   return (
-    <WebLayout>
       <div className="container mx-auto px-4 py-12 lg:px-8">
         {data.cover_image_url && (
           <div className="mb-8 aspect-[21/9] overflow-hidden rounded-xl bg-muted">
@@ -90,6 +84,5 @@ export function WebAboutPage() {
           </div>
         )}
       </div>
-    </WebLayout>
   );
 }

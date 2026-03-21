@@ -1,14 +1,11 @@
-import { ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { cn } from '@/lib/utils';
+import { CartProgressBar } from './CartProgressBar';
 
-interface WebLayoutProps {
-  children: ReactNode;
-}
-
-export function WebLayout({ children }: WebLayoutProps) {
+export function WebLayout() {
+  console.log('WebLayout mounted');
   const totalItems = useCartStore((state) => state.getTotalItems());
   const location = useLocation();
   const navigate = useNavigate();
@@ -92,8 +89,13 @@ export function WebLayout({ children }: WebLayoutProps) {
         </div>
       </header>
 
+      {/* Cart progress bar (free delivery) */}
+      <CartProgressBar />
+
       {/* Main */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pt-[80px]">
+        <Outlet />
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-border bg-muted/30">
