@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
+import { useOrderModeStore } from '@/store/orderModeStore';
 import { deliverySettingsAPI } from '@/api';
 
 export function CartProgressBar() {
   const totalAmount = useCartStore((state) => state.getTotalAmount());
+  const orderMode = useOrderModeStore((state) => state.orderMode);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
 
   useEffect(() => {
@@ -17,24 +19,24 @@ export function CartProgressBar() {
     }).catch(() => setFreeDeliveryThreshold(null));
   }, []);
 
-  // DEBUG: force render with fallback threshold
-  const debugThreshold = freeDeliveryThreshold ?? 10000;
-
-  const progress = Math.min(totalAmount / debugThreshold, 1);
-  const remaining = Math.max(0, Math.ceil(debugThreshold - totalAmount));
+  const threshold = freeDeliveryThreshold ?? 10000;
+  const progress = Math.min(totalAmount / threshold, 1);
+  const remaining = Math.max(0, Math.ceil(threshold - totalAmount));
   const isComplete = progress >= 1;
 
   let message: string;
   if (isComplete) {
     message = 'У вас бесплатная доставка 🎉';
   } else if (totalAmount === 0) {
-    message = `Добавьте товаров на ${debugThreshold.toLocaleString('ru-RU')} ₽ для бесплатной доставки`;
+    message = `Добавьте товаров на ${threshold.toLocaleString('ru-RU')} ₽ для бесплатной доставки`;
   } else {
     message = `До бесплатной доставки осталось ${remaining.toLocaleString('ru-RU')} ₽`;
   }
 
+  if (orderMode !== 'delivery') return null;
+
   return (
-    <div className="lg:hidden w-full bg-white dark:bg-card px-4 py-2 border-b border-border">
+    <div className="lg:hidden w-full bg-background px-4 py-2 border-b border-border">
       <p className="text-xs font-medium text-foreground mb-1.5">
         {message}
       </p>

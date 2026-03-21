@@ -95,17 +95,16 @@ interface TelegramWebApp {
 
 /**
  * Определение, запущено ли приложение внутри Telegram WebApp.
- * initData передаётся только при открытии из Telegram (из URL hash tgWebAppData).
- * В обычном браузере initData пустой или отсутствует.
- * Дополнительно проверяем наличие "user=" — без него это не валидные данные.
+ * НАДЁЖНАЯ ПРОВЕРКА: tgWebAppData появляется в hash только при открытии из Telegram.
  */
 export function isTelegramWebApp(): boolean {
   try {
+    const hash = window.location.hash || '';
+    if (!hash.includes('tgWebAppData')) {
+      return false;
+    }
     const tg = window.Telegram?.WebApp ?? (window as any).Telegram?.WebApp;
-    const initData = tg?.initData;
-    if (!initData || typeof initData !== 'string') return false;
-    // Валидный initData от Telegram содержит user= (данные пользователя)
-    return initData.length > 10 && initData.includes('user=');
+    return Boolean(tg);
   } catch {
     return false;
   }

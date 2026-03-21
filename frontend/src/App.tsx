@@ -49,11 +49,6 @@ const queryClient = new QueryClient();
 const App = () => {
   const inTelegram = isTelegramWebApp();
 
-  console.log('Telegram detection:', {
-    hash: window.location.hash,
-    isTelegram: inTelegram,
-  });
-
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>

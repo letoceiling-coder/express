@@ -13,15 +13,6 @@ export function DeliveryProgressIndicator({
   freeDeliveryThreshold,
   className,
 }: DeliveryProgressIndicatorProps) {
-  // Логирование для отладки (только в dev режиме)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[DeliveryProgressIndicator] Props:', {
-      cartTotal,
-      minDeliveryTotal,
-      freeDeliveryThreshold,
-    });
-  }
-
   // Определяем текущую цель прогресса
   let targetAmount: number;
   let remaining: number;
