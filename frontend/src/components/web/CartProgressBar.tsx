@@ -36,19 +36,21 @@ export function CartProgressBar() {
   if (orderMode !== 'delivery') return null;
 
   return (
-    <div className="w-full bg-background px-4 py-2 border-b border-border">
-      <p className="text-xs font-medium text-foreground mb-1.5">
-        {message}
-      </p>
-      <div className="w-full bg-gray-200 dark:bg-muted rounded-full h-1.5 overflow-hidden">
-        <div
-          className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: `${progress * 100}%` }}
-          role="progressbar"
-          aria-valuenow={progress * 100}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        />
+    <div className="w-full bg-background px-4 py-2 border-t border-border lg:border-t-0 lg:border-b lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <p className="text-xs font-medium text-foreground mb-2">
+          {message}
+        </p>
+        <div className="w-full h-2 bg-muted rounded-xl overflow-hidden shadow-inner">
+          <div
+            className="h-full bg-primary rounded-xl transition-all duration-300 ease-out"
+            style={{ width: `${progress * 100}%` }}
+            role="progressbar"
+            aria-valuenow={progress * 100}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          />
+        </div>
       </div>
     </div>
   );

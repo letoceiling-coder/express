@@ -13,6 +13,7 @@ import { WebCartPage } from "./pages/web/WebCartPage";
 import { WebOrdersPage } from "./pages/web/WebOrdersPage";
 import { WebAboutPage } from "./pages/web/WebAboutPage";
 import { WebCheckoutPage } from "./pages/web/WebCheckoutPage";
+import { WebOrderDetailPage } from "./pages/web/WebOrderDetailPage";
 import { WebLegalDocumentsPage } from "./pages/web/WebLegalDocumentsPage";
 import { WebSearchPage } from "./pages/web/WebSearchPage";
 
@@ -64,6 +65,7 @@ const App = () => {
               <Route path="product/:productId" element={<WebProductDetailPage />} />
               <Route path="cart" element={<WebCartPage />} />
               <Route path="orders" element={<WebOrdersPage />} />
+              <Route path="orders/:orderId" element={<WebOrderDetailPage />} />
               <Route path="about" element={<WebAboutPage />} />
               <Route path="search" element={<WebSearchPage />} />
               <Route path="checkout" element={<WebCheckoutPage />} />

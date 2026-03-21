@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Loader2 } from 'lucide-react';
 import { HeroSlider } from '@/components/web/HeroSlider';
 import { CategorySection } from '@/components/web/CategorySection';
-import { SearchInput } from '@/components/web/SearchInput';
 import { ProductGrid } from '@/components/web/ProductGrid';
 import { Benefits } from '@/components/web/Benefits';
 import { CategoryTabs } from '@/components/miniapp/CategoryTabs';
@@ -13,6 +12,7 @@ import { DeliveryProgressIndicator } from '@/components/miniapp/DeliveryProgress
 import { useProducts } from '@/hooks/useProducts';
 import { useCartStore } from '@/store/cartStore';
 import { useOrderModeStore } from '@/store/orderModeStore';
+import { useSearchStore } from '@/store/searchStore';
 import { deliverySettingsAPI } from '@/api';
 import { Product } from '@/types';
 
@@ -130,10 +130,6 @@ export function HomePage() {
       {/* ========== DESKTOP LAYOUT (lg+) - NOT touching ========== */}
       <div className="hidden lg:block">
         <HeroSlider />
-        <div className="py-3">
-          <SearchInput value={search} onChange={setSearch} className="max-w-md" />
-        </div>
-        <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
         <CategorySection
           categories={categories}
           activeCategoryId={activeCategoryId}

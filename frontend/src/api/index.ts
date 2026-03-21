@@ -2,6 +2,33 @@ import { Category, Product, Order, CreateOrderPayload, OrderItem } from '@/types
 import { isTelegramWebApp } from '@/lib/telegram';
 
 const API_BASE = '/api/v1';
+const AUTH_BASE = '/api/auth';
+
+// Auth API (веб-авторизация по телефону)
+const authRequest = async (path: string, options: RequestInit = {}) => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...options.headers,
+  };
+  const res = await fetch(`${AUTH_BASE}${path}`, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || 'Ошибка авторизации');
+    (err as any).response = { status: res.status, data };
+    throw err;
+  }
+  return data;
+};
+
+export const authAPI = {
+  async sendCode(phone: string): Promise<{ message: string; expires_in?: number }> {
+    return authRequest('/send-code', { method: 'POST', body: JSON.stringify({ phone }) });
+  },
+  async verifyCode(phone: string, code: string): Promise<{ user: any; token: string }> {
+    return authRequest('/verify-code', { method: 'POST', body: JSON.stringify({ phone, code }) });
+  },
+};
 
 // Получить initData из Telegram WebApp
 const getInitData = (): string | null => {
@@ -234,9 +261,8 @@ export const ordersAPI = {
     const randomNum = Math.floor(Math.random() * 1000) + 1;
     const orderId = `ORD-${dateStr}-${randomNum}`;
 
-    const orderData = {
+    const orderData: Record<string, any> = {
       order_id: orderId,
-      telegram_id: telegramId,
       phone: payload.phone,
       email: payload.email || null, // Email для чека
       name: payload.name || null,
@@ -251,6 +277,7 @@ export const ordersAPI = {
       discount: payload.discount || 0,
       status: 'new',
       payment_status: 'pending',
+      ...(telegramId != null && { telegram_id: telegramId }),
       items: payload.items.map(item => ({
         product_id: item.productId ? Number(item.productId) : null,
         product_name: item.productName || '',
@@ -305,6 +332,48 @@ export const ordersAPI = {
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
     };
+  },
+
+  /** Заказы по Bearer token (веб) или telegram_id (MiniApp) */
+  async getMyOrders(telegramId?: number): Promise<Order[]> {
+    const isWeb = !isTelegramWebApp();
+    if (isWeb) {
+      return this.getByUserId();
+    }
+    return this.getByTelegramId(telegramId ?? 0);
+  },
+
+  async getByUserId(): Promise<Order[]> {
+    const url = `/orders?sort_by=created_at&sort_order=desc&per_page=0`;
+    const response = await apiRequest(url);
+    let orders: any[] = [];
+    if (Array.isArray(response.data)) orders = response.data;
+    else if (response.data?.data) orders = Array.isArray(response.data.data) ? response.data.data : [];
+    return orders.map((o: any) => ({
+      id: String(o.id),
+      orderId: o.order_id,
+      telegramId: o.telegram_id ?? 0,
+      status: o.status as Order['status'],
+      phone: o.phone,
+      name: o.name || undefined,
+      deliveryAddress: o.delivery_address,
+      deliveryTime: o.delivery_time,
+      comment: o.comment || undefined,
+      totalAmount: Number(o.total_amount),
+      items: (o.items || []).map((it: any) => ({
+        id: String(it.id),
+        productId: it.product_id ? String(it.product_id) : '',
+        productName: it.product_name,
+        productImage: it.product_image,
+        quantity: it.quantity,
+        unitPrice: Number(it.unit_price),
+        total: Number(it.total),
+      })),
+      paymentId: o.payment_id,
+      paymentStatus: o.payment_status as Order['paymentStatus'],
+      createdAt: new Date(o.created_at),
+      updatedAt: new Date(o.updated_at),
+    }));
   },
 
   async getByTelegramId(telegramId: number): Promise<Order[]> {
@@ -402,91 +471,72 @@ export const ordersAPI = {
 
   async getByOrderId(orderId: string): Promise<Order | null> {
     try {
-      console.log('Orders API - getByOrderId request:', { orderId });
-      
-      // Получаем telegram_id для публичного запроса
-      const { getTelegramUser } = await import('@/lib/telegram');
-      const user = getTelegramUser();
-      const telegramId = user?.id;
-      
-      if (!telegramId) {
-        console.warn('Orders API - getByOrderId: No telegram_id, cannot fetch order');
-        return null;
+      if (isTelegramWebApp()) {
+        const { getTelegramUser } = await import('@/lib/telegram');
+        const user = getTelegramUser();
+        const telegramId = user?.id;
+        if (!telegramId) return null;
+        const searchUrl = `/orders?search=${encodeURIComponent(orderId)}&telegram_id=${telegramId}`;
+        const response = await apiRequest(searchUrl);
+        const rawOrders = response.data?.data || response.data || [];
+        const orders = Array.isArray(rawOrders) ? rawOrders : [];
+        const order = orders.find((o: any) => o.order_id === orderId);
+        if (!order) return null;
+        return this.mapOrderResponse(order);
       }
-      
-      // Ищем по order_id через поиск с telegram_id для безопасности
-      const searchUrl = `/orders?search=${encodeURIComponent(orderId)}&telegram_id=${telegramId}`;
-      console.log('Orders API - getByOrderId search URL:', searchUrl);
-      
-      const response = await apiRequest(searchUrl);
-      console.log('Orders API - getByOrderId raw response:', response);
-      
-      const orders = response.data?.data || response.data || [];
-      const order = Array.isArray(orders) ? orders.find((o: any) => o.order_id === orderId) : null;
-      
-      if (!order) {
-        console.warn('Orders API - getByOrderId: Order not found', { orderId, ordersCount: orders.length });
-        return null;
-      }
-      
-      console.log('Orders API - getByOrderId: Order found', { orderId: order.order_id });
-      
-      return {
-        id: String(order.id),
-        orderId: order.order_id,
-        telegramId: order.telegram_id,
-        status: order.status as Order['status'],
-        phone: order.phone,
-        name: order.name || undefined,
-        deliveryAddress: order.delivery_address,
-        deliveryTime: order.delivery_time,
-        comment: order.comment || undefined,
-        totalAmount: Number(order.total_amount),
-        items: (order.items || []).map((item: any) => ({
-          id: String(item.id),
-          productId: item.product_id ? String(item.product_id) : '',
-          productName: item.product_name,
-          productImage: item.product_image || undefined,
-          quantity: item.quantity,
-          unitPrice: Number(item.unit_price),
-          total: Number(item.total),
-        })),
-        paymentId: order.payment_id || undefined,
-        paymentStatus: order.payment_status as Order['paymentStatus'],
-        createdAt: new Date(order.created_at),
-        updatedAt: new Date(order.updated_at),
-      };
+      // Web: load user orders and find by orderId
+      const all = await this.getByUserId();
+      const found = all.find((o) => o.orderId === orderId) ?? null;
+      return found;
     } catch (error) {
       return null;
     }
   },
 
+  mapOrderResponse(order: any): Order {
+    return {
+      id: String(order.id),
+      orderId: order.order_id,
+      telegramId: order.telegram_id ?? 0,
+      status: order.status as Order['status'],
+      phone: order.phone,
+      name: order.name || undefined,
+      deliveryAddress: order.delivery_address,
+      deliveryTime: order.delivery_time,
+      comment: order.comment || undefined,
+      totalAmount: Number(order.total_amount),
+      items: (order.items || []).map((it: any) => ({
+        id: String(it.id),
+        productId: it.product_id ? String(it.product_id) : '',
+        productName: it.product_name,
+        productImage: it.product_image,
+        quantity: it.quantity,
+        unitPrice: Number(it.unit_price),
+        total: Number(it.total),
+      })),
+      paymentId: order.payment_id,
+      paymentStatus: order.payment_status as Order['paymentStatus'],
+      createdAt: new Date(order.created_at),
+      updatedAt: new Date(order.updated_at),
+    };
+  },
+
   async cancelOrder(orderId: string): Promise<Order> {
     try {
-      // Находим заказ по orderId
-      if (!orderId) {
-        throw new Error('Не указан номер заказа');
-      }
-
+      if (!orderId) throw new Error('Не указан номер заказа');
       const order = await this.getByOrderId(orderId);
-      if (!order) {
-        throw new Error('Заказ не найден');
-      }
+      if (!order) throw new Error('Заказ не найден');
 
-      // Получаем telegram_id для проверки владельца заказа
-      const { getTelegramUser } = await import('@/lib/telegram');
-      const user = getTelegramUser();
-      const telegramId = user?.id;
-
-      if (!telegramId) {
-        throw new Error('Не удалось определить пользователя Telegram');
+      const body: Record<string, unknown> = {};
+      if (isTelegramWebApp()) {
+        const { getTelegramUser } = await import('@/lib/telegram');
+        const tgUser = getTelegramUser();
+        if (tgUser?.id) body.telegram_id = tgUser.id;
       }
 
       const response = await apiRequest(`/orders/${order.id}/cancel`, {
         method: 'POST',
-        body: JSON.stringify({
-          telegram_id: telegramId,
-        }),
+        body: Object.keys(body).length ? JSON.stringify(body) : undefined,
       });
 
       if (!response.data) {

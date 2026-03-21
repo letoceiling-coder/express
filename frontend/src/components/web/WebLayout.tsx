@@ -1,16 +1,20 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User } from 'lucide-react';
+import { ShoppingCart, User, Search } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { useSearchStore } from '@/store/searchStore';
 import { cn } from '@/lib/utils';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CartProgressBar } from './CartProgressBar';
+import { DeliveryModeToggle } from '@/components/miniapp/DeliveryModeToggle';
+import { useOrderModeStore } from '@/store/orderModeStore';
 import { Outlet } from 'react-router-dom';
 
 export function WebLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const totalItems = useCartStore((state) => state.getTotalItems());
+  const { query, setQuery } = useSearchStore();
   const isSearchPage = location.pathname === '/search';
 
   const scrollToSection = (sectionId: string) => {
@@ -24,24 +28,40 @@ export function WebLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background w-full">
-      {/* MOBILE: MiniAppHeader - FIXED, 1:1 as MiniApp */}
+      {/* MOBILE: MiniAppHeader - FIXED, 1:1 as MiniApp, search IN header */}
       <header className="lg:hidden">
         <MiniAppHeader
           title={isSearchPage ? 'Поиск' : 'Свой Хлеб'}
           showBack={isSearchPage}
-          showSearch={!isSearchPage}
+          showSearch={location.pathname === '/' || location.pathname === '/search'}
           fixed
         />
       </header>
 
-      {/* DESKTOP: Original header - NOT touching */}
+      {/* DESKTOP: Header with search inside */}
       <header className="hidden lg:block sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-8">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="w-full max-w-7xl mx-auto flex h-16 items-center gap-6 px-8">
+          <Link to="/" className="shrink-0">
             <span className="text-xl font-bold tracking-tight text-foreground">Свой Хлеб</span>
           </Link>
 
-          <nav className="flex items-center gap-6">
+          <div className="flex flex-1 min-w-0 items-center gap-2 max-w-md">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Поиск товаров..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => location.pathname !== '/search' && navigate('/search')}
+              className="flex-1 min-w-0 bg-muted rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="w-44 shrink-0">
+            <DeliveryModeToggle value={orderMode} onChange={setOrderMode} className="py-0 px-0" />
+          </div>
+
+          <nav className="flex items-center gap-6 shrink-0">
             <Link
               to="/"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -70,7 +90,7 @@ export function WebLayout() {
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/cart"
               className={cn(

@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProductCard } from '@/components/miniapp/ProductCard';
 import { useProducts } from '@/hooks/useProducts';
+import { useSearchStore } from '@/store/searchStore';
 import { Product } from '@/types';
-import { Search, X, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Search, Loader2 } from 'lucide-react';
 
 interface SearchResult extends Product {
   priority: number;
@@ -14,19 +14,13 @@ interface SearchResult extends Product {
 export function WebSearchPage() {
   const navigate = useNavigate();
   const { products, loading } = useProducts();
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const query = useSearchStore((s) => s.query);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 200);
     return () => clearTimeout(timer);
   }, [query]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const normalizeString = (str: string): string =>
     str.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -78,31 +72,8 @@ export function WebSearchPage() {
 
   return (
     <div className="flex flex-col min-h-[60vh] lg:min-h-0">
-      {/* Search Input - EXACT as MiniApp SearchPage */}
-      <div className="px-4 pt-3 pb-2 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            type="text"
-            placeholder="Введите название блюда"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-10 pr-10 h-11 text-base rounded-xl border border-border bg-muted/50 focus:bg-background"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full hover:bg-muted touch-feedback"
-              aria-label="Очистить"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 pb-24 lg:pb-8">
+      {/* Search in header - no duplicate here */}
+      <div className="flex-1 overflow-y-auto px-4 pb-24 lg:pb-8 pt-2">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

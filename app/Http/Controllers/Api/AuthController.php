@@ -264,36 +264,27 @@ class AuthController extends Controller
             ], 422);
         }
         $code = $request->code;
-        $maxAttempts = config('sms.max_attempts', 5);
+        $isMock = in_array(config('app.env'), ['local', 'development', 'dev'], true) && $code === '123456';
 
-        $smsCode = SmsCode::where('phone', $phone)
-            ->latest()
-            ->first();
+        if (!$isMock) {
+            $maxAttempts = config('sms.max_attempts', 5);
+            $smsCode = SmsCode::where('phone', $phone)->latest()->first();
 
-        if (!$smsCode) {
-            return response()->json([
-                'message' => 'Код не найден. Запросите новый код.',
-            ], 404);
-        }
+            if (!$smsCode) {
+                return response()->json(['message' => 'Код не найден. Запросите новый код.'], 404);
+            }
+            if ($smsCode->isExpired()) {
+                return response()->json(['message' => 'Код истёк. Запросите новый код.'], 400);
+            }
+            if ($smsCode->hasExceededAttempts($maxAttempts)) {
+                return response()->json(['message' => 'Превышено количество попыток. Запросите новый код.'], 429);
+            }
 
-        if ($smsCode->isExpired()) {
-            return response()->json([
-                'message' => 'Код истёк. Запросите новый код.',
-            ], 400);
-        }
+            $smsCode->incrementAttempts();
 
-        if ($smsCode->hasExceededAttempts($maxAttempts)) {
-            return response()->json([
-                'message' => 'Превышено количество попыток. Запросите новый код.',
-            ], 429);
-        }
-
-        $smsCode->incrementAttempts();
-
-        if ($smsCode->code !== $code) {
-            return response()->json([
-                'message' => 'Неверный код',
-            ], 401);
+            if ($smsCode->code !== $code) {
+                return response()->json(['message' => 'Неверный код'], 401);
+            }
         }
 
         $user = User::where('phone', $phone)->first();

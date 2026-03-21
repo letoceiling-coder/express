@@ -1,7 +1,8 @@
 import { ChevronLeft, Sun, Moon, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { useSearchStore } from '@/store/searchStore';
 
 interface MiniAppHeaderProps {
   title?: string;
@@ -12,24 +13,25 @@ interface MiniAppHeaderProps {
   className?: string;
 }
 
-export function MiniAppHeader({ 
-  title = "Свой Хлеб", 
-  showBack = false, 
+export function MiniAppHeader({
+  title = "Свой Хлеб",
+  showBack = false,
   showSearch = true,
   showThemeToggle = true,
   fixed = false,
-  className 
+  className
 }: MiniAppHeaderProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { query, setQuery } = useSearchStore();
 
   return (
     <header className={cn(
-      "z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 safe-area-top",
+      "z-50 flex h-14 items-center justify-between gap-2 border-b border-border bg-background px-4 safe-area-top",
       fixed ? "fixed top-0 left-0 right-0" : "sticky top-0",
       className
     )}>
-      <div className="flex items-center gap-1 min-w-[80px]">
+      <div className="flex items-center shrink-0">
         {showBack ? (
           <button
             onClick={() => navigate(-1)}
@@ -49,19 +51,21 @@ export function MiniAppHeader({
         )}
       </div>
 
-      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-
-      <div className="flex items-center gap-1 min-w-[80px] justify-end">
-        {showSearch && (
-          <button
-            onClick={() => navigate('/search')}
-            className="flex h-10 w-10 items-center justify-center rounded-lg touch-feedback -mr-2"
-            aria-label="Поиск"
-          >
-            <Search className="h-6 w-6 text-foreground" />
-          </button>
-        )}
-      </div>
+      {showSearch ? (
+        <div className="flex flex-1 min-w-0 items-center gap-2">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Поиск товаров..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={handleSearchFocus}
+            className="flex-1 min-w-0 bg-muted rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+      ) : (
+        <h1 className="flex-1 text-lg font-semibold text-foreground truncate text-center">{title}</h1>
+      )}
     </header>
   );
 }

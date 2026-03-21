@@ -108,15 +108,16 @@ class OrderController extends Controller
                 $botId = $bot ? $bot->id : null;
             }
 
-            // telegram_id ТОЛЬКО из доверенных источников: initData, auth()->user()
+            // Требуется auth (initData или Sanctum) с user
             $context = $this->trustedTelegramContext->resolve($request);
-            if (!$context || $context['telegram_id'] === null) {
+            if (!$context || !($context['user'] ?? null)) {
                 return response()->json([
                     'message' => 'Требуется авторизация (initData или auth)',
                 ], 401);
             }
 
-            $telegramId = $context['telegram_id'];
+            $user = $context['user'];
+            $telegramId = $context['telegram_id']; // null для веб-пользователей (phone auth)
             $resolveService = app(ResolveUserService::class);
             $user = $context['user'] ?? ($context['telegram_user'] ? $resolveService->resolveFromTelegram($context['telegram_user']) : null);
 
@@ -153,7 +154,7 @@ class OrderController extends Controller
             
             $order = Order::create([
                 'order_id' => $orderId,
-                'telegram_id' => $telegramId,
+                'telegram_id' => $telegramId, // null для веб-пользователей (user_id используется)
                 'user_id' => $user?->id,
                 'bot_id' => $botId,
                 'phone' => $request->get('phone'),
@@ -324,21 +325,28 @@ class OrderController extends Controller
         $query = Order::query()->with(['items', 'manager', 'bot', 'payments', 'user']);
         $telegramIdInt = null;
 
-        // Если запрос авторизован (админ), разрешаем все фильтры
+        // Если запрос авторизован (Sanctum Bearer)
         if ($hasAuth || $hasToken) {
-            // Для авторизованных пользователей (админов) можно использовать все фильтры
-            // Фильтрация по telegram_id (опционально)
-            if ($request->has('telegram_id')) {
-                $telegramId = $request->get('telegram_id');
-                $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
-                if ($telegramIdInt) {
-                    $query->where('telegram_id', $telegramIdInt);
+            $authUser = $request->user();
+            $isAdminOrManager = $authUser && $authUser->hasAnyRole(['admin', 'manager']);
+
+            if ($isAdminOrManager) {
+                // Админ/менеджер: фильтр по telegram_id (опционально)
+                if ($request->has('telegram_id')) {
+                    $telegramId = $request->get('telegram_id');
+                    $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
+                    if ($telegramIdInt) {
+                        $query->where('telegram_id', $telegramIdInt);
+                    }
                 }
+            } else {
+                // Веб-пользователь (phone auth): только свои заказы по user_id
+                $query->where('user_id', $authUser->id);
             }
-            Log::info('OrderController::index - Authenticated request (by token or user)', [
-                'user_id' => $request->user()?->id,
-                'has_token' => $hasToken,
-                'telegram_id_filter' => $request->get('telegram_id'),
+
+            Log::info('OrderController::index - Authenticated request', [
+                'user_id' => $authUser?->id,
+                'is_admin' => $isAdminOrManager,
             ]);
         } else {
             // Публичный запрос - требуется валидация через initData или telegram_id (fallback для web)
