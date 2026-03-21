@@ -17,6 +17,7 @@ import {
   Bell,
   History,
   MessageSquare,
+  Image,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -28,6 +29,7 @@ const navItems = [
   { path: '/admin/products', icon: Package, label: 'Товары' },
   { path: '/admin/categories', icon: Tags, label: 'Категории' },
   { path: '/admin/about', icon: Info, label: 'О нас' },
+  { path: '/admin/banners', icon: Image, label: 'Баннеры' },
   { path: '/admin/notifications', icon: Bell, label: 'Уведомления' },
   { path: '/admin/notifications/logs', icon: History, label: 'История уведомлений', indent: true },
   { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },

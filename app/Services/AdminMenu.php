@@ -107,6 +107,12 @@ class AdminMenu
                 'roles' => ['admin', 'manager'],
             ],
             [
+                'title' => 'Баннеры',
+                'route' => 'admin.banners',
+                'icon' => 'image',
+                'roles' => ['admin', 'manager'],
+            ],
+            [
                 'title' => 'Документы',
                 'route' => 'admin.legal-documents',
                 'icon' => 'file-text',

@@ -87,6 +87,9 @@ Route::prefix('v1')->group(function () {
     
     // Публичный роут для страницы "О нас"
     Route::get('about', [AboutPageController::class, 'show'])->name('about.show.public');
+
+    // Баннеры (HeroSlider)
+    Route::get('banners', [\App\Http\Controllers\Api\v1\BannerController::class, 'index'])->name('banners.index.public');
     
     // Публичный роут для настроек поддержки
     Route::get('settings/support', [\App\Http\Controllers\Api\v1\SupportSettingsController::class, 'show'])
@@ -246,6 +249,12 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('sms-settings.get');
         Route::put('sms-settings', [\App\Http\Controllers\Api\v1\SmsSettingsController::class, 'updateSettings'])
             ->name('sms-settings.update');
+
+        // Banners (CRUD)
+        Route::get('banners/admin', [\App\Http\Controllers\Api\v1\BannerController::class, 'adminIndex'])->name('banners.admin.index');
+        Route::post('banners', [\App\Http\Controllers\Api\v1\BannerController::class, 'store'])->name('banners.store');
+        Route::put('banners/{banner}', [\App\Http\Controllers\Api\v1\BannerController::class, 'update'])->name('banners.update');
+        Route::delete('banners/{banner}', [\App\Http\Controllers\Api\v1\BannerController::class, 'destroy'])->name('banners.destroy');
         
         // Order Settings
         Route::get('order-settings', [OrderSettingsController::class, 'getSettings'])
