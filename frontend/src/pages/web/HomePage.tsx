@@ -131,17 +131,9 @@ export function HomePage() {
       <div className="hidden lg:block">
         <HeroSlider />
         <div className="py-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Поиск товаров..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:ring-2 focus:ring-primary outline-none transition placeholder:text-muted-foreground"
-            />
-          </div>
+          <SearchInput value={search} onChange={setSearch} className="max-w-md" />
         </div>
+        <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
         <CategorySection
           categories={categories}
           activeCategoryId={activeCategoryId}
