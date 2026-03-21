@@ -15,7 +15,13 @@ export function WebLayout() {
   const navigate = useNavigate();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { query, setQuery } = useSearchStore();
+  const { orderMode, setOrderMode } = useOrderModeStore();
   const isSearchPage = location.pathname === '/search';
+
+  // Runtime safety: guard against undefined orderMode (should never happen with store)
+  if (orderMode === undefined) {
+    console.error('orderMode is undefined in WebLayout');
+  }
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -58,7 +64,11 @@ export function WebLayout() {
           </div>
 
           <div className="w-44 shrink-0">
-            <DeliveryModeToggle value={orderMode} onChange={setOrderMode} className="py-0 px-0" />
+            <DeliveryModeToggle
+              value={orderMode ?? 'pickup'}
+              onChange={setOrderMode ?? (() => {})}
+              className="py-0 px-0"
+            />
           </div>
 
           <nav className="flex items-center gap-6 shrink-0">
