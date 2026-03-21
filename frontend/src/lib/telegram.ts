@@ -93,6 +93,24 @@ interface TelegramWebApp {
   disableClosingConfirmation: () => void;
 }
 
+/**
+ * Определение, запущено ли приложение внутри Telegram WebApp.
+ * initData передаётся только при открытии из Telegram (из URL hash tgWebAppData).
+ * В обычном браузере initData пустой или отсутствует.
+ * Дополнительно проверяем наличие "user=" — без него это не валидные данные.
+ */
+export function isTelegramWebApp(): boolean {
+  try {
+    const tg = window.Telegram?.WebApp ?? (window as any).Telegram?.WebApp;
+    const initData = tg?.initData;
+    if (!initData || typeof initData !== 'string') return false;
+    // Валидный initData от Telegram содержит user= (данные пользователя)
+    return initData.length > 10 && initData.includes('user=');
+  } catch {
+    return false;
+  }
+}
+
 export function initTelegramWebApp(): void {
   // Функция инициализации
   const initialize = (tg: TelegramWebApp) => {

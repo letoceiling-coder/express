@@ -1,4 +1,5 @@
 import { Category, Product, Order, CreateOrderPayload, OrderItem } from '@/types';
+import { isTelegramWebApp } from '@/lib/telegram';
 
 const API_BASE = '/api/v1';
 
@@ -13,15 +14,6 @@ const getInitData = (): string | null => {
   } catch (e) {
     console.warn('Failed to get initData:', e);
     return null;
-  }
-};
-
-// Проверить, запущено ли приложение в Telegram WebApp
-const isTelegramWebApp = (): boolean => {
-  try {
-    return !!window.Telegram?.WebApp;
-  } catch {
-    return false;
   }
 };
 
@@ -772,6 +764,33 @@ export const aboutPageAPI = {
       return response.data;
     } catch (error: any) {
       console.error('AboutPage API - update error:', error);
+      throw error;
+    }
+  },
+};
+
+// SMS Settings API (IQSMS)
+export const smsSettingsAPI = {
+  async getSettings(): Promise<any | null> {
+    try {
+      const response = await apiRequest('/sms-settings');
+      return response?.data ?? null;
+    } catch (error: any) {
+      console.error('SmsSettings API - getSettings error:', error);
+      throw error;
+    }
+  },
+
+  async updateSettings(data: { login?: string; password?: string; sender?: string; is_enabled?: boolean }): Promise<any> {
+    try {
+      const response = await apiRequest('/sms-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response?.data ?? response;
+    } catch (error: any) {
+      console.error('SmsSettings API - updateSettings error:', error);
       throw error;
     }
   },

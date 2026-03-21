@@ -38,6 +38,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+    // WEB AUTH: SMS через IQSMS
+    Route::post('/send-code', [AuthController::class, 'sendCode']);
+    Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 });
 
 // Публичные роуты для miniApp (GET запросы к категориям и продуктам)
@@ -48,10 +52,14 @@ Route::prefix('v1')->group(function () {
     Route::get('products/{id}', [ProductController::class, 'show'])->name('products.show.public');
     
     // Публичные роуты для заказов из MiniApp
-    // GET - только с фильтром telegram_id (пользователь может получить только свои заказы)
-    Route::get('orders', [OrderController::class, 'index'])->name('orders.index.public');
+    // GET - валидация initData в production, fallback telegram_id только в local/dev
+    Route::get('orders', [OrderController::class, 'index'])
+        ->middleware('telegram.initdata')
+        ->name('orders.index.public');
     // POST - создание заказа из MiniApp
-    Route::post('orders', [OrderController::class, 'store'])->name('orders.store.public');
+    Route::post('orders', [OrderController::class, 'store'])
+        ->middleware('telegram.initdata')
+        ->name('orders.store.public');
     
     // Публичные роуты для способов оплаты (только активные)
     Route::get('payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index.public');
@@ -90,6 +98,7 @@ Route::prefix('v1')->group(function () {
     
     // Публичный роут для отмены заказа из MiniApp
     Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])
+        ->middleware('telegram.initdata')
         ->name('orders.cancel.public');
     
     // Публичный вебхук от YooKassa (без авторизации, так как YooKassa отправляет уведомления напрямую)
@@ -231,6 +240,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // здесь оставляем только защищённый PUT для обновления настроек в админке
         Route::put('delivery-settings', [DeliverySettingsController::class, 'updateSettings'])
             ->name('delivery-settings.update');
+
+        // SMS Settings (IQSMS)
+        Route::get('sms-settings', [\App\Http\Controllers\Api\v1\SmsSettingsController::class, 'getSettings'])
+            ->name('sms-settings.get');
+        Route::put('sms-settings', [\App\Http\Controllers\Api\v1\SmsSettingsController::class, 'updateSettings'])
+            ->name('sms-settings.update');
         
         // Order Settings
         Route::get('order-settings', [OrderSettingsController::class, 'getSettings'])

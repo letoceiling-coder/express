@@ -179,6 +179,12 @@ class AdminMenu
                         'roles' => ['admin'],
                     ],
                     [
+                        'title' => 'SMS (IQSMS)',
+                        'route' => 'admin.sms-settings',
+                        'icon' => 'message-square',
+                        'roles' => ['admin'],
+                    ],
+                    [
                         'title' => 'Общие',
                         'route' => 'admin.settings',
                         'icon' => 'settings',

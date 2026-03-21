@@ -72,6 +72,7 @@ class Order extends Model
         'paid',
         'refunded',
         'payment_method',
+        'user_id',
         'manager_id',
         'bot_id',
         'courier_id',
@@ -93,6 +94,7 @@ class Order extends Model
         'total_amount' => 'decimal:2',
         'original_amount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'user_id' => 'integer',
         'manager_id' => 'integer',
         'bot_id' => 'integer',
         'courier_id' => 'integer',
@@ -141,6 +143,16 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
+    }
+
+    /**
+     * Связь с пользователем (владелец заказа — WEB или привязанный к telegram)
+     *
+     * @return BelongsTo
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

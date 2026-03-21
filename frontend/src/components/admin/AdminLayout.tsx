@@ -16,6 +16,7 @@ import {
   FileText,
   Bell,
   History,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -31,6 +32,7 @@ const navItems = [
   { path: '/admin/notifications/logs', icon: History, label: 'История уведомлений', indent: true },
   { path: '/admin/settings/payments/yookassa', icon: CreditCard, label: 'ЮKassa' },
   { path: '/admin/settings/delivery', icon: Truck, label: 'Доставка' },
+  { path: '/admin/sms-settings', icon: MessageSquare, label: 'SMS (IQSMS)' },
 ];
 
 export function AdminLayout() {

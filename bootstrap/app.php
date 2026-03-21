@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'deploy.token' => \App\Http\Middleware\VerifyDeployToken::class,
             'subscription.check' => \App\Http\Middleware\CheckSubscription::class,
+            'telegram.initdata' => \App\Http\Middleware\ValidateTelegramInitData::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

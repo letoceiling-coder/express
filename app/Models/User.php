@@ -25,6 +25,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone',
+        'phone_verified_at',
+        'telegram_id',
         'last_notification_sent_at',
     ];
 
@@ -47,7 +50,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'password' => 'hashed',
+            'telegram_id' => 'integer',
             'last_notification_sent_at' => 'datetime',
         ];
     }

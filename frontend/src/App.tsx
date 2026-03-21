@@ -3,6 +3,16 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { isTelegramWebApp } from "@/lib/telegram";
+
+// Web Pages (when NOT in Telegram)
+import { HomePage } from "./pages/web/HomePage";
+import { WebProductDetailPage } from "./pages/web/WebProductDetailPage";
+import { WebCartPage } from "./pages/web/WebCartPage";
+import { WebOrdersPage } from "./pages/web/WebOrdersPage";
+import { WebAboutPage } from "./pages/web/WebAboutPage";
+import { WebCheckoutPage } from "./pages/web/WebCheckoutPage";
+import { WebLegalDocumentsPage } from "./pages/web/WebLegalDocumentsPage";
 
 // Mini App Pages
 import { CatalogPage } from "./pages/miniapp/CatalogPage";
@@ -26,6 +36,7 @@ import { AdminCategories } from "./pages/admin/AdminCategories";
 import { AdminAbout } from "./pages/admin/AdminAbout";
 import { YooKassaSettings } from "./pages/admin/YooKassaSettings";
 import { DeliverySettings } from "./pages/admin/DeliverySettings";
+import { SmsSettings } from "./pages/admin/SmsSettings";
 import { NotificationSettings } from "./pages/admin/NotificationSettings";
 import { NotificationLogsPage } from "./pages/admin/NotificationLogsPage";
 
@@ -33,25 +44,61 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  const inTelegram = isTelegramWebApp();
+
+  // DEBUG: выяснить, почему всегда MiniApp
+  console.log('Telegram check:', {
+    tg: !!window.Telegram?.WebApp,
+    initData: window.Telegram?.WebApp?.initData,
+    initDataLength: window.Telegram?.WebApp?.initData?.length,
+    initDataType: typeof window.Telegram?.WebApp?.initData,
+    isTelegram: inTelegram,
+  });
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Mini App Routes (Light Theme by default) */}
-          <Route path="/" element={<CatalogPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/product/:productId" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/legal-documents" element={<LegalDocumentsPage />} />
-          <Route path="/call" element={<CallPage />} />
+          {/* Web Routes (when NOT in Telegram) */}
+          {!inTelegram && (
+            <>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/product/:productId" element={<WebProductDetailPage />} />
+              <Route path="/cart" element={<WebCartPage />} />
+              <Route path="/orders" element={<WebOrdersPage />} />
+              <Route path="/about" element={<WebAboutPage />} />
+              <Route path="/checkout" element={<WebCheckoutPage />} />
+              <Route path="/legal-documents" element={<WebLegalDocumentsPage />} />
+            </>
+          )}
+
+          {/* Mini App Routes (when in Telegram) */}
+          {inTelegram && (
+            <>
+              <Route path="/" element={<CatalogPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/product/:productId" element={<ProductDetailPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/legal-documents" element={<LegalDocumentsPage />} />
+              <Route path="/call" element={<CallPage />} />
+            </>
+          )}
+
+          {/* Shared when in web */}
+          {!inTelegram && (
+            <>
+              <Route path="/order-success/:orderId" element={<Navigate to="/" replace />} />
+            </>
+          )}
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
@@ -62,6 +109,7 @@ const App = () => (
             <Route path="about" element={<AdminAbout />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
+            <Route path="sms-settings" element={<SmsSettings />} />
             <Route path="notifications" element={<NotificationSettings />} />
             <Route path="notifications/logs" element={<NotificationLogsPage />} />
             {/* Redirect from old route */}
@@ -73,6 +121,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

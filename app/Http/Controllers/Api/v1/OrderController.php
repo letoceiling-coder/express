@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\Order;
 use App\Models\Bot;
+use App\Services\Auth\ResolveUserService;
+use App\Services\OrderAccessService;
 use App\Services\Telegram\TelegramUserService;
+use App\Services\TrustedTelegramContextService;
 use App\Services\Telegram\TelegramMiniAppService;
 use App\Services\Order\OrderStatusService;
 use App\Services\Order\OrderNotificationService;
@@ -21,17 +24,23 @@ class OrderController extends Controller
     protected TelegramMiniAppService $telegramMiniAppService;
     protected OrderStatusService $orderStatusService;
     protected OrderNotificationService $orderNotificationService;
+    protected OrderAccessService $orderAccessService;
+    protected TrustedTelegramContextService $trustedTelegramContext;
 
     public function __construct(
         TelegramUserService $telegramUserService,
         TelegramMiniAppService $telegramMiniAppService,
         OrderStatusService $orderStatusService,
-        OrderNotificationService $orderNotificationService
+        OrderNotificationService $orderNotificationService,
+        OrderAccessService $orderAccessService,
+        TrustedTelegramContextService $trustedTelegramContext
     ) {
         $this->telegramUserService = $telegramUserService;
         $this->telegramMiniAppService = $telegramMiniAppService;
         $this->orderStatusService = $orderStatusService;
         $this->orderNotificationService = $orderNotificationService;
+        $this->orderAccessService = $orderAccessService;
+        $this->trustedTelegramContext = $trustedTelegramContext;
     }
     /**
      * Создать новый заказ
@@ -43,7 +52,6 @@ class OrderController extends Controller
     {
         $request->validate([
             'order_id' => 'nullable|string|unique:orders,order_id',
-            'telegram_id' => 'required|integer',
             'phone' => 'required|string|max:255',
             'name' => 'nullable|string|max:255',
             'delivery_address' => 'required|string',
@@ -100,20 +108,27 @@ class OrderController extends Controller
                 $botId = $bot ? $bot->id : null;
             }
 
-            // Создаем заказ
-            $telegramId = $request->get('telegram_id');
+            // telegram_id ТОЛЬКО из доверенных источников: initData, auth()->user()
+            $context = $this->trustedTelegramContext->resolve($request);
+            if (!$context || $context['telegram_id'] === null) {
+                return response()->json([
+                    'message' => 'Требуется авторизация (initData или auth)',
+                ], 401);
+            }
+
+            $telegramId = $context['telegram_id'];
+            $resolveService = app(ResolveUserService::class);
+            $user = $context['user'] ?? ($context['telegram_user'] ? $resolveService->resolveFromTelegram($context['telegram_user']) : null);
+
             Log::info('OrderController::store - Creating order', [
                 'telegram_id' => $telegramId,
-                'telegram_id_type' => gettype($telegramId),
-                'telegram_id_value' => var_export($telegramId, true),
                 'order_id' => $orderId,
                 'phone' => $request->get('phone'),
                 'name' => $request->get('name'),
                 'total_amount' => $request->get('total_amount'),
                 'items_count' => count($request->get('items', [])),
-                'request_all' => $request->all(),
             ]);
-            
+
             // Определяем статус заказа
             // Для нового заказа всегда 'new', независимо от того, что передано в запросе
             // Статус 'paid' устанавливается только при успешной оплате через webhook или синхронизацию
@@ -139,6 +154,7 @@ class OrderController extends Controller
             $order = Order::create([
                 'order_id' => $orderId,
                 'telegram_id' => $telegramId,
+                'user_id' => $user?->id,
                 'bot_id' => $botId,
                 'phone' => $request->get('phone'),
                 'email' => $request->get('email'), // Email для чека
@@ -167,6 +183,11 @@ class OrderController extends Controller
                 'items_count' => $order->items()->count(),
             ]);
 
+            Log::info('Order user assigned', [
+                'order_id' => $order->id,
+                'user_id' => $user?->id,
+            ]);
+
             // Создаем элементы заказа
             foreach ($request->get('items') as $itemData) {
                 $order->items()->create([
@@ -182,22 +203,20 @@ class OrderController extends Controller
 
             $order->load(['items.product', 'manager', 'bot']);
 
-            // Синхронизируем пользователя Telegram
-            if ($botId && $request->get('telegram_id')) {
+            // Синхронизируем пользователя Telegram (telegramId из доверенного контекста)
+            if ($botId && $telegramId) {
                 try {
-                    // Пытаемся синхронизировать пользователя (если есть данные в запросе)
                     $userData = $request->get('user', []);
                     if (!empty($userData)) {
                         $this->telegramUserService->syncUser($botId, array_merge($userData, [
-                            'id' => $request->get('telegram_id'),
-                            'telegram_id' => $request->get('telegram_id'),
+                            'id' => $telegramId,
+                            'telegram_id' => $telegramId,
                         ]));
                     } else {
-                        // Создаем пользователя с минимальными данными
                         $telegramUser = \App\Models\TelegramUser::firstOrCreate(
                             [
                                 'bot_id' => $botId,
-                                'telegram_id' => $request->get('telegram_id'),
+                                'telegram_id' => $telegramId,
                             ],
                             [
                                 'first_name' => null,
@@ -207,9 +226,8 @@ class OrderController extends Controller
                         );
                     }
 
-                    // Обновляем статистику пользователя
                     $telegramUser = \App\Models\TelegramUser::where('bot_id', $botId)
-                        ->where('telegram_id', $request->get('telegram_id'))
+                        ->where('telegram_id', $telegramId)
                         ->first();
                     if ($telegramUser) {
                         $this->telegramUserService->updateStatistics($telegramUser);
@@ -303,7 +321,7 @@ class OrderController extends Controller
             'path' => $request->path(),
         ]);
 
-        $query = Order::query()->with(['items', 'manager', 'bot', 'payments']);
+        $query = Order::query()->with(['items', 'manager', 'bot', 'payments', 'user']);
         $telegramIdInt = null;
 
         // Если запрос авторизован (админ), разрешаем все фильтры
@@ -399,34 +417,41 @@ class OrderController extends Controller
                 }
                 
                 $telegramIdInt = (int)$user['id'];
+                $telegramUser = $user;
                 Log::info('OrderController::index - Validated initData, extracted user.id', [
                     'telegram_id' => $telegramIdInt,
                     'user_first_name' => $user['first_name'] ?? null,
                     'user_username' => $user['username'] ?? null,
                 ]);
-                
-                // Фильтруем заказы по telegram_id из валидированного initData
-                $query->where('telegram_id', $telegramIdInt);
             } 
-            // Приоритет 2: Fallback для web-версии (когда нет Telegram WebApp)
+            // Приоритет 2: Fallback ТОЛЬКО local/dev (небезопасно в production)
             else if ($request->has('telegram_id') && $request->get('telegram_id')) {
-                // Web-версия: используем переданный telegram_id (без валидации, но с предупреждением)
+                $env = config('app.env');
+                if (!in_array($env, ['local', 'development', 'dev'], true)) {
+                    Log::warning('Attempt to use raw telegram_id', [
+                        'path' => $request->path(),
+                        'env' => $env,
+                        'ip' => $request->ip(),
+                        'reason' => 'rejected_in_production',
+                    ]);
+                    return response()->json([
+                        'message' => 'Для доступа необходим initData от Telegram Mini App',
+                    ], 403);
+                }
                 $telegramId = $request->get('telegram_id');
                 $telegramIdInt = is_numeric($telegramId) ? (int)$telegramId : null;
-                
                 if (!$telegramIdInt) {
-                    Log::warning('OrderController::index - Invalid telegram_id format for web fallback');
                     return response()->json([
                         'message' => 'Некорректный формат telegram_id',
                     ], 400);
                 }
-                
-                Log::info('OrderController::index - Web fallback: using telegram_id parameter', [
+                Log::warning('Attempt to use raw telegram_id', [
+                    'path' => $request->path(),
+                    'env' => $env,
                     'telegram_id' => $telegramIdInt,
-                    'note' => 'This is a fallback for web version without Telegram WebApp',
+                    'reason' => 'fallback_only_local_dev',
                 ]);
-                
-                $query->where('telegram_id', $telegramIdInt);
+                $telegramUser = ['id' => $telegramIdInt];
             } 
             // Ошибка: нет ни initData, ни telegram_id
             else {
@@ -442,6 +467,17 @@ class OrderController extends Controller
                     'message' => 'Для получения заказов необходимо предоставить initData (Telegram Mini App) или telegram_id (web версия)',
                     'hint' => 'В Mini App передайте initData в заголовке X-Telegram-Init-Data. В web версии используйте параметр telegram_id.',
                 ], 400);
+            }
+
+            // Фильтрация по user_id (приоритет) или telegram_id (fallback)
+            // findByTelegram — только поиск, БЕЗ создания пользователя (GET не должен создавать User)
+            $resolvedUser = app(ResolveUserService::class)->findByTelegram($telegramUser ?? []);
+            if ($resolvedUser) {
+                $query->where('user_id', $resolvedUser->id);
+                Log::info('OrderController::index - Filtering by user_id', ['user_id' => $resolvedUser->id]);
+            } else {
+                $query->where('telegram_id', $telegramIdInt);
+                Log::info('OrderController::index - Filtering by telegram_id (fallback)', ['telegram_id' => $telegramIdInt]);
             }
         }
 
@@ -729,23 +765,30 @@ class OrderController extends Controller
         try {
             $order = Order::findOrFail($id);
 
-            // Проверяем права доступа: для публичных запросов требуется telegram_id
-            $user = $request->user();
-            if (!$user) {
-                // Публичный запрос - проверяем telegram_id
-                $telegramId = $request->input('telegram_id') ?: $request->query('telegram_id');
-                if (!$telegramId) {
-                    return response()->json([
-                        'message' => 'Для отмены заказа необходимо указать telegram_id или авторизоваться',
-                    ], 400);
-                }
+            $context = $this->trustedTelegramContext->resolve($request);
+            if (!$context) {
+                return response()->json([
+                    'message' => 'Требуется авторизация (initData или auth)',
+                ], 401);
+            }
 
-                // Проверяем, что заказ принадлежит пользователю
-                if ($order->telegram_id != (int)$telegramId) {
-                    return response()->json([
-                        'message' => 'Вы не можете отменить этот заказ',
-                    ], 403);
-                }
+            $user = $context['user'];
+            $telegramId = $context['telegram_id'];
+
+            if (!$user && $telegramId === null) {
+                return response()->json([
+                    'message' => 'Для отмены заказа необходимо авторизоваться (initData или auth)',
+                ], 400);
+            }
+
+            $deny = $this->orderAccessService->denyIfCannotAccess(
+                $order,
+                $user,
+                $telegramId,
+                'OrderController::cancel'
+            );
+            if ($deny) {
+                return $deny;
             }
 
             // Проверяем, что заказ не уже отменен
@@ -780,4 +823,5 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
 }

@@ -39,4 +39,10 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
     ],
 
+    'iqsms' => [
+        'login' => env('IQSMS_LOGIN'),
+        'password' => env('IQSMS_PASSWORD'),
+        'sender' => env('IQSMS_SENDER', 'INFO'),
+    ],
+
 ];
