@@ -24,12 +24,13 @@ export function WebLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background w-full">
-      {/* MOBILE: MiniAppHeader - 1:1 as MiniApp */}
+      {/* MOBILE: MiniAppHeader - FIXED, 1:1 as MiniApp */}
       <header className="lg:hidden">
         <MiniAppHeader
           title={isSearchPage ? 'Поиск' : 'Свой Хлеб'}
           showBack={isSearchPage}
           showSearch={!isSearchPage}
+          fixed
         />
       </header>
 
@@ -96,8 +97,8 @@ export function WebLayout() {
         </div>
       </header>
 
-      {/* Main - mobile: no padding for full bleed, desktop: max-w container */}
-      <main className="flex-1 pb-24 lg:pb-0">
+      {/* Main - mobile: pt-14 for fixed header; pb for bottom nav/progress bar */}
+      <main className="flex-1 pb-24 lg:pb-14 pt-14 lg:pt-0">
         <div className="w-full lg:max-w-7xl lg:mx-auto px-0 lg:px-8">
           <Outlet />
         </div>
@@ -157,10 +158,12 @@ export function WebLayout() {
         </div>
       </footer>
 
-      {/* MOBILE: Progress bar + BottomNav - EXACT as MiniApp */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+      {/* Progress bar (when delivery) + BottomNav (mobile only) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50">
         <CartProgressBar />
-        <BottomNavigation />
+        <div className="lg:hidden">
+          <BottomNavigation />
+        </div>
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ export function CartProgressBar() {
   if (orderMode !== 'delivery') return null;
 
   return (
-    <div className="lg:hidden w-full bg-background px-4 py-2 border-b border-border">
+    <div className="w-full bg-background px-4 py-2 border-b border-border">
       <p className="text-xs font-medium text-foreground mb-1.5">
         {message}
       </p>

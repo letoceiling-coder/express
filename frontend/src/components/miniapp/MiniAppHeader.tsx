@@ -8,6 +8,7 @@ interface MiniAppHeaderProps {
   showBack?: boolean;
   showSearch?: boolean;
   showThemeToggle?: boolean;
+  fixed?: boolean;
   className?: string;
 }
 
@@ -16,6 +17,7 @@ export function MiniAppHeader({
   showBack = false, 
   showSearch = true,
   showThemeToggle = true,
+  fixed = false,
   className 
 }: MiniAppHeaderProps) {
   const navigate = useNavigate();
@@ -23,7 +25,8 @@ export function MiniAppHeader({
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 safe-area-top",
+      "z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 safe-area-top",
+      fixed ? "fixed top-0 left-0 right-0" : "sticky top-0",
       className
     )}>
       <div className="flex items-center gap-1 min-w-[80px]">

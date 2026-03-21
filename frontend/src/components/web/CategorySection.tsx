@@ -7,6 +7,7 @@ interface CategorySectionProps {
   onCategoryChange: (id: string | null) => void;
 }
 
+/** Categories - overflow-x-auto flex-nowrap BOTH mobile and desktop. NO flex-wrap. */
 export function CategorySection({
   categories,
   activeCategoryId,
@@ -18,9 +19,8 @@ export function CategorySection({
         <h2 className="mb-3 text-lg font-bold tracking-tight hidden lg:block">
           Категории
         </h2>
-        {/* Mobile: horizontal scroll like MiniApp */}
-        <div className="overflow-x-auto scrollbar-none lg:overflow-visible lg:flex lg:flex-wrap lg:gap-2">
-          <div className="flex gap-2 w-max px-4 lg:w-auto lg:flex-initial lg:flex-wrap">
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 w-max px-4 lg:px-0 flex-nowrap shrink-0">
             <button
               onClick={() => onCategoryChange(null)}
               className={cn(
@@ -37,7 +37,7 @@ export function CategorySection({
                 key={cat.id}
                 onClick={() => onCategoryChange(cat.id)}
                 className={cn(
-                  'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap',
                   activeCategoryId === cat.id
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'

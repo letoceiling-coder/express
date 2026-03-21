@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Loader2 } from 'lucide-react';
+import { ShoppingCart, Loader2 } from 'lucide-react';
 import { HeroSlider } from '@/components/web/HeroSlider';
 import { CategorySection } from '@/components/web/CategorySection';
+import { SearchInput } from '@/components/web/SearchInput';
 import { ProductGrid } from '@/components/web/ProductGrid';
 import { Benefits } from '@/components/web/Benefits';
 import { CategoryTabs } from '@/components/miniapp/CategoryTabs';
@@ -157,7 +158,7 @@ export function HomePage() {
 
       {/* ========== MOBILE LAYOUT (< lg) - EXACT 1:1 MiniApp CatalogPage ========== */}
       <div className="lg:hidden min-h-screen bg-background pb-28">
-        {/* Sticky: Delivery Toggle + Category Tabs - EXACT as MiniApp */}
+        {/* Sticky: Delivery Toggle + Category Tabs - EXACT as MiniApp (no inline search, use header icon) */}
         <div className="sticky top-14 z-30 bg-background border-b border-border">
           <DeliveryModeToggle value={orderMode} onChange={setOrderMode} />
           <CategoryTabs
