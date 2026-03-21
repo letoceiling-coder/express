@@ -743,6 +743,51 @@ export const paymentSettingsAPI = {
 };
 
 // About Page API (Admin)
+// Banners API (public + admin)
+export const bannersAPI = {
+  async getAll(): Promise<any[]> {
+    try {
+      const response = await apiRequest('/banners');
+      return response?.data ?? [];
+    } catch (error: any) {
+      console.error('Banners API - getAll error:', error);
+      return [];
+    }
+  },
+
+  async getAdmin(): Promise<any[]> {
+    try {
+      const response = await apiRequest('/banners/admin');
+      return response?.data ?? [];
+    } catch (error: any) {
+      console.error('Banners API - getAdmin error:', error);
+      throw error;
+    }
+  },
+
+  async create(data: Partial<any>): Promise<any> {
+    const response = await apiRequest('/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return response?.data ?? response;
+  },
+
+  async update(id: number, data: Partial<any>): Promise<any> {
+    const response = await apiRequest(`/banners/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return response?.data ?? response;
+  },
+
+  async delete(id: number): Promise<void> {
+    await apiRequest(`/banners/${id}`, { method: 'DELETE' });
+  },
+};
+
 export const aboutPageAPI = {
   async get(): Promise<any | null> {
     try {
