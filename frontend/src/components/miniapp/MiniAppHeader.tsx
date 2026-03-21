@@ -22,8 +22,15 @@ export function MiniAppHeader({
   className
 }: MiniAppHeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { query, setQuery } = useSearchStore();
+
+  const handleSearchFocus = () => {
+    if (location.pathname !== '/search') {
+      navigate('/search');
+    }
+  };
 
   return (
     <header className={cn(
