@@ -12,7 +12,6 @@ export function WebProductDetailPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { items, addItem, updateQuantity } = useCartStore();
-  const [localQuantity, setLocalQuantity] = useState(1);
   const [product, setProduct] = useState<Product | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,11 +37,21 @@ export function WebProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    addItem(product, localQuantity);
+    addItem(product, 1);
     toast.success('Добавлено в корзину', {
-      description: `${product.name} × ${localQuantity}`,
+      description: product.name,
       duration: 2000,
     });
+  };
+
+  const handleIncrement = () => {
+    if (!product) return;
+    addItem(product, 1);
+  };
+
+  const handleDecrement = () => {
+    if (!product) return;
+    updateQuantity(product.id, quantityInCart - 1);
   };
 
   if (loading) {
@@ -101,34 +110,33 @@ export function WebProductDetailPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <div className="flex items-center rounded-lg border border-border">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setLocalQuantity((q) => Math.max(1, q - 1))}
-                >
-                  <Minus className="h-4 w-4" />
+              {quantityInCart === 0 ? (
+                <Button onClick={handleAddToCart} size="lg">
+                  <Plus className="mr-2 h-4 w-4" />
+                  В корзину
                 </Button>
-                <span className="w-12 text-center font-medium">{localQuantity}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setLocalQuantity((q) => q + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button onClick={handleAddToCart} size="lg">
-                <Plus className="mr-2 h-4 w-4" />
-                В корзину
-              </Button>
+              ) : (
+                <div className="flex items-center gap-2 rounded-lg border border-border">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleDecrement}
+                    aria-label="Уменьшить"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="w-12 text-center font-medium">{quantityInCart}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleIncrement}
+                    aria-label="Увеличить"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
-
-            {quantityInCart > 0 && (
-              <p className="mt-4 text-sm text-muted-foreground">
-                В корзине: {quantityInCart} шт.
-              </p>
-            )}
           </div>
         </div>
       </div>
