@@ -14,6 +14,7 @@ import { WebOrdersPage } from "./pages/web/WebOrdersPage";
 import { WebAboutPage } from "./pages/web/WebAboutPage";
 import { WebCheckoutPage } from "./pages/web/WebCheckoutPage";
 import { WebLegalDocumentsPage } from "./pages/web/WebLegalDocumentsPage";
+import { WebSearchPage } from "./pages/web/WebSearchPage";
 
 // Mini App Pages
 import { CatalogPage } from "./pages/miniapp/CatalogPage";
@@ -64,6 +65,7 @@ const App = () => {
               <Route path="cart" element={<WebCartPage />} />
               <Route path="orders" element={<WebOrdersPage />} />
               <Route path="about" element={<WebAboutPage />} />
+              <Route path="search" element={<WebSearchPage />} />
               <Route path="checkout" element={<WebCheckoutPage />} />
               <Route path="legal-documents" element={<WebLegalDocumentsPage />} />
             </Route>
