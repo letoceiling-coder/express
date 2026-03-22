@@ -263,7 +263,11 @@ Route::get('/subscription-expired', [\App\Http\Controllers\SubscriptionExpiredCo
 // Маршруты для админ-панели (Vue) - с проверкой подписки
 Route::middleware('subscription.check')->group(function () {
 Route::get('/admin/{any?}', function () {
-    return view('admin');
+    return response()
+        ->view('admin')
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
 })->where('any', '.*')->name('admin');
 });
 
