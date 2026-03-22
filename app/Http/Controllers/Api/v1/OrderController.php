@@ -529,9 +529,12 @@ class OrderController extends Controller
             });
         }
 
-        // Сортировка
+        // Безопасная сортировка: только разрешённые колонки
+        $allowedSortColumns = ['id', 'created_at', 'updated_at', 'total_amount', 'status', 'order_id'];
         $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortBy = in_array($sortBy, $allowedSortColumns, true) ? $sortBy : 'created_at';
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc'));
+        $sortOrder = in_array($sortOrder, ['asc', 'desc'], true) ? $sortOrder : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
         // Безопасная пагинация: per_page от 1 до 100

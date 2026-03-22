@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Auth\ResolveUserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
