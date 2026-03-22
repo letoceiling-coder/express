@@ -24,10 +24,18 @@ class IqSmsService
 
     /**
      * Dev mode = fake code 123456 без отправки SMS.
-     * Только при APP_ENV=local (localhost). Dev и prod — всегда реальные SMS.
+     * Dev/prod домены (dev.svoihlebekb.ru, svoihlebekb.ru) — всегда реальные SMS.
+     * Только localhost (APP_ENV=local) — dev mode.
      */
     public function isDevMode(): bool
     {
+        $req = request();
+        if ($req) {
+            $host = $req->getHost();
+            if (in_array($host, ['dev.svoihlebekb.ru', 'svoihlebekb.ru'], true)) {
+                return false; // реальные SMS на боевых доменах
+            }
+        }
         return config('app.env') === 'local';
     }
 
