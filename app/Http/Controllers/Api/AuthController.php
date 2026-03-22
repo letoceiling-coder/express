@@ -252,6 +252,30 @@ class AuthController extends Controller
                 ->lockForUpdate()
                 ->first();
 
+            $sms = app(IqSmsService::class);
+
+            if ($sms->isDevMode()) {
+                if ($existing) {
+                    return response()->json([
+                        'message' => 'Dev mode',
+                        'dev_code' => '123456',
+                    ], 429);
+                }
+                SmsCode::create([
+                    'phone' => $phone,
+                    'code' => '123456',
+                    'expires_at' => now()->addMinutes($ttlMinutes),
+                    'attempts' => 0,
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 500) : null,
+                    'device_id' => $request->header('X-Device-ID') ? substr($request->header('X-Device-ID'), 0, 100) : null,
+                ]);
+                return response()->json([
+                    'message' => 'Dev mode',
+                    'dev_code' => '123456',
+                ]);
+            }
+
             if ($existing) {
                 return response()->json([
                     'message' => 'Код уже отправлен. Повторите попытку через ' . $ttlMinutes . ' минут.',
@@ -262,12 +286,6 @@ class AuthController extends Controller
             $max = (int) str_repeat('9', $codeLength);
             $code = (string) random_int($min, $max);
 
-            $sms = app(IqSmsService::class);
-
-            if ($sms->isDevMode()) {
-                $code = '123456';
-            }
-
             if (!$sms->sendCode($phone, $code)) {
                 $maskedPhone = substr($phone, 0, 2) . '***' . substr($phone, -2);
                 Log::error('AuthController::sendCode: SMS send failed', [
@@ -275,26 +293,9 @@ class AuthController extends Controller
                     'reason' => $sms->getLastError() ?? 'unknown',
                     'credentials_missing' => !$sms->hasCredentials(),
                 ]);
-
-                if ($sms->isDevMode()) {
-                    SmsCode::create([
-                        'phone' => $phone,
-                        'code' => '123456',
-                        'expires_at' => now()->addMinutes($ttlMinutes),
-                        'attempts' => 0,
-                        'ip' => $request->ip(),
-                        'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 500) : null,
-                        'device_id' => $request->header('X-Device-ID') ? substr($request->header('X-Device-ID'), 0, 100) : null,
-                    ]);
-                    return response()->json([
-                        'message' => 'SMS temporarily unavailable',
-                        'dev_code' => '123456',
-                    ]);
-                }
-
                 return response()->json([
-                    'message' => 'SMS temporarily unavailable',
-                ]);
+                    'message' => 'Не удалось отправить SMS',
+                ], 400);
             }
 
             SmsCode::create([
@@ -385,7 +386,7 @@ class AuthController extends Controller
                     ->first();
 
                 if (!$smsCode) {
-                    return ['ok' => false, 'message' => 'Код не найден. Запросите новый код.', 'status' => 404];
+                    return ['ok' => false, 'message' => 'Код не найден. Запросите новый код.', 'status' => 400];
                 }
                 if ($smsCode->isExpired()) {
                     return ['ok' => false, 'message' => 'Код истёк. Запросите новый код.', 'status' => 400];

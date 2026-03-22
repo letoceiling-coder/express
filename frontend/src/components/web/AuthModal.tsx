@@ -67,7 +67,7 @@ export function AuthModal({ onClose, onSuccess, returnTo }: AuthModalProps) {
         setResendCooldown(RESEND_COOLDOWN_SEC);
       }
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || e?.message || 'Ошибка отправки кода');
+      toast.error('Ошибка отправки SMS');
     } finally {
       setLoading(false);
     }
