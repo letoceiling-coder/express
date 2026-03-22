@@ -38,7 +38,13 @@ class IqSmsService
     public function hasCredentials(): bool
     {
         $creds = $this->getCredentials();
-        return !empty($creds['login']) && !empty($creds['password']);
+        $ok = !empty($creds['login']) && !empty($creds['password']);
+        Log::info('IqSmsService::hasCredentials', [
+            'has_login' => !empty($creds['login']),
+            'has_password' => !empty($creds['password']),
+            'result' => $ok,
+        ]);
+        return $ok;
     }
 
     /**
@@ -49,6 +55,7 @@ class IqSmsService
         $settings = SmsSetting::forDriver('iqsms');
 
         if ($settings && $settings->is_enabled && $settings->login && $settings->password) {
+            Log::info('IqSmsService::getCredentials source=db');
             return [
                 'login' => $settings->login,
                 'password' => $settings->password,
@@ -56,11 +63,20 @@ class IqSmsService
             ];
         }
 
-        return [
+        $fromEnv = [
             'login' => config('services.iqsms.login', ''),
             'password' => config('services.iqsms.password', ''),
             'sender' => config('services.iqsms.sender', 'INFO'),
         ];
+        Log::info('IqSmsService::getCredentials source=config', [
+            'settings_exists' => (bool) $settings,
+            'is_enabled' => $settings?->is_enabled ?? null,
+            'has_login' => !empty($settings?->login),
+            'has_password' => !empty($settings?->password ?? ''),
+            'env_has_login' => !empty($fromEnv['login']),
+            'env_has_password' => !empty($fromEnv['password']),
+        ]);
+        return $fromEnv;
     }
 
     /**
