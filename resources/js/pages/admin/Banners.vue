@@ -123,23 +123,23 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-foreground mb-1">Изображение</label>
-                            <div class="flex gap-2">
-                                <input
-                                    v-model="form.image"
-                                    type="text"
-                                    placeholder="URL или выберите из медиа"
-                                    class="flex-1 h-10 px-3 rounded-lg border border-input bg-background text-foreground"
-                                />
+                            <div class="flex flex-col gap-2">
                                 <button
                                     type="button"
                                     @click="openMediaSelector"
-                                    class="h-10 px-4 rounded-lg border border-input bg-background hover:bg-muted inline-flex items-center"
-                                    title="Выбрать из медиа"
+                                    class="h-11 px-4 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 inline-flex items-center justify-center gap-2 font-medium"
                                 >
-                                    <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                     </svg>
+                                    Выбрать из медиа
                                 </button>
+                                <input
+                                    v-model="form.image"
+                                    type="text"
+                                    placeholder="URL (или выберите из медиа выше)"
+                                    class="w-full h-10 px-3 rounded-lg border border-input bg-background text-foreground"
+                                />
                             </div>
                             <img
                                 v-if="form.image"
