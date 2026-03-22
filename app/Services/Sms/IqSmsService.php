@@ -32,7 +32,7 @@ class IqSmsService
         $req = request();
         if ($req) {
             $host = $req->getHost();
-            if (in_array($host, ['dev.svoihlebekb.ru', 'svoihlebekb.ru'], true)) {
+            if (in_array($host, ['dev.svoihlebekb.ru', 'svoihlebekb.ru', 'azotrostovskiy.ru'], true)) {
                 return false; // реальные SMS на боевых доменах
             }
         }

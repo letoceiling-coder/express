@@ -222,8 +222,11 @@ class AdminMenu
             return collect([]);
         }
 
-        // Получаем роли пользователя
-        $userRoles = $user->roles->pluck('slug')->toArray();
+        // Получаем роли пользователя (если нет ролей — считаем что есть минимальный доступ)
+        $userRoles = $user->roles?->pluck('slug')->toArray() ?? [];
+        if (empty($userRoles)) {
+            $userRoles = ['user']; // Показать хотя бы Документацию
+        }
 
         // Фильтруем меню по ролям
         return $menu->map(function ($item) use ($userRoles) {
