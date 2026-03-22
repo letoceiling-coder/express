@@ -24,6 +24,14 @@ class IqSmsService
 
     public function isDevMode(): bool
     {
+        // SMS_FORCE_REAL_IN_DEV=true — принудительно использовать реальный IQSMS
+        if (config('sms.force_real_in_dev', false)) {
+            return false;
+        }
+        // Если IQSMS настроен в админке (логин+пароль) — отправляем реальные SMS даже в dev
+        if ($this->hasCredentials()) {
+            return false;
+        }
         return in_array(config('app.env'), ['local', 'development', 'dev'], true);
     }
 
