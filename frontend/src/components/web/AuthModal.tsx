@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { authAPI } from '@/api';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
+
+const RESEND_COOLDOWN_SEC = 60;
 
 const formatPhone = (v: string): string => {
   const d = v.replace(/\D/g, '');
@@ -24,16 +27,26 @@ const getPhoneDigits = (v: string): string => {
 interface AuthModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  /** Optional: redirect to this path after login (e.g. /checkout). Cart state is preserved via persist. */
+  returnTo?: string;
 }
 
 /** В dev бэкенд принимает код 123456 без отправки SMS */
 
-export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
+export function AuthModal({ onClose, onSuccess, returnTo }: AuthModalProps) {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   const handleSendCode = async () => {
     const digits = getPhoneDigits(phone);
@@ -46,16 +59,23 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
       if (import.meta.env.DEV) {
         toast.success('В dev: введите код 123456');
         setStep('code');
+        setResendCooldown(RESEND_COOLDOWN_SEC);
       } else {
         await authAPI.sendCode(phone);
         toast.success('Код отправлен на указанный номер');
         setStep('code');
+        setResendCooldown(RESEND_COOLDOWN_SEC);
       }
     } catch (e: any) {
       toast.error(e?.response?.data?.message || e?.message || 'Ошибка отправки кода');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    await handleSendCode();
   };
 
   const handleVerify = async () => {
@@ -78,6 +98,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
       toast.success('Вход выполнен');
       onSuccess();
       onClose();
+      if (returnTo) navigate(returnTo);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || e?.message || 'Неверный код');
     } finally {
@@ -97,6 +118,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
 
         {step === 'phone' ? (
           <>
+            <p className="text-xs text-muted-foreground mb-2">Проверьте правильность номера</p>
             <input
               type="tel"
               placeholder="+7 (___) ___-__-__"
@@ -114,6 +136,7 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         ) : (
           <>
             <p className="text-sm text-muted-foreground mb-2">Код отправлен на {phone}</p>
+            <p className="text-xs text-muted-foreground mb-2">SMS может идти до 30 секунд</p>
             <input
               type="text"
               inputMode="numeric"
@@ -125,12 +148,21 @@ export function AuthModal({ onClose, onSuccess }: AuthModalProps) {
             <Button onClick={handleVerify} disabled={loading} className="w-full">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Войти'}
             </Button>
-            <button
-              onClick={() => setStep('phone')}
-              className="w-full mt-2 text-sm text-muted-foreground hover:text-foreground"
-            >
-              Изменить номер
-            </button>
+            <div className="flex justify-between items-center mt-2">
+              <button
+                onClick={() => { setStep('phone'); setResendCooldown(0); }}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Изменить номер
+              </button>
+              <button
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || loading}
+                className="text-sm font-medium text-primary disabled:text-muted-foreground disabled:cursor-not-allowed hover:underline"
+              >
+                {resendCooldown > 0 ? `Отправить повторно через ${resendCooldown} сек` : 'Отправить код повторно'}
+              </button>
+            </div>
           </>
         )}
       </div>

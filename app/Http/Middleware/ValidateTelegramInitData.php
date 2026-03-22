@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\Bot;
+use App\Models\PersonalAccessToken;
 use App\Services\Telegram\TelegramMiniAppService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,6 +23,7 @@ class ValidateTelegramInitData
     /**
      * Handle an incoming request.
      * Валидация Telegram initData: в production без initData — 403.
+     * Bearer token: валидируется через Sanctum, invalid — 401.
      * Fallback (telegram_id) разрешён только в local/dev.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
@@ -30,9 +33,32 @@ class ValidateTelegramInitData
         $initData = $request->header('X-Telegram-Init-Data')
             ?? $request->input('init_data');
 
-        // Авторизованный запрос (админ) — пропускаем без проверки Telegram
         $authHeader = $request->header('Authorization');
         if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+            $accessToken = PersonalAccessToken::findToken($token);
+
+            if (!$accessToken || !$accessToken->tokenable) {
+                Log::warning('Invalid Bearer token', [
+                    'path' => $request->path(),
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json([
+                    'message' => 'Недействительный токен авторизации',
+                ], 401);
+            }
+
+            if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
+                Log::warning('Expired Bearer token', [
+                    'path' => $request->path(),
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json([
+                    'message' => 'Токен авторизации истёк',
+                ], 401);
+            }
+
+            Auth::setUser($accessToken->tokenable);
             return $next($request);
         }
 

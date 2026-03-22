@@ -35,6 +35,12 @@ Schedule::command('wow:send-reminders')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Очистка SMS-кодов: истекшие + использованные старше 24 часов
+Schedule::command('sms:cleanup-codes')
+    ->daily()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Синхронизация статусов платежей ЮKassa с API (на случай если webhook не пришёл)
 Schedule::command('payments:sync-statuses')
     ->everyTenMinutes()

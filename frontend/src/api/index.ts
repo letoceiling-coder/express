@@ -4,11 +4,27 @@ import { isTelegramWebApp } from '@/lib/telegram';
 const API_BASE = '/api/v1';
 const AUTH_BASE = '/api/auth';
 
+// Device ID for optional security (persisted, sent with auth requests)
+const getDeviceId = (): string | null => {
+  try {
+    let id = localStorage.getItem('device_id');
+    if (!id) {
+      id = 'web_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('device_id', id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+};
+
 // Auth API (веб-авторизация по телефону)
 const authRequest = async (path: string, options: RequestInit = {}) => {
+  const deviceId = getDeviceId();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    ...(deviceId && { 'X-Device-ID': deviceId }),
     ...options.headers,
   };
   const res = await fetch(`${AUTH_BASE}${path}`, { ...options, headers });

@@ -172,7 +172,7 @@ export function WebCheckoutPage() {
         <Button asChild variant="outline" className="mt-4">
           <Link to="/cart">Вернуться в корзину</Link>
         </Button>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />}
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} returnTo="/checkout" />}
       </div>
     );
   }

@@ -328,7 +328,13 @@ class OrderController extends Controller
         // Если запрос авторизован (Sanctum Bearer)
         if ($hasAuth || $hasToken) {
             $authUser = $request->user();
-            $isAdminOrManager = $authUser && $authUser->hasAnyRole(['admin', 'manager']);
+            if (!$authUser) {
+                return response()->json([
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            $isAdminOrManager = $authUser->hasAnyRole(['admin', 'manager']);
 
             if ($isAdminOrManager) {
                 // Админ/менеджер: фильтр по telegram_id (опционально)

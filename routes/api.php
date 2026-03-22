@@ -39,8 +39,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
-    // WEB AUTH: SMS через IQSMS
-    Route::post('/send-code', [AuthController::class, 'sendCode']);
+    // WEB AUTH: SMS через IQSMS (rate limit: 3/min per IP)
+    Route::post('/send-code', [AuthController::class, 'sendCode'])
+        ->middleware('throttle:sms-send-code-ip');
     Route::post('/verify-code', [AuthController::class, 'verifyCode']);
 });
 

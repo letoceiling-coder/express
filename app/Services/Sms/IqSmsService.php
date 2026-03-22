@@ -52,16 +52,18 @@ class IqSmsService
     public function send(string $phone, string $text): bool
     {
         $creds = $this->getCredentials();
+        $maskedPhone = $this->maskPhone($phone);
 
         if (empty($creds['login']) || empty($creds['password'])) {
-            Log::error('IqSmsService: login или password не заданы', [
-                'phone' => $this->maskPhone($phone),
-            ]);
+            $this->logSms('fail', $maskedPhone, null, ['error' => 'login_or_password_not_set']);
             return false;
         }
 
         $phone = $this->normalizePhone($phone);
         $clientId = 'sms_' . uniqid();
+
+        // IQSMS expects phone without '+' prefix (e.g. 79001234567)
+        $phoneForApi = ltrim($phone, '+');
 
         $payload = [
             'login' => $creds['login'],
@@ -69,7 +71,7 @@ class IqSmsService
             'sender' => $creds['sender'] ?: 'INFO',
             'messages' => [
                 [
-                    'phone' => $phone,
+                    'phone' => $phoneForApi,
                     'text' => $text,
                     'clientId' => $clientId,
                 ],
@@ -84,30 +86,50 @@ class IqSmsService
             $body = $response->json();
             $status = $body['status'] ?? null;
             $messages = $body['messages'] ?? [];
+            $providerResponse = [
+                'http_status' => $response->status(),
+                'status' => $status,
+                'messages' => $messages,
+            ];
 
             if ($response->successful() && $status === 'ok') {
                 $msgStatus = $messages[0]['status'] ?? null;
                 if ($msgStatus === 'accepted') {
-                    Log::info('IqSmsService: SMS отправлена', [
-                        'phone' => $this->maskPhone($phone),
-                        'smscId' => $messages[0]['smscId'] ?? null,
-                    ]);
+                    $this->logSms('success', $maskedPhone, $providerResponse);
                     return true;
                 }
             }
 
-            Log::error('IqSmsService: ошибка ответа API', [
-                'phone' => $this->maskPhone($phone),
-                'http_status' => $response->status(),
-                'response' => $body,
-            ]);
+            $this->logSms('fail', $maskedPhone, $providerResponse);
             return false;
         } catch (\Throwable $e) {
-            Log::error('IqSmsService: исключение при отправке', [
-                'phone' => $this->maskPhone($phone),
-                'message' => $e->getMessage(),
+            $this->logSms('fail', $maskedPhone, null, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
+        }
+    }
+
+    /**
+     * Production SMS logging: phone (masked), success/fail, provider response
+     */
+    protected function logSms(string $result, string $phoneMasked, ?array $providerResponse, array $extra = []): void
+    {
+        $context = array_merge(
+            [
+                'provider' => 'iqsms',
+                'phone' => $phoneMasked,
+                'result' => $result,
+                'provider_response' => $providerResponse,
+            ],
+            $extra
+        );
+
+        if ($result === 'success') {
+            Log::info('SMS sent successfully', $context);
+        } else {
+            Log::error('SMS send failed', $context);
         }
     }
 
