@@ -1,5 +1,6 @@
 import { Category, Product, Order, CreateOrderPayload, OrderItem } from '@/types';
 import { isTelegramWebApp } from '@/lib/telegram';
+import { useAuthStore } from '@/store/authStore';
 
 const API_BASE = '/api/v1';
 const AUTH_BASE = '/api/auth';
@@ -60,9 +61,16 @@ const getInitData = (): string | null => {
   }
 };
 
+/** Получить токен: приоритет authStore (persist), затем localStorage для обратной совместимости */
+const getAuthToken = (): string | null => {
+  const fromStore = useAuthStore.getState().token;
+  if (fromStore) return fromStore;
+  return localStorage.getItem('token');
+};
+
 // Утилита для работы с API
 const apiRequest = async (url: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const initData = getInitData();
   const isInTelegram = isTelegramWebApp();
   

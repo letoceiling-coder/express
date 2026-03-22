@@ -31,6 +31,16 @@ export const useAuthStore = create<AuthState>()(
       },
       isAuthenticated: () => !!get().token,
     }),
-    { name: 'auth', version: 1, partialize: (s) => ({ token: s.token, user: s.user }) }
+    {
+      name: 'auth',
+      version: 1,
+      partialize: (s) => ({ token: s.token, user: s.user }),
+      onRehydrateStorage: () => (state) => {
+        // Синхронизируем token в localStorage при восстановлении из persist (заказы по SMS в веб-версии)
+        if (state?.token) {
+          localStorage.setItem('token', state.token);
+        }
+      },
+    }
   )
 );
