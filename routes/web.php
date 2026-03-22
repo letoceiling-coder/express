@@ -273,15 +273,11 @@ Route::get('/version', function () {
         $manifest = json_decode(file_get_contents($manifestPath), true);
         $adminBuild = $manifest['resources/js/admin.js']['file'] ?? 'not-found';
     }
-    $sms = app(\App\Services\Sms\IqSmsService::class);
     return response()->json([
         'commit' => $commit,
         'admin_build' => $adminBuild,
         'expected' => 'assets/admin-B0uRBwbT.js',
         'ok' => str_contains($adminBuild, 'admin-B0uRBwbT'),
-        'sms_dev_mode' => $sms->isDevMode(),
-        'host' => request()->getHost(),
-        'app_env' => config('app.env'),
     ]);
 });
 
