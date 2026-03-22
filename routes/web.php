@@ -256,6 +256,31 @@ Route::get('/build/assets/{path}', function ($path) {
     ]);
 })->where('path', '.+')->name('build.assets');
 
+// Версия для проверки деплоя (curl https://dev.svoihlebekb.ru/version)
+Route::get('/version', function () {
+    $commit = 'unknown';
+    $adminBuild = 'unknown';
+    try {
+        $proc = \Illuminate\Support\Facades\Process::path(base_path())->run('git rev-parse --short HEAD');
+        if ($proc->successful()) {
+            $commit = trim($proc->output()) ?: 'unknown';
+        }
+    } catch (\Throwable $e) {
+        // ignore
+    }
+    $manifestPath = public_path('build/manifest.json');
+    if (file_exists($manifestPath)) {
+        $manifest = json_decode(file_get_contents($manifestPath), true);
+        $adminBuild = $manifest['resources/js/admin.js']['file'] ?? 'not-found';
+    }
+    return response()->json([
+        'commit' => $commit,
+        'admin_build' => $adminBuild,
+        'expected' => 'assets/admin-B0uRBwbT.js',
+        'ok' => str_contains($adminBuild, 'admin-B0uRBwbT'),
+    ]);
+});
+
 // Страница истечения подписки (должна быть до админ-панели)
 Route::get('/subscription-expired', [\App\Http\Controllers\SubscriptionExpiredController::class, 'index'])
     ->name('subscription.expired');

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use Illuminate\Support\Facades\Process;
 use App\Http\Controllers\Api\AdminMenuController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\RoleController;
@@ -33,31 +32,6 @@ use App\Http\Controllers\Api\v1\TelegramUserRoleRequestController;
 use Illuminate\Support\Facades\Route;
 
 
-
-// Версия/коммит для проверки деплоя (curl https://dev.svoihlebekb.ru/api/version)
-Route::get('/version', function () {
-    $commit = 'unknown';
-    try {
-        $proc = Process::path(base_path())->run('git rev-parse --short HEAD');
-        if ($proc->successful()) {
-            $commit = trim($proc->output()) ?: 'unknown';
-        }
-    } catch (\Throwable $e) {
-        // ignore
-    }
-    $adminBuild = 'unknown';
-    $manifestPath = public_path('build/manifest.json');
-    if (file_exists($manifestPath)) {
-        $manifest = json_decode(file_get_contents($manifestPath), true);
-        $adminBuild = $manifest['resources/js/admin.js']['file'] ?? 'not-found';
-    }
-    return response()->json([
-        'commit' => $commit,
-        'admin_build' => $adminBuild,
-        'banners_pages' => true,
-        'expected' => 'assets/admin-B0uRBwbT.js',
-    ]);
-});
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
