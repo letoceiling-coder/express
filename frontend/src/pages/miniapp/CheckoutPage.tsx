@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { useCartStore } from '@/store/cartStore';
+import { useOrderModeStore } from '@/store/orderModeStore';
 import { useOrders } from '@/hooks/useOrders';
 import { toast } from 'sonner';
 import { Loader2, Check, CalendarIcon, FileText } from 'lucide-react';
@@ -80,20 +81,11 @@ type DeliveryType = 'courier' | 'pickup';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { items, getTotalAmount, clearCart } = useCartStore();
+  const { orderMode, setOrderMode } = useOrderModeStore();
   const { createOrder, loadOrders } = useOrders();
   const totalAmount = getTotalAmount();
-
-  // Получение orderMode из state или localStorage для начального значения
-  const getInitialDeliveryType = (): DeliveryType => {
-    if (location.state?.orderMode === 'delivery') return 'courier';
-    if (location.state?.orderMode === 'pickup') return 'pickup';
-    const saved = localStorage.getItem('orderMode');
-    if (saved === 'delivery') return 'courier';
-    if (saved === 'pickup') return 'pickup';
-    return 'courier'; // Дефолт из формы
-  };
+  const isDelivery = orderMode === 'delivery';
 
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,10 +110,14 @@ export function CheckoutPage() {
     address: '',
     deliveryDate: '',
     deliveryTimeSlot: '',
-    deliveryType: getInitialDeliveryType(),
+    deliveryType: ('courier' as DeliveryType),
     comment: '',
     paymentMethod: null as any | null,
   }));
+
+  useEffect(() => {
+    setFormData((p) => ({ ...p, deliveryType: (orderMode === 'delivery' ? 'courier' : 'pickup') as DeliveryType }));
+  }, [orderMode]);
   
   // Минимальная дата (сегодня)
   const today = new Date();
@@ -349,45 +345,32 @@ export function CheckoutPage() {
 
   // Фильтрация способов оплаты по доступности
   const availablePaymentMethods = useMemo(() => {
-    if (formData.deliveryType === 'pickup') {
+    if (!isDelivery) {
       return paymentMethods.filter((method: any) => method.availableForPickup !== false);
     } else {
       return paymentMethods.filter((method: any) => method.availableForDelivery !== false);
     }
-  }, [paymentMethods, formData.deliveryType]);
+  }, [paymentMethods, isDelivery]);
 
   // Автоматический выбор доступного способа оплаты при изменении типа доставки
   useEffect(() => {
     if (availablePaymentMethods.length > 0 && !formData.paymentMethod) {
-      // Ищем способ оплаты по умолчанию
       const defaultMethod = availablePaymentMethods.find((m: any) => m.isDefault);
       if (defaultMethod) {
-        setFormData(prev => ({
-          ...prev,
-          paymentMethod: defaultMethod,
-        }));
+        setFormData(prev => ({ ...prev, paymentMethod: defaultMethod }));
       } else {
-        // Выбираем первый доступный способ оплаты
-        setFormData(prev => ({
-          ...prev,
-          paymentMethod: availablePaymentMethods[0],
-        }));
+        setFormData(prev => ({ ...prev, paymentMethod: availablePaymentMethods[0] }));
       }
     } else if (formData.paymentMethod) {
-      // Проверяем, что выбранный способ оплаты доступен для текущего типа доставки
       const isCurrentMethodAvailable = availablePaymentMethods.some((m: any) => m.id === formData.paymentMethod?.id);
       if (!isCurrentMethodAvailable) {
-        // Выбираем первый доступный способ оплаты
         const defaultMethod = availablePaymentMethods.find((m: any) => m.isDefault) || availablePaymentMethods[0];
         if (defaultMethod) {
-          setFormData(prev => ({
-            ...prev,
-            paymentMethod: defaultMethod,
-          }));
+          setFormData(prev => ({ ...prev, paymentMethod: defaultMethod }));
         }
       }
     }
-  }, [availablePaymentMethods, formData.deliveryType]);
+  }, [availablePaymentMethods]);
 
   // Имя заполняется только из прошлых заказов, не из Telegram
 
@@ -412,9 +395,9 @@ export function CheckoutPage() {
     setDeliveryCost(null);
   };
 
-  // Расчет стоимости доставки
+  // Расчет стоимости доставки — только при orderMode === 'delivery'
   const calculateDeliveryCost = async (address: string) => {
-    if (!address.trim() || formData.deliveryType !== 'courier') {
+    if (!isDelivery || !address.trim()) {
       setDeliveryCost(null);
       setDeliveryValidation(null);
       return;
@@ -455,19 +438,23 @@ export function CheckoutPage() {
     }
   };
 
-  // Debounce для расчета стоимости доставки
+  // Debounce для расчета стоимости доставки — только при orderMode === 'delivery'
   useEffect(() => {
+    if (!isDelivery) {
+      setDeliveryCost(null);
+      setDeliveryValidation(null);
+      return;
+    }
     const timer = setTimeout(() => {
-      if (formData.deliveryType === 'courier' && formData.address.trim()) {
+      if (formData.address.trim()) {
         calculateDeliveryCost(formData.address);
       } else {
         setDeliveryCost(null);
         setDeliveryValidation(null);
       }
-    }, 1000); // Задержка 1 секунда после ввода
-
+    }, 1000);
     return () => clearTimeout(timer);
-  }, [formData.address, formData.deliveryType, defaultCity]);
+  }, [isDelivery, formData.address, defaultCity]);
 
   const validateStep = async (currentStep: Step): Promise<boolean> => {
     if (currentStep === 1) {
@@ -478,7 +465,7 @@ export function CheckoutPage() {
       }
     }
     if (currentStep === 2) {
-      if (formData.deliveryType === 'courier') {
+      if (isDelivery) {
         if (!formData.address.trim()) {
           toast.error('Введите адрес доставки');
           return false;
@@ -600,7 +587,7 @@ export function CheckoutPage() {
     try {
       // Подготовка данных заказа
       const phoneDigits = getPhoneDigits(formData.phone);
-      const deliveryCostFinal = formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0;
+      const deliveryCostFinal = isDelivery && deliveryCost != null ? deliveryCost : 0;
       const itemsTotal = discountInfo?.final_amount || totalAmount; // Сумма товаров (со скидкой, если есть)
       const grandTotal = itemsTotal + deliveryCostFinal; // Итоговая сумма = товары + доставка
       
@@ -622,7 +609,7 @@ export function CheckoutPage() {
         name: formData.name || undefined,
         deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : (deliveryValidation?.address || formData.address),
         deliveryTime: deliveryTimeStr,
-        deliveryType: formData.deliveryType,
+        deliveryType: isDelivery ? 'courier' : 'pickup',
         deliveryCost: deliveryCostFinal, // Стоимость доставки отдельно
         comment: formData.comment || undefined,
         paymentMethod: formData.paymentMethod?.code || null,
@@ -821,7 +808,11 @@ export function CheckoutPage() {
               </label>
               <select
                 value={formData.deliveryType}
-                onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value as DeliveryType })}
+                onChange={(e) => {
+                  const v = e.target.value as DeliveryType;
+                  setFormData({ ...formData, deliveryType: v });
+                  setOrderMode(v === 'courier' ? 'delivery' : 'pickup');
+                }}
                 className="w-full h-11 rounded-lg border border-border bg-background px-4 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="courier">Курьер</option>
@@ -829,7 +820,7 @@ export function CheckoutPage() {
               </select>
             </div>
 
-            {formData.deliveryType === 'courier' && (
+            {isDelivery && (
               <div className="space-y-2">
                 {/* Проверка минимальной суммы для доставки */}
                 {totalAmount < minDeliveryOrderTotal && (
@@ -845,6 +836,7 @@ export function CheckoutPage() {
                     </p>
                     <button
                       onClick={() => {
+                        setOrderMode('pickup');
                         setFormData({ ...formData, deliveryType: 'pickup' });
                         toast.info('Переключено на самовывоз');
                       }}
@@ -1129,10 +1121,10 @@ export function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Тип доставки</span>
                   <span className="text-foreground">
-                    {formData.deliveryType === 'courier' ? 'Курьер' : 'Самовывоз'}
+                    {isDelivery ? 'Курьер' : 'Самовывоз'}
                   </span>
                 </div>
-                {formData.deliveryType === 'courier' && (
+                {isDelivery && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Адрес</span>
@@ -1200,7 +1192,7 @@ export function CheckoutPage() {
                     </span>
                   </div>
                 )}
-                {formData.deliveryType === 'courier' && deliveryCost !== null && deliveryCost > 0 && (
+                {isDelivery && deliveryCost != null && deliveryCost > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Доставка</span>
                     <span className="text-sm text-foreground">
@@ -1252,13 +1244,13 @@ export function CheckoutPage() {
               onClick={handleNext}
               disabled={
                 step === 2 &&
-                formData.deliveryType === 'courier' &&
+                isDelivery &&
                 totalAmount < minDeliveryOrderTotal
               }
               className={cn(
                 "flex-1 h-11 rounded-lg font-semibold touch-feedback",
                 step === 2 &&
-                formData.deliveryType === 'courier' &&
+                isDelivery &&
                 totalAmount < minDeliveryOrderTotal
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-primary text-primary-foreground"

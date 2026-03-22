@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
+import { useOrderModeStore } from '@/store/orderModeStore';
 import { useWebOrders } from '@/hooks/useWebOrders';
 import { AuthModal } from '@/components/web/AuthModal';
 import { paymentMethodsAPI, paymentAPI, deliverySettingsAPI } from '@/api';
@@ -41,9 +42,12 @@ export function WebCheckoutPage() {
   const { items, getTotalAmount, clearCart } = useCartStore();
   const isAuth = useAuthStore((s) => s.isAuthenticated());
   const user = useAuthStore((s) => s.user);
+  const { orderMode, setOrderMode } = useOrderModeStore();
   const { createOrder } = useWebOrders();
   const totalAmount = getTotalAmount();
   const [showAuth, setShowAuth] = useState(false);
+
+  const isDelivery = orderMode === 'delivery';
 
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,10 +67,14 @@ export function WebCheckoutPage() {
     address: '',
     deliveryDate: '',
     deliveryTimeSlot: '',
-    deliveryType: 'courier' as DeliveryType,
+    deliveryType: (orderMode === 'delivery' ? 'courier' : 'pickup') as DeliveryType,
     comment: '',
     paymentMethod: null as any,
   });
+
+  useEffect(() => {
+    setFormData((p) => ({ ...p, deliveryType: (orderMode === 'delivery' ? 'courier' : 'pickup') as DeliveryType }));
+  }, [orderMode]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -114,9 +122,9 @@ export function WebCheckoutPage() {
     } else setDiscountInfo(null);
   }, [formData.paymentMethod?.id, totalAmount]);
 
-  const availablePaymentMethods = formData.deliveryType === 'pickup'
-    ? paymentMethods.filter((m: any) => m.availableForPickup !== false)
-    : paymentMethods.filter((m: any) => m.availableForDelivery !== false);
+  const availablePaymentMethods = isDelivery
+    ? paymentMethods.filter((m: any) => m.availableForDelivery !== false)
+    : paymentMethods.filter((m: any) => m.availableForPickup !== false);
 
   useEffect(() => {
     if (availablePaymentMethods.length > 0 && !formData.paymentMethod) {
@@ -126,7 +134,7 @@ export function WebCheckoutPage() {
   }, [availablePaymentMethods.length]);
 
   const calculateDeliveryCost = async (address: string) => {
-    if (!address.trim() || formData.deliveryType !== 'courier') {
+    if (!isDelivery || !address.trim()) {
       setDeliveryCost(null);
       setDeliveryValidation(null);
       return;
@@ -151,12 +159,17 @@ export function WebCheckoutPage() {
   };
 
   useEffect(() => {
+    if (!isDelivery) {
+      setDeliveryCost(null);
+      setDeliveryValidation(null);
+      return;
+    }
     const t = setTimeout(() => {
-      if (formData.deliveryType === 'courier' && formData.address.trim()) calculateDeliveryCost(formData.address);
+      if (formData.address.trim()) calculateDeliveryCost(formData.address);
       else setDeliveryCost(null), setDeliveryValidation(null);
     }, 1000);
     return () => clearTimeout(t);
-  }, [formData.address, formData.deliveryType, defaultCity]);
+  }, [isDelivery, formData.address, defaultCity]);
 
   if (items.length === 0) {
     navigate('/cart');
@@ -185,7 +198,7 @@ export function WebCheckoutPage() {
       }
     }
     if (s === 2) {
-      if (formData.deliveryType === 'courier') {
+      if (isDelivery) {
         if (!formData.address.trim()) { toast.error('Введите адрес'); return false; }
         if (deliveryValidation && !deliveryValidation.valid) { toast.error(deliveryValidation.error); return false; }
         if (totalAmount < minDeliveryOrderTotal) {
@@ -213,7 +226,7 @@ export function WebCheckoutPage() {
     setIsLoading(true);
     try {
       const phoneDigits = getPhoneDigits(formData.phone);
-      const deliveryCostFinal = formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0;
+      const deliveryCostFinal = isDelivery && deliveryCost != null ? deliveryCost : 0;
       const itemsTotal = discountInfo?.final_amount || totalAmount;
       const grandTotal = itemsTotal + deliveryCostFinal;
       const deliveryTimeStr = formData.deliveryDate && formData.deliveryTimeSlot
@@ -223,9 +236,9 @@ export function WebCheckoutPage() {
       const orderData = {
         phone: phoneDigits,
         name: formData.name || undefined,
-        deliveryAddress: formData.deliveryType === 'pickup' ? 'Самовывоз' : (deliveryValidation?.address || formData.address),
+        deliveryAddress: isDelivery ? (deliveryValidation?.address || formData.address) : 'Самовывоз',
         deliveryTime: deliveryTimeStr,
-        deliveryType: formData.deliveryType,
+        deliveryType: isDelivery ? 'courier' : 'pickup',
         deliveryCost: deliveryCostFinal,
         comment: formData.comment || undefined,
         paymentMethod: formData.paymentMethod?.code || null,
@@ -304,14 +317,18 @@ export function WebCheckoutPage() {
             <label className="block text-sm mb-1">Тип доставки</label>
             <select
               value={formData.deliveryType}
-              onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value as DeliveryType })}
+              onChange={(e) => {
+                const v = e.target.value as DeliveryType;
+                setFormData({ ...formData, deliveryType: v });
+                setOrderMode(v === 'courier' ? 'delivery' : 'pickup');
+              }}
               className="w-full rounded-xl border bg-muted px-4 py-3"
             >
               <option value="courier">Курьер</option>
               <option value="pickup">Самовывоз</option>
             </select>
           </div>
-          {formData.deliveryType === 'courier' && (
+          {isDelivery && (
             <>
               <div>
                 <label className="block text-sm mb-1">Адрес *</label>
@@ -411,7 +428,7 @@ export function WebCheckoutPage() {
             ))}
           </div>
           <div className="rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Адрес: {formData.deliveryType === 'courier' ? (deliveryValidation?.address || formData.address) : 'Самовывоз'}</p>
+            <p className="text-sm text-muted-foreground">Адрес: {isDelivery ? (deliveryValidation?.address || formData.address) : 'Самовывоз'}</p>
             <p className="text-sm text-muted-foreground">Время: {formData.deliveryDate && formData.deliveryTimeSlot ? `${format(new Date(formData.deliveryDate), 'd MMM', { locale: ru })}, ${formData.deliveryTimeSlot}` : '-'}</p>
             <p className="text-sm text-muted-foreground">Оплата: {formData.paymentMethod?.name}</p>
           </div>
@@ -419,7 +436,7 @@ export function WebCheckoutPage() {
             <div className="flex justify-between">
               <span>К оплате</span>
               <span className="text-xl font-bold">
-                {((discountInfo?.final_amount ?? totalAmount) + (formData.deliveryType === 'courier' && deliveryCost ? deliveryCost : 0)).toLocaleString('ru-RU')} ₽
+                {((discountInfo?.final_amount ?? totalAmount) + (isDelivery && deliveryCost != null ? deliveryCost : 0)).toLocaleString('ru-RU')} ₽
               </span>
             </div>
           </div>

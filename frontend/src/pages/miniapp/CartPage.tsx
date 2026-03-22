@@ -5,6 +5,7 @@ import { MiniAppHeader } from '@/components/miniapp/MiniAppHeader';
 import { BottomNavigation } from '@/components/miniapp/BottomNavigation';
 import { CartItem } from '@/components/miniapp/CartItem';
 import { useCartStore } from '@/store/cartStore';
+import { useOrderModeStore } from '@/store/orderModeStore';
 import { deliverySettingsAPI } from '@/api';
 import { showTelegramConfirm, hapticFeedback } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
@@ -12,13 +13,8 @@ import { cn } from '@/lib/utils';
 export function CartPage() {
   const navigate = useNavigate();
   const { items, getTotalAmount, clearCart } = useCartStore();
+  const orderMode = useOrderModeStore((s) => s.orderMode);
   const totalAmount = getTotalAmount();
-
-  // Получение orderMode из localStorage
-  const [orderMode] = useState<'pickup' | 'delivery'>(() => {
-    const saved = localStorage.getItem('orderMode');
-    return saved === 'delivery' ? 'delivery' : 'pickup';
-  });
 
   // Загрузка настроек доставки
   const [minDeliveryOrderTotal, setMinDeliveryOrderTotal] = useState<number>(3000);
