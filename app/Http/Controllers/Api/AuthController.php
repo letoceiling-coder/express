@@ -263,11 +263,38 @@ class AuthController extends Controller
             $code = (string) random_int($min, $max);
 
             $sms = app(IqSmsService::class);
+
+            if ($sms->isDevMode()) {
+                $code = '123456';
+            }
+
             if (!$sms->sendCode($phone, $code)) {
-                Log::error('AuthController::sendCode: не удалось отправить SMS', ['phone' => substr($phone, 0, 2) . '***']);
+                $maskedPhone = substr($phone, 0, 2) . '***' . substr($phone, -2);
+                Log::error('AuthController::sendCode: SMS send failed', [
+                    'phone' => $maskedPhone,
+                    'reason' => $sms->getLastError() ?? 'unknown',
+                    'credentials_missing' => !$sms->hasCredentials(),
+                ]);
+
+                if ($sms->isDevMode()) {
+                    SmsCode::create([
+                        'phone' => $phone,
+                        'code' => '123456',
+                        'expires_at' => now()->addMinutes($ttlMinutes),
+                        'attempts' => 0,
+                        'ip' => $request->ip(),
+                        'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 500) : null,
+                        'device_id' => $request->header('X-Device-ID') ? substr($request->header('X-Device-ID'), 0, 100) : null,
+                    ]);
+                    return response()->json([
+                        'message' => 'SMS temporarily unavailable',
+                        'dev_code' => '123456',
+                    ]);
+                }
+
                 return response()->json([
-                    'message' => 'Не удалось отправить SMS. Попробуйте позже.',
-                ], 500);
+                    'message' => 'SMS temporarily unavailable',
+                ]);
             }
 
             SmsCode::create([

@@ -15,6 +15,24 @@ class IqSmsService
 {
     protected string $baseUrl = 'https://api.iqsms.ru/messages/v2';
 
+    protected ?string $lastError = null;
+
+    public function getLastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function isDevMode(): bool
+    {
+        return in_array(config('app.env'), ['local', 'development', 'dev'], true);
+    }
+
+    public function hasCredentials(): bool
+    {
+        $creds = $this->getCredentials();
+        return !empty($creds['login']) && !empty($creds['password']);
+    }
+
     /**
      * Получить учётные данные: приоритет БД → config
      */
@@ -54,8 +72,22 @@ class IqSmsService
         $creds = $this->getCredentials();
         $maskedPhone = $this->maskPhone($phone);
 
+        if ($this->isDevMode()) {
+            Log::info('SMS skipped (dev mode)', [
+                'provider' => 'iqsms',
+                'phone' => $maskedPhone,
+                'reason' => 'APP_ENV is local/development/dev',
+            ]);
+            return true;
+        }
+
         if (empty($creds['login']) || empty($creds['password'])) {
-            $this->logSms('fail', $maskedPhone, null, ['error' => 'login_or_password_not_set']);
+            $this->lastError = 'credentials_missing';
+            Log::error('SMS send failed: credentials missing', [
+                'provider' => 'iqsms',
+                'phone' => $maskedPhone,
+                'reason' => 'IQSMS login or password not configured (check SmsSetting or config/services.iqsms)',
+            ]);
             return false;
         }
 
@@ -100,10 +132,18 @@ class IqSmsService
                 }
             }
 
-            $this->logSms('fail', $maskedPhone, $providerResponse);
+            $this->lastError = 'api_error';
+            Log::error('SMS send failed: API error', [
+                'provider' => 'iqsms',
+                'phone' => $maskedPhone,
+                'api_response' => $providerResponse,
+            ]);
             return false;
         } catch (\Throwable $e) {
-            $this->logSms('fail', $maskedPhone, null, [
+            $this->lastError = 'exception';
+            Log::error('SMS send failed: exception', [
+                'provider' => 'iqsms',
+                'phone' => $maskedPhone,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
