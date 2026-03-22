@@ -20,7 +20,8 @@ class Deploy extends Command
                             {--dry-run : Показать что будет сделано без выполнения}
                             {--insecure : Отключить проверку SSL сертификата (для разработки)}
                             {--with-seed : Выполнить seeders на сервере (по умолчанию пропускаются)}
-                            {--force : Принудительная отправка (force push) - перезаписывает удаленную ветку}';
+                            {--force : Принудительная отправка (force push) - перезаписывает удаленную ветку}
+                            {--target= : Целевой сервер: dev (dev.svoihlebekb.ru) или prod (по умолчанию из DEPLOY_SERVER_URL)}';
 
     /**
      * The console command description.
@@ -551,7 +552,12 @@ class Deploy extends Command
     {
         $this->info('🌐 Шаг 7: Отправка запроса на сервер...');
 
-        $serverUrl = env('DEPLOY_SERVER_URL');
+        $target = $this->option('target');
+        $serverUrl = match ($target) {
+            'dev' => env('DEPLOY_SERVER_DEV_URL', 'https://dev.svoihlebekb.ru'),
+            'prod' => env('DEPLOY_SERVER_URL'),
+            default => env('DEPLOY_SERVER_URL'),
+        };
         $deployToken = env('DEPLOY_TOKEN');
 
         if (!$serverUrl) {
@@ -585,6 +591,9 @@ class Deploy extends Command
         // Добавляем /api/deploy
         $deployUrl .= '/api/deploy';
 
+        if ($target === 'dev') {
+            $this->line("  🎯 Target: DEV (dev.svoihlebekb.ru)");
+        }
         $this->line("  📡 URL: {$deployUrl}");
         $this->line("  🔑 Commit: " . substr($commitHash, 0, 7));
         $this->line("  🔐 Token: " . (substr($deployToken, 0, 3) . '...' . substr($deployToken, -3)));
