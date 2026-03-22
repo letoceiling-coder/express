@@ -45,7 +45,18 @@ Route::get('/version', function () {
     } catch (\Throwable $e) {
         // ignore
     }
-    return response()->json(['commit' => $commit, 'banners_pages' => true]);
+    $adminBuild = 'unknown';
+    $manifestPath = public_path('build/manifest.json');
+    if (file_exists($manifestPath)) {
+        $manifest = json_decode(file_get_contents($manifestPath), true);
+        $adminBuild = $manifest['resources/js/admin.js']['file'] ?? 'not-found';
+    }
+    return response()->json([
+        'commit' => $commit,
+        'admin_build' => $adminBuild,
+        'banners_pages' => true,
+        'expected' => 'assets/admin-B0uRBwbT.js',
+    ]);
 });
 
 Route::prefix('auth')->group(function () {

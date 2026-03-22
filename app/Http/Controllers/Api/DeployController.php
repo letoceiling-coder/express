@@ -122,10 +122,25 @@ class DeployController extends Controller
             // Получаем новый commit hash
             $newCommitHash = $this->getCurrentCommitHash();
 
+            // Проверка: какой admin build на сервере (для отладки)
+            $manifestPath = public_path('build/manifest.json');
+            $adminBuild = 'unknown';
+            if (file_exists($manifestPath)) {
+                $manifest = json_decode(file_get_contents($manifestPath), true);
+                $adminBuild = $manifest['resources/js/admin.js']['file'] ?? 'not-found';
+            }
+
+            // Сброс OPcache (если включён) — чтобы PHP загрузил новый код
+            if (function_exists('opcache_reset')) {
+                opcache_reset();
+            }
+
             // Формируем успешный ответ
             $result['success'] = true;
             $result['message'] = 'Деплой успешно завершен';
             $result['data'] = array_merge($result['data'], [
+                'admin_build' => $adminBuild,
+                'admin_build_expected' => 'assets/admin-B0uRBwbT.js',
                 'php_version' => $this->phpVersion,
                 'php_path' => $this->phpPath,
                 'branch' => $requestedBranch,
