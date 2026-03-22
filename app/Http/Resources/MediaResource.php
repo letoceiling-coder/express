@@ -57,10 +57,11 @@ class MediaResource extends JsonResource
                 return new FolderResource($this->folder);
             }),
             'user' => $this->whenLoaded('user', function() {
-                return [
-                    'id' => $this->user->id,
-                    'name' => $this->user->name,
-                ];
+                $user = $this->user;
+                return $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ] : null;
             }),
         ];
     }

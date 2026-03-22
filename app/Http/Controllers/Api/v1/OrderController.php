@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderRequest;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Bot;
 use App\Services\Auth\ResolveUserService;
@@ -533,69 +534,33 @@ class OrderController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
 
-        // Логируем финальный SQL запрос перед выполнением
-        Log::info('OrderController::index - Final query before execution', [
+        // Безопасная пагинация: per_page от 1 до 100
+        $perPage = max(1, min((int) $request->get('per_page', 15), 100));
+
+        Log::info('OrderController::index - Before query', [
+            'auth_user_id' => $request->user()?->id,
+            'per_page' => $perPage,
+            'per_page_raw' => $request->get('per_page'),
+            'filters' => [
+                'status' => $request->get('status'),
+                'payment_status' => $request->get('payment_status'),
+                'manager_id' => $request->get('manager_id'),
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'search' => $request->get('search'),
+            ],
             'sql' => $query->toSql(),
             'bindings' => $query->getBindings(),
-            'telegram_id_in_bindings' => isset($telegramIdInt) && in_array($telegramIdInt, $query->getBindings(), true),
-        ]);
-        
-        // Пагинация
-        $perPage = $request->get('per_page', 15);
-        if ($perPage > 0) {
-            $orders = $query->paginate($perPage);
-        } else {
-            $orders = $query->get();
-        }
-        
-        // Логируем результат для отладки
-        $ordersCount = is_countable($orders) ? count($orders) : (method_exists($orders, 'count') ? $orders->count() : 0);
-        
-        // Дополнительная проверка: выполняем прямой запрос для отладки
-        if (isset($telegramIdInt)) {
-            $directCount = Order::where('telegram_id', $telegramIdInt)->count();
-            Log::info('OrderController::index - Direct count check', [
-                'telegram_id' => $telegramIdInt,
-                'direct_count' => $directCount,
-                'query_count' => $ordersCount,
-            ]);
-        }
-        $firstOrder = null;
-        
-        if ($ordersCount > 0) {
-            if (method_exists($orders, 'items')) {
-                // Пагинированный ответ
-                $firstOrder = $orders->items()[0] ?? null;
-            } else {
-                // Коллекция
-                $firstOrder = $orders[0] ?? $orders->first();
-            }
-        }
-        
-        // Определяем формат ответа для правильной сериализации
-        $responseData = $orders;
-        
-        // Если это коллекция (не пагинация), преобразуем в массив для правильной сериализации
-        if (!method_exists($orders, 'items') && method_exists($orders, 'toArray')) {
-            $responseData = $orders->toArray();
-        }
-        
-        Log::info('OrderController::index - Returning orders', [
-            'telegram_id' => $request->get('telegram_id'),
-            'orders_count' => $ordersCount,
-            'is_paginated' => method_exists($orders, 'items'),
-            'is_collection' => method_exists($orders, 'toArray'),
-            'response_data_type' => gettype($responseData),
-            'first_order_id' => $firstOrder?->id,
-            'first_order_order_id' => $firstOrder?->order_id,
-            'first_order_phone' => $firstOrder?->phone,
-            'first_order_name' => $firstOrder?->name,
-            'first_order_address' => $firstOrder?->delivery_address,
         ]);
 
-        return response()->json([
-            'data' => $responseData,
+        $orders = $query->paginate($perPage);
+
+        Log::info('OrderController::index - Returning orders', [
+            'telegram_id' => $request->get('telegram_id'),
+            'orders_count' => method_exists($orders, 'total') ? $orders->total() : $orders->count(),
         ]);
+
+        return OrderResource::collection($orders);
     }
 
     /**
@@ -606,11 +571,9 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with(['items.product', 'manager', 'bot', 'payments'])->findOrFail($id);
+        $order = Order::with(['items', 'items.product', 'manager', 'bot', 'payments', 'user'])->findOrFail($id);
 
-        return response()->json([
-            'data' => $order,
-        ]);
+        return new OrderResource($order);
     }
 
     /**
