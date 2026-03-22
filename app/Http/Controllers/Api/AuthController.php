@@ -254,13 +254,6 @@ class AuthController extends Controller
 
             $sms = app(IqSmsService::class);
 
-            Log::info('AuthController::sendCode - SMS check', [
-                'is_dev_mode' => $sms->isDevMode(),
-                'has_credentials' => $sms->hasCredentials(),
-                'app_env' => config('app.env'),
-                'sms_force_real' => config('sms.force_real_in_dev', false),
-            ]);
-
             if ($sms->isDevMode()) {
                 if ($existing) {
                     return response()->json([
