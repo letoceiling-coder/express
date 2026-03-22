@@ -1235,3 +1235,69 @@ export const paymentAPI = {
     }
   },
 };
+
+// Admin: Users API (управление пользователями админ-панели)
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  roles: Array<{ id: number; name: string; slug: string }>;
+  created_at: string;
+}
+
+export interface AdminRole {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export const usersAPI = {
+  async getList(params?: {
+    search?: string;
+    role_id?: number;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<{ data: AdminUser[]; meta: any }> {
+    const sp = new URLSearchParams();
+    if (params?.search) sp.append('search', params.search);
+    if (params?.role_id) sp.append('role_id', String(params.role_id));
+    if (params?.sort_by) sp.append('sort_by', params.sort_by);
+    if (params?.sort_order) sp.append('sort_order', params.sort_order);
+    if (params?.page) sp.append('page', String(params.page));
+    if (params?.per_page) sp.append('per_page', String(params.per_page));
+    const q = sp.toString();
+    const response = await apiRequest(`/users${q ? `?${q}` : ''}`);
+    return { data: response.data || [], meta: response.meta || {} };
+  },
+
+  async create(data: { name: string; email: string; password: string; roles?: number[] }): Promise<AdminUser> {
+    const response = await apiRequest('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  async update(id: number, data: { name: string; email: string; password?: string; roles?: number[] }): Promise<AdminUser> {
+    const response = await apiRequest(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  async delete(id: number): Promise<void> {
+    await apiRequest(`/users/${id}`, { method: 'DELETE' });
+  },
+};
+
+// Admin: Roles API
+export const rolesAPI = {
+  async getAll(): Promise<AdminRole[]> {
+    const response = await apiRequest('/roles');
+    return response.data || [];
+  },
+};

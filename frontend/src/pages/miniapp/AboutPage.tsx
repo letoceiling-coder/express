@@ -226,7 +226,7 @@ export function AboutPage() {
                   <OptimizedImage
                     src={images[0]}
                     alt={data.title}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 );
               }
@@ -240,7 +240,7 @@ export function AboutPage() {
                         <OptimizedImage
                           src={imageUrl}
                           alt={`${data.title} - ${index + 1}`}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                         />
                       </CarouselItem>
                     ))}

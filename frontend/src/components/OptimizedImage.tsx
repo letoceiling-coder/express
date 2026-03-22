@@ -58,8 +58,9 @@ export function OptimizedImage({
       <img
         src={placeholder || src}
         alt={alt}
-        className={cn('object-cover object-center', className)}
+        className={cn('object-contain object-center', className)}
         loading={loading}
+        decoding="async"
       />
     );
   }
@@ -84,21 +85,25 @@ export function OptimizedImage({
     jpegSource = src;
   }
 
+  // object-contain: отображать без растягивания, сохраняя пропорции
+  const imgClass = cn(
+    'w-full h-full object-contain object-center transition-opacity duration-300 max-w-full',
+    isLoading && 'opacity-0',
+    !isLoading && 'opacity-100',
+    className
+  );
+
   // Если есть WebP и JPEG варианты, используем picture элемент
   if (webpSource && jpegSource) {
     return (
-      <picture className={cn('block', className)}>
+      <picture className={cn('block w-full h-full', className)}>
         <source srcSet={webpSource} type="image/webp" />
         <img
           src={jpegSource}
           alt={alt}
-          className={cn(
-            'w-full h-full object-cover object-center transition-opacity duration-300',
-            isLoading && 'opacity-0',
-            !isLoading && 'opacity-100',
-            className
-          )}
+          className={imgClass}
           loading={loading}
+          decoding="async"
           onError={handleError}
           onLoad={handleLoad}
         />
@@ -107,7 +112,7 @@ export function OptimizedImage({
             src={placeholder}
             alt=""
             className={cn(
-              'absolute inset-0 w-full h-full object-cover object-center opacity-50 blur-sm',
+              'absolute inset-0 w-full h-full object-contain object-center opacity-50 blur-sm',
               className
             )}
             aria-hidden="true"
@@ -122,13 +127,9 @@ export function OptimizedImage({
     <img
       src={jpegSource || src}
       alt={alt}
-      className={cn(
-        'w-full h-full object-cover object-center transition-opacity duration-300',
-        isLoading && 'opacity-0',
-        !isLoading && 'opacity-100',
-        className
-      )}
+      className={imgClass}
       loading={loading}
+      decoding="async"
       onError={handleError}
       onLoad={handleLoad}
     />

@@ -109,9 +109,17 @@ export function HeroSlider() {
                 className={`
                   relative flex min-h-[320px] md:min-h-[400px] lg:min-h-[480px] 
                   items-center justify-center px-6 py-16 rounded-none
-                  ${slide.image ? 'bg-cover bg-center' : `bg-gradient-to-br ${slide.gradient}`}
+                  ${slide.image ? 'bg-cover bg-center bg-no-repeat' : `bg-gradient-to-br ${slide.gradient}`}
                 `}
-                style={slide.image ? { backgroundImage: `url(${slide.image})` } : undefined}
+                style={
+                  slide.image
+                    ? {
+                        backgroundImage: `url(${slide.image})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }
+                    : undefined
+                }
               >
                 {slide.image && (
                   <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient} opacity-70`} />

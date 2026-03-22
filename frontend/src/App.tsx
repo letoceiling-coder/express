@@ -43,6 +43,8 @@ import { SmsSettings } from "./pages/admin/SmsSettings";
 import { NotificationSettings } from "./pages/admin/NotificationSettings";
 import { NotificationLogsPage } from "./pages/admin/NotificationLogsPage";
 import { AdminBanners } from "./pages/admin/AdminBanners";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminDocumentation } from "./pages/admin/AdminDocumentation";
 
 import NotFound from "./pages/NotFound";
 
@@ -105,6 +107,8 @@ const App = () => {
             <Route path="categories" element={<AdminCategories />} />
             <Route path="about" element={<AdminAbout />} />
             <Route path="banners" element={<AdminBanners />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="documentation" element={<AdminDocumentation />} />
             <Route path="settings/payments/yookassa" element={<YooKassaSettings />} />
             <Route path="settings/delivery" element={<DeliverySettings />} />
             <Route path="sms-settings" element={<SmsSettings />} />

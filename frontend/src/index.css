@@ -120,6 +120,13 @@
     overflow-y: auto;
   }
 
+  /* Изображения: не растягивать, сохранять пропорции */
+  img {
+    max-width: 100%;
+    object-fit: contain;
+    object-position: center;
+  }
+
   /* Safe area for notch */
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0);

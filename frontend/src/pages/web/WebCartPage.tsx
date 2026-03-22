@@ -46,7 +46,7 @@ export function WebCartPage() {
                       src={product.imageUrl || '/placeholder-image.jpg'}
                       webpSrc={product.webpUrl}
                       alt={product.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       size="thumbnail"
                     />
                   </div>

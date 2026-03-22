@@ -146,7 +146,7 @@ export function WebOrderDetailPage() {
           {order.items.map((item) => (
             <div key={item.id} className="flex gap-3">
               <div className="h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-muted">
-                <OptimizedImage src={item.productImage || ''} alt={item.productName} className="h-full w-full object-cover" />
+                <OptimizedImage src={item.productImage || ''} alt={item.productName} className="h-full w-full object-contain" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{item.productName}</p>

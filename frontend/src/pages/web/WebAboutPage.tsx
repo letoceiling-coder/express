@@ -57,7 +57,7 @@ export function WebAboutPage() {
             <OptimizedImage
               src={data.cover_image_url}
               alt={data.title}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               size="large"
             />
           </div>

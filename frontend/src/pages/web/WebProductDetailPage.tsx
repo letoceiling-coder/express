@@ -91,7 +91,7 @@ export function WebProductDetailPage() {
               webpSrc={product.webpUrl}
               variants={product.imageVariants}
               alt={product.name}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               size="large"
             />
           </div>
