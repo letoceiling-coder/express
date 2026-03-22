@@ -1084,6 +1084,30 @@ export const deliverySettingsAPI = {
 };
 
 // ============================================
+// SMS Settings API (IQSMS)
+// ============================================
+export const smsSettingsAPI = {
+    async getSettings() {
+        const response = await apiGet('/sms-settings');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка загрузки настроек SMS' }));
+            throw new Error(error.message || 'Ошибка загрузки настроек SMS');
+        }
+        const data = await response.json();
+        return data.data ?? null;
+    },
+    async updateSettings(payload) {
+        const response = await apiPut('/sms-settings', payload);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка сохранения настроек SMS' }));
+            throw new Error(error.message || 'Ошибка сохранения настроек SMS');
+        }
+        const result = await response.json();
+        return result.data ?? result;
+    },
+};
+
+// ============================================
 // Legal Documents API
 // ============================================
 export const legalDocumentsAPI = {

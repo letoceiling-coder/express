@@ -499,6 +499,13 @@ const routes = [
                 component: () => import('./pages/admin/DeliverySettings.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Настройки доставки' },
             },
+            // SMS Settings (IQSMS)
+            {
+                path: 'settings/sms',
+                name: 'admin.sms-settings',
+                component: () => import('./pages/admin/SmsSettings.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin'], title: 'SMS (IQSMS)' },
+            },
             // Notification Settings
             {
                 path: 'settings/notifications',
