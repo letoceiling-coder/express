@@ -203,6 +203,12 @@ const routes = [
         meta: { requiresAuth: false },
     },
     {
+        path: '/403',
+        name: 'forbidden',
+        component: () => import('./pages/auth/Forbidden403.vue'),
+        meta: { requiresAuth: false },
+    },
+    {
         path: '/',
         component: () => import('./layouts/AdminLayout.vue'),
         meta: { requiresAuth: true, requiresRole: ['admin'] },
@@ -507,6 +513,13 @@ const routes = [
                 component: () => import('./pages/admin/LegalDocuments.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin'], title: 'Документы' },
             },
+            // Banners
+            {
+                path: 'banners',
+                name: 'admin.banners',
+                component: () => import('./pages/admin/Banners.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Баннеры' },
+            },
         ],
     },
 ];
@@ -619,10 +632,11 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
     
-    // 2. Если пользователь авторизован и пытается зайти на страницы авторизации, редиректим на главную
+    // 2. Если пользователь авторизован и пытается зайти на страницы авторизации, редиректим на главную (или /403 при отсутствии роли)
     if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
-        console.log('✅ Router Guard - Already authenticated, redirecting to /');
-        next('/');
+        const hasAdminRole = store.getters.hasAnyRole(['admin']);
+        console.log('✅ Router Guard - Already authenticated, redirecting to', hasAdminRole ? '/' : '/403');
+        next(hasAdminRole ? '/' : '/403');
         return;
     }
     
@@ -674,15 +688,16 @@ router.beforeEach(async (to, from, next) => {
         });
         
         if (!hasRole) {
-            // Пользователь не имеет нужной роли
-            console.log('❌ Router Guard - No required role, redirecting to /', {
+            const userRoles = store.state.user?.roles || [];
+            const userHasRoles = userRoles.length > 0;
+            console.log('❌ Router Guard - No required role, redirecting to /403', {
                 route: to.path,
                 requiredRoles,
-                userRoles,
-                userHasRoles: !!store.state.user?.roles,
-                userRolesCount: store.state.user?.roles?.length || 0,
+                userRoles: userRoles.map(r => r.slug),
+                userHasRoles,
+                userRolesCount: userRoles.length,
             });
-            next('/');
+            next('/403');
             return;
         } else {
             console.log('✅ Router Guard - Role check passed', {

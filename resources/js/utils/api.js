@@ -982,6 +982,43 @@ export const reviewsAPI = {
 };
 
 // ============================================
+// Banners API
+// ============================================
+export const bannersAPI = {
+    async getAdmin() {
+        const response = await apiGet('/banners/admin');
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки баннеров');
+        }
+        const data = await response.json();
+        return Array.isArray(data.data) ? data.data : [];
+    },
+    async create(data) {
+        const response = await apiPost('/banners', data);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка создания баннера' }));
+            throw new Error(error.message || 'Ошибка создания баннера');
+        }
+        return response.json();
+    },
+    async update(id, data) {
+        const response = await apiPut(`/banners/${id}`, data);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Ошибка обновления баннера' }));
+            throw new Error(error.message || 'Ошибка обновления баннера');
+        }
+        return response.json();
+    },
+    async delete(id) {
+        const response = await apiDelete(`/banners/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка удаления баннера');
+        }
+        return true;
+    },
+};
+
+// ============================================
 // Payment Settings API
 // ============================================
 export const paymentSettingsAPI = {
