@@ -701,6 +701,16 @@ class Deploy extends Command
                         }
                     }
 
+                    if (isset($dataArray['admin_build'])) {
+                        $expected = $dataArray['admin_build_expected'] ?? 'assets/admin-B0uRBwbT.js';
+                        $ok = ($dataArray['admin_build'] === $expected || str_contains($dataArray['admin_build'], 'admin-B0uRBwbT'));
+                        if ($ok) {
+                            $this->line("     Admin build: {$dataArray['admin_build']} ✓");
+                        } else {
+                            $this->warn("     Admin build: {$dataArray['admin_build']} (ожидается {$expected})");
+                        }
+                    }
+
                     if (isset($dataArray['seeders'])) {
                         $seeders = $dataArray['seeders'];
                         if (is_array($seeders) && isset($seeders['status'])) {
