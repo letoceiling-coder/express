@@ -309,13 +309,20 @@ Route::get('/call', function () {
 })->name('call');
 
 // Маршруты для основного приложения (React)
+// No-cache для HTML — чтобы при обновлении сборки браузер получал свежие скрипты
+$reactHeaders = [
+    'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+    'Pragma' => 'no-cache',
+    'Expires' => '0',
+];
+
 // Корневой роут для React приложения
-Route::get('/', function () {
-    return view('react');
+Route::get('/', function () use ($reactHeaders) {
+    return response()->view('react')->withHeaders($reactHeaders);
 })->name('react.root');
 
 // Все остальные маршруты (кроме admin, api, storage, build, frontend, assets, logs, call) отдаются React приложению
-Route::get('/{any?}', function ($any = null) {
+Route::get('/{any?}', function ($any = null) use ($reactHeaders) {
     // Перед отдачей React view проверяем, не запрашивается ли статический файл
     if ($any && preg_match('/\.(js|css|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot)$/i', $any)) {
         $filePath = public_path($any);
@@ -324,5 +331,5 @@ Route::get('/{any?}', function ($any = null) {
         }
     }
     
-    return view('react');
+    return response()->view('react')->withHeaders($reactHeaders);
 })->where('any', '^(?!admin|api|storage|build|frontend|assets|logs|call).*')->name('react');
