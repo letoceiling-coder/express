@@ -253,6 +253,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Banners (CRUD)
         Route::get('banners/admin', [\App\Http\Controllers\Api\v1\BannerController::class, 'adminIndex'])->name('banners.admin.index');
+        Route::get('banners/{banner}', [\App\Http\Controllers\Api\v1\BannerController::class, 'show'])->name('banners.show');
         Route::post('banners', [\App\Http\Controllers\Api\v1\BannerController::class, 'store'])->name('banners.store');
         Route::put('banners/{banner}', [\App\Http\Controllers\Api\v1\BannerController::class, 'update'])->name('banners.update');
         Route::delete('banners/{banner}', [\App\Http\Controllers\Api\v1\BannerController::class, 'destroy'])->name('banners.destroy');

@@ -527,6 +527,18 @@ const routes = [
                 component: () => import('./pages/admin/Banners.vue'),
                 meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Баннеры' },
             },
+            {
+                path: 'banners/create',
+                name: 'admin.banners.create',
+                component: () => import('./pages/admin/BannerCreate.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Создать баннер' },
+            },
+            {
+                path: 'banners/:id/edit',
+                name: 'admin.banners.edit',
+                component: () => import('./pages/admin/BannerEdit.vue'),
+                meta: { requiresAuth: true, requiresRole: ['admin', 'manager'], title: 'Редактировать баннер' },
+            },
         ],
     },
 ];

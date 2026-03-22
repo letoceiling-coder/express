@@ -48,6 +48,14 @@ class BannerController extends Controller
     }
 
     /**
+     * Админ: один баннер по ID
+     */
+    public function show(Banner $banner): JsonResponse
+    {
+        return response()->json(['data' => $banner]);
+    }
+
+    /**
      * Админ: создать баннер
      */
     public function store(Request $request): JsonResponse

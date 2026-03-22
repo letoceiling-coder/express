@@ -985,6 +985,14 @@ export const reviewsAPI = {
 // Banners API
 // ============================================
 export const bannersAPI = {
+    async getById(id) {
+        const response = await apiGet(`/banners/${id}`);
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки баннера');
+        }
+        const data = await response.json();
+        return data.data ?? null;
+    },
     async getAdmin() {
         const response = await apiGet('/banners/admin');
         if (!response.ok) {
