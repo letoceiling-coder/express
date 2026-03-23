@@ -12,42 +12,48 @@
         $cssFiles = [];
         $jsFiles = [];
         
-        // Пытаемся найти файлы через index.html или через поиск в assets
-        if (file_exists($indexHtmlPath)) {
+        // В проде иногда остаются старые index-*.js/css файлы.
+        // Чтобы исключить загрузку устаревших чанков, всегда выбираем самый свежий файл по времени изменения.
+        if (is_dir($assetsPath)) {
+            $latestFile = static function (array $files): ?string {
+                if (empty($files)) {
+                    return null;
+                }
+
+                usort($files, static function (string $a, string $b): int {
+                    return filemtime($b) <=> filemtime($a);
+                });
+
+                return $files[0] ?? null;
+            };
+
+            $latestJs = $latestFile(glob($assetsPath . '/index-*.js') ?: []);
+            $latestCss = $latestFile(glob($assetsPath . '/index-*.css') ?: []);
+
+            if ($latestJs) {
+                $jsFiles[] = '/frontend/assets/' . basename($latestJs);
+            }
+
+            if ($latestCss) {
+                $cssFiles[] = '/frontend/assets/' . basename($latestCss);
+            }
+        }
+
+        // Fallback: если assets пустой, пробуем взять из frontend/index.html
+        if ((empty($jsFiles) || empty($cssFiles)) && file_exists($indexHtmlPath)) {
             $htmlContent = file_get_contents($indexHtmlPath);
-            
-            // Извлекаем пути к CSS файлам
-            preg_match_all('/<link[^>]*href=["\']([^"\']*\.css[^"\']*)["\'][^>]*>/i', $htmlContent, $cssMatches);
-            if (!empty($cssMatches[1])) {
-                foreach ($cssMatches[1] as $cssPath) {
-                    $cssFiles[] = $cssPath;
+
+            if (empty($cssFiles)) {
+                preg_match_all('/<link[^>]*href=["\']([^"\']*\.css[^"\']*)["\'][^>]*>/i', $htmlContent, $cssMatches);
+                if (!empty($cssMatches[1])) {
+                    $cssFiles[] = $cssMatches[1][0];
                 }
             }
-            
-            // Извлекаем пути к JS файлам
-            preg_match_all('/<script[^>]*src=["\']([^"\']*\.js[^"\']*)["\'][^>]*>/i', $htmlContent, $jsMatches);
-            if (!empty($jsMatches[1])) {
-                foreach ($jsMatches[1] as $jsPath) {
-                    $jsFiles[] = $jsPath;
-                }
-            }
-        }
-        
-        // Если не нашли через index.html, ищем файлы по паттерну
-        if (empty($jsFiles) && is_dir($assetsPath)) {
-            $files = glob($assetsPath . '/index-*.js');
-            if (!empty($files)) {
-                foreach ($files as $file) {
-                    $jsFiles[] = 'frontend/assets/' . basename($file);
-                }
-            }
-        }
-        
-        if (empty($cssFiles) && is_dir($assetsPath)) {
-            $files = glob($assetsPath . '/index-*.css');
-            if (!empty($files)) {
-                foreach ($files as $file) {
-                    $cssFiles[] = 'frontend/assets/' . basename($file);
+
+            if (empty($jsFiles)) {
+                preg_match_all('/<script[^>]*src=["\']([^"\']*\.js[^"\']*)["\'][^>]*>/i', $htmlContent, $jsMatches);
+                if (!empty($jsMatches[1])) {
+                    $jsFiles[] = $jsMatches[1][0];
                 }
             }
         }
