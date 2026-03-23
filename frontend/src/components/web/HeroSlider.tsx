@@ -121,15 +121,12 @@ export function HeroSlider() {
                     : undefined
                 }
               >
-                {slide.image && (
-                  <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient} opacity-70`} />
-                )}
                 <div className="container relative z-10 mx-auto flex flex-col items-start text-white">
-                  <h2 className="max-w-2xl text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl">
+                  <h2 className="max-w-2xl text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl [text-shadow:0_2px_8px_rgba(0,0,0,0.45)]">
                     {slide.title}
                   </h2>
                   {slide.subtitle && (
-                    <p className="mt-3 text-lg text-white/90 md:text-xl">
+                    <p className="mt-3 text-lg text-white/95 md:text-xl [text-shadow:0_1px_6px_rgba(0,0,0,0.45)]">
                       {slide.subtitle}
                     </p>
                   )}
