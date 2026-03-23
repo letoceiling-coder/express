@@ -325,6 +325,13 @@ class OrderController extends Controller
 
         $query = Order::query()->with(['items', 'manager', 'bot', 'payments', 'user']);
         $telegramIdInt = null;
+        $integrationToken = $request->header('X-Integration-Token');
+        $expectedIntegrationToken = config('integration.token');
+        $hasValidIntegrationToken = is_string($integrationToken)
+            && $integrationToken !== ''
+            && is_string($expectedIntegrationToken)
+            && $expectedIntegrationToken !== ''
+            && hash_equals($expectedIntegrationToken, $integrationToken);
 
         // Если запрос авторизован (Sanctum Bearer)
         if ($hasAuth || $hasToken) {
@@ -439,18 +446,22 @@ class OrderController extends Controller
                     'user_username' => $user['username'] ?? null,
                 ]);
             } 
-            // Приоритет 2: Fallback ТОЛЬКО local/dev (небезопасно в production)
+            // Приоритет 2: Fallback по telegram_id
+            // Разрешено:
+            // - в local/dev без доп. токена
+            // - в production при валидном X-Integration-Token
             else if ($request->has('telegram_id') && $request->get('telegram_id')) {
                 $env = config('app.env');
-                if (!in_array($env, ['local', 'development', 'dev'], true)) {
+                if (!in_array($env, ['local', 'development', 'dev'], true) && !$hasValidIntegrationToken) {
                     Log::warning('Attempt to use raw telegram_id', [
                         'path' => $request->path(),
                         'env' => $env,
                         'ip' => $request->ip(),
                         'reason' => 'rejected_in_production',
+                        'has_valid_integration_token' => $hasValidIntegrationToken,
                     ]);
                     return response()->json([
-                        'message' => 'Для доступа необходим initData от Telegram Mini App',
+                        'message' => 'Для доступа необходим initData Telegram Mini App, Bearer auth или валидный X-Integration-Token с telegram_id',
                     ], 403);
                 }
                 $telegramId = $request->get('telegram_id');
@@ -464,7 +475,10 @@ class OrderController extends Controller
                     'path' => $request->path(),
                     'env' => $env,
                     'telegram_id' => $telegramIdInt,
-                    'reason' => 'fallback_only_local_dev',
+                    'reason' => in_array($env, ['local', 'development', 'dev'], true)
+                        ? 'fallback_only_local_dev'
+                        : 'fallback_with_integration_token',
+                    'has_valid_integration_token' => $hasValidIntegrationToken,
                 ]);
                 $telegramUser = ['id' => $telegramIdInt];
             } 
@@ -476,11 +490,12 @@ class OrderController extends Controller
                     'headers' => [
                         'X-Telegram-Init-Data' => $request->header('X-Telegram-Init-Data'),
                         'X-Bot-Token' => $request->header('X-Bot-Token'),
+                        'X-Integration-Token' => $request->header('X-Integration-Token') ? 'present' : null,
                     ],
                 ]);
                 return response()->json([
-                    'message' => 'Для получения заказов необходимо предоставить initData (Telegram Mini App) или telegram_id (web версия)',
-                    'hint' => 'В Mini App передайте initData в заголовке X-Telegram-Init-Data. В web версии используйте параметр telegram_id.',
+                    'message' => 'Для получения заказов требуется авторизация: Bearer token, initData (Telegram Mini App) или telegram_id (+ X-Integration-Token для production web)',
+                    'hint' => 'Mini App: заголовок X-Telegram-Init-Data. Web: Authorization Bearer <token> или telegram_id + X-Integration-Token.',
                 ], 400);
             }
 

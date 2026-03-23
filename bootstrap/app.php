@@ -12,9 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // CORS для партнёрских SPA: при валидном X-Integration-Token (см. config/integration.php)
+        $middleware->prepend(\App\Http\Middleware\IntegrationPartnerCors::class);
+
         // Принудительное использование HTTPS (глобально)
         $middleware->append(\App\Http\Middleware\ForceHttps::class);
-        
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'deploy.token' => \App\Http\Middleware\VerifyDeployToken::class,
