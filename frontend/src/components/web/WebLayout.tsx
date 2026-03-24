@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Search } from 'lucide-react';
+import { ShoppingCart, User, Search, Sun, Moon } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSearchStore } from '@/store/searchStore';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { CartProgressBar } from './CartProgressBar';
 import { DeliveryModeToggle } from '@/components/miniapp/DeliveryModeToggle';
 import { useOrderModeStore } from '@/store/orderModeStore';
 import { Outlet } from 'react-router-dom';
+import { useTheme } from '@/hooks/useTheme';
 
 export function WebLayout() {
   const location = useLocation();
@@ -16,6 +17,7 @@ export function WebLayout() {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { query, setQuery } = useSearchStore();
   const { orderMode, setOrderMode } = useOrderModeStore();
+  const { theme, toggleTheme } = useTheme();
   const isSearchPage = location.pathname === '/search';
 
   // Runtime safety: guard against undefined orderMode (should never happen with store)
@@ -78,6 +80,17 @@ export function WebLayout() {
           </nav>
 
           <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={toggleTheme}
+              className={cn(
+                'relative flex items-center justify-center rounded-lg p-2',
+                'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors'
+              )}
+              aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             <Link
               to="/cart"
               className={cn(
