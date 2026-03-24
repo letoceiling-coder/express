@@ -21,13 +21,28 @@ export function WebOrdersPage() {
   const navigate = useNavigate();
   const isAuth = useAuthStore((s) => s.isAuthenticated());
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const [showAuth, setShowAuth] = useState(false);
-  const { orders, loading, error, loadOrders } = useWebOrders();
+  const { orders, loading, error, errorStatus, loadOrders } = useWebOrders();
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all' | 'pending_payment'>('all');
 
   useEffect(() => {
     if (isAuth) loadOrders(true);
   }, [isAuth, loadOrders]);
+
+  useEffect(() => {
+    const unauthorized =
+      errorStatus === 401 ||
+      (typeof error === 'string' &&
+        (error.toLowerCase().includes('недействительный токен') ||
+          error.toLowerCase().includes('токен авторизации')));
+
+    if (unauthorized) {
+      logout();
+      setShowAuth(true);
+      toast.error('Сессия истекла. Войдите снова');
+    }
+  }, [error, errorStatus, logout]);
 
   const filteredOrders = orders.filter((o) => {
     if (statusFilter === 'all') return true;
