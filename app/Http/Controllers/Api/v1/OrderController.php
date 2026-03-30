@@ -112,6 +112,7 @@ class OrderController extends Controller
             // Требуется auth (initData или Sanctum) с user
             $context = $this->trustedTelegramContext->resolve($request);
             if (!$context || !($context['user'] ?? null)) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Требуется авторизация (initData или auth)',
                 ], 401);
@@ -173,17 +174,6 @@ class OrderController extends Controller
                 'status' => $orderStatus,
                 'payment_status' => $paymentStatus,
             ]);
-            
-            Log::info('OrderController::store - Order created successfully', [
-                'order_id' => $order->id,
-                'order_order_id' => $order->order_id,
-                'telegram_id' => $order->telegram_id,
-                'telegram_id_type' => gettype($order->telegram_id),
-                'phone' => $order->phone,
-                'name' => $order->name,
-                'total_amount' => $order->total_amount,
-                'items_count' => $order->items()->count(),
-            ]);
 
             Log::info('Order user assigned', [
                 'order_id' => $order->id,
@@ -202,6 +192,17 @@ class OrderController extends Controller
             }
 
             DB::commit();
+
+            Log::info('OrderController::store - Order created successfully', [
+                'order_id' => $order->id,
+                'order_order_id' => $order->order_id,
+                'telegram_id' => $order->telegram_id,
+                'telegram_id_type' => gettype($order->telegram_id),
+                'phone' => $order->phone,
+                'name' => $order->name,
+                'total_amount' => $order->total_amount,
+                'items_count' => $order->items()->count(),
+            ]);
 
             $order->load(['items.product', 'manager', 'bot']);
 

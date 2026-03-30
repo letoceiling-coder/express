@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PaymentRequest;
 use App\Models\Payment;
 use App\Models\PaymentSetting;
-use App\Models\Bot;
-use App\Services\Auth\ResolveUserService;
 use App\Services\OrderAccessService;
 use App\Services\Payment\YooKassaService;
 use App\Services\TrustedTelegramContextService;
@@ -505,60 +503,21 @@ class PaymentController extends Controller
         try {
             $order = \App\Models\Order::findOrFail($orderId);
 
-            $user = $request->user();
-            $telegramId = null;
-
-            if (!$user) {
-                $initData = $request->header('X-Telegram-Init-Data');
-                if ($initData) {
-                    $botToken = $request->header('X-Bot-Token')
-                        ?? $request->input('bot_token')
-                        ?? config('telegram.bot_token');
-
-                    if (!$botToken) {
-                        $bot = Bot::where('is_active', true)->first();
-                        if ($bot) {
-                            $botToken = $bot->token;
-                        }
-                    }
-
-                    if (!$botToken) {
-                        return response()->json([
-                            'message' => 'Токен бота не найден для валидации',
-                        ], 400);
-                    }
-
-                    $validation = $this->telegramMiniAppService->validateInitData($initData, $botToken);
-                    if (!$validation['valid']) {
-                        return response()->json([
-                            'message' => 'Неверная подпись initData: ' . ($validation['message'] ?? 'Invalid'),
-                        ], 401);
-                    }
-
-                    $tgUser = $validation['user'] ?? null;
-                    if (!$tgUser || !isset($tgUser['id'])) {
-                        return response()->json([
-                            'message' => 'Не удалось определить пользователя из initData',
-                        ], 400);
-                    }
-
-                    $telegramId = (int) $tgUser['id'];
-                    $user = app(ResolveUserService::class)->findByTelegram($tgUser);
-                } else {
-                    return response()->json([
-                        'message' => 'Требуется авторизация или initData от Telegram',
-                    ], 401);
-                }
-            }
-
-            if (!$user && $telegramId === null) {
+            // Тот же контекст, что и createYooKassaPayment: Bearer (веб) или initData (Mini App)
+            $context = $this->trustedTelegramContext->resolve($request);
+            if (!$context) {
                 return response()->json([
-                    'message' => 'Требуется авторизация или initData от Telegram',
+                    'message' => 'Требуется авторизация (initData или auth)',
                 ], 401);
             }
 
-            if ($user && $telegramId === null && $user->telegram_id) {
-                $telegramId = (int) $user->telegram_id;
+            $user = $context['user'];
+            $telegramId = $context['telegram_id'];
+
+            if (!$user && $telegramId === null) {
+                return response()->json([
+                    'message' => 'Требуется авторизация (initData или auth)',
+                ], 401);
             }
 
             $deny = $this->orderAccessService->denyIfCannotAccess(
