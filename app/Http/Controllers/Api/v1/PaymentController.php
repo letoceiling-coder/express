@@ -21,11 +21,16 @@ class PaymentController extends Controller
 {
     protected TelegramMiniAppService $telegramMiniAppService;
     protected OrderAccessService $orderAccessService;
+    protected TrustedTelegramContextService $trustedTelegramContext;
 
-    public function __construct(TelegramMiniAppService $telegramMiniAppService, OrderAccessService $orderAccessService)
-    {
+    public function __construct(
+        TelegramMiniAppService $telegramMiniAppService,
+        OrderAccessService $orderAccessService,
+        TrustedTelegramContextService $trustedTelegramContext
+    ) {
         $this->telegramMiniAppService = $telegramMiniAppService;
         $this->orderAccessService = $orderAccessService;
+        $this->trustedTelegramContext = $trustedTelegramContext;
     }
     /**
      * Получить список платежей

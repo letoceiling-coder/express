@@ -1228,7 +1228,12 @@ export const paymentAPI = {
         method: 'POST',
         body: JSON.stringify(requestBody),
       });
-      return response.data;
+      const inner = response.data ?? response;
+      const confirmationUrl =
+        inner.confirmation_url ||
+        inner.data?.confirmation_url ||
+        inner.yookassa_payment?.confirmation?.confirmation_url;
+      return { ...inner, confirmation_url: confirmationUrl ?? inner.confirmation_url };
     } catch (error: any) {
       console.error('Payment API - createYooKassaPayment error:', error);
       throw error;

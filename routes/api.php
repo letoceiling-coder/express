@@ -66,12 +66,14 @@ Route::prefix('v1')->group(function () {
     Route::get('payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index.public');
     Route::get('payment-methods/{id}', [PaymentMethodController::class, 'show'])->name('payment-methods.show.public');
     
-    // Публичный роут для создания платежа через ЮКасса (из MiniApp)
+    // Создание платежа ЮКасса: Bearer (веб) или initData (MiniApp) — как POST /orders
     Route::post('payments/yookassa/create', [PaymentController::class, 'createYooKassaPayment'])
+        ->middleware('telegram.initdata')
         ->name('payments.yookassa.create.public');
     
-    // Публичный роут для синхронизации статуса платежа по заказу (из MiniApp)
+    // Синхронизация статуса после оплаты: тот же контекст, что и у создания платежа
     Route::post('orders/{orderId}/payments/sync-status', [PaymentController::class, 'syncStatusByOrder'])
+        ->middleware('telegram.initdata')
         ->name('orders.payments.sync-status.public');
     
     // Публичный роут для получения настроек доставки (из MiniApp)
