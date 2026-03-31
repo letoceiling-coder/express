@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
@@ -291,20 +294,20 @@ export function WebCheckoutPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Телефон *</label>
-            <input
+            <Input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
-              className="w-full rounded-xl border bg-muted px-4 py-3"
+              className="rounded-xl border-input bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground h-auto min-h-12"
               placeholder="+7 (___) ___-__-__"
             />
           </div>
           <div>
             <label className="block text-sm text-muted-foreground mb-1">Имя</label>
-            <input
+            <Input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full rounded-xl border bg-muted px-4 py-3"
+              className="rounded-xl border-input bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground h-auto min-h-12"
               placeholder="Как к вам обращаться"
             />
           </div>
@@ -322,7 +325,7 @@ export function WebCheckoutPage() {
                 setFormData({ ...formData, deliveryType: v });
                 setOrderMode(v === 'courier' ? 'delivery' : 'pickup');
               }}
-              className="w-full rounded-xl border bg-muted px-4 py-3"
+              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground"
             >
               <option value="courier">Курьер</option>
               <option value="pickup">Самовывоз</option>
@@ -332,10 +335,13 @@ export function WebCheckoutPage() {
             <>
               <div>
                 <label className="block text-sm mb-1">Адрес *</label>
-                <input
+                <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className={`w-full rounded-xl border px-4 py-3 ${deliveryValidation && !deliveryValidation.valid ? 'border-destructive' : ''}`}
+                  className={cn(
+                    'rounded-xl border-input bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground h-auto min-h-12',
+                    deliveryValidation && !deliveryValidation.valid && 'border-destructive',
+                  )}
                   placeholder="г. Екатеринбург, ул., д."
                 />
                 {isCalculatingDelivery && <p className="text-xs mt-1">Проверка адреса...</p>}
@@ -376,7 +382,7 @@ export function WebCheckoutPage() {
               <select
                 value={formData.deliveryTimeSlot}
                 onChange={(e) => setFormData({ ...formData, deliveryTimeSlot: e.target.value })}
-                className="w-full rounded-xl border bg-muted px-4 py-3"
+                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground"
               >
                 <option value="">Выберите время</option>
                 {getTimeSlotsForDate(formData.deliveryDate).map((slot) => (
@@ -387,10 +393,10 @@ export function WebCheckoutPage() {
           )}
           <div>
             <label className="block text-sm mb-1">Комментарий</label>
-            <textarea
+            <Textarea
               value={formData.comment}
               onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-              className="w-full rounded-xl border bg-muted px-4 py-3"
+              className="rounded-xl border-input bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground min-h-[5rem]"
               rows={2}
               placeholder="Дополнительные пожелания"
             />

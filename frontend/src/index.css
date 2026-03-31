@@ -120,6 +120,28 @@
     overflow-y: auto;
   }
 
+  /* iOS Safari: читаемый текст и фон в полях (в т.ч. автозаполнение), без «светлого текста на белом» */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='submit']):not([type='button']),
+  textarea,
+  select {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
+  }
+
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+    transition: background-color 99999s ease-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark textarea:-webkit-autofill,
+  .dark select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+  }
+
   /* Изображения: не растягивать, сохранять пропорции */
   img {
     max-width: 100%;
