@@ -196,5 +196,15 @@ return [
         'stars_enabled' => env('TELEGRAM_STARS_ENABLED', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Outbound HTTP proxy (Telegram API, etc.)
+    |--------------------------------------------------------------------------
+    |
+    | Пример: http://31.207.5.233:8888 (tinyproxy). IP сервера приложения
+    | должен быть в Allow на прокси.
+    */
+    'http_proxy' => env('TELEGRAM_HTTP_PROXY', env('HTTPS_PROXY', env('HTTP_PROXY'))),
+
 ];
 

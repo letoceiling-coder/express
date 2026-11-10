@@ -26,6 +26,10 @@ class CheckSubscription
             return $next($request);
         }
 
+        if ($this->subscriptionService->isBypassed()) {
+            return $next($request);
+        }
+
         // Пропускаем проверку для страницы истечения подписки, API endpoints и страниц авторизации
         if ($request->routeIs('subscription.expired') || 
             $request->is('api/*') ||

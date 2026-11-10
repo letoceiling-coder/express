@@ -97,10 +97,33 @@ class SubscriptionService
     }
 
     /**
+     * Временное отключение проверки подписки (grace period).
+     */
+    public function isBypassed(): bool
+    {
+        $until = config('subscription.bypass_until');
+        if (empty($until)) {
+            return false;
+        }
+
+        try {
+            return now()->lessThan(Carbon::parse($until));
+        } catch (\Exception $e) {
+            Log::warning('Invalid SUBSCRIPTION_BYPASS_UNTIL', ['value' => $until, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
      * Проверка активности подписки
      */
     public function isActive(): bool
     {
+        if ($this->isBypassed()) {
+            return true;
+        }
+
         $data = $this->checkSubscription();
         return $data && ($data['is_active'] === true || $data['is_active'] === 'true');
     }

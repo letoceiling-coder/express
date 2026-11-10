@@ -287,15 +287,23 @@ class AuthController extends Controller
             $code = (string) random_int($min, $max);
 
             if (!$sms->sendCode($phone, $code)) {
-                $maskedPhone = substr($phone, 0, 2) . '***' . substr($phone, -2);
+                $digits = preg_replace('/\D/', '', $phone) ?? '';
+                $maskedPhone = strlen($digits) >= 4
+                    ? substr($digits, 0, 2) . '***' . substr($digits, -2)
+                    : '***';
                 Log::error('AuthController::sendCode: SMS send failed', [
                     'phone' => $maskedPhone,
                     'reason' => $sms->getLastError() ?? 'unknown',
                     'credentials_missing' => !$sms->hasCredentials(),
                 ]);
-                return response()->json([
-                    'message' => 'Не удалось отправить SMS',
-                ], 400);
+                $payload = [
+                    'message' => $sms->getLastUserMessage() ?? 'Не удалось отправить SMS',
+                ];
+                if ($clientCode = $sms->getLastClientCode()) {
+                    $payload['code'] = $clientCode;
+                }
+
+                return response()->json($payload, 400);
             }
 
             SmsCode::create([

@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('delivery_settings') || Schema::hasColumn('delivery_settings', 'min_delivery_order_total_rub')) {
+            return;
+        }
+
         Schema::table('delivery_settings', function (Blueprint $table) {
             $table->decimal('min_delivery_order_total_rub', 10, 2)->default(3000)->after('is_enabled');
         });

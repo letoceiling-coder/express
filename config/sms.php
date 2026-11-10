@@ -1,6 +1,30 @@
 <?php
 
+use App\Services\Sms\IqSmsClient;
+use App\Services\Sms\LogSmsClient;
+
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | SMS driver
+    |--------------------------------------------------------------------------
+    */
+    'driver' => env('SMS_DRIVER', 'iqsms'),
+
+    'drivers' => [
+        'iqsms' => IqSmsClient::class,
+        'log' => LogSmsClient::class,
+    ],
+
+    'iqsms' => [
+        'access_point' => rtrim(env('IQSMS_ACCESS_POINT', 'https://api.iqsms.ru'), '/'),
+        'login' => env('IQSMS_LOGIN'),
+        'password' => env('IQSMS_PASSWORD'),
+        // Пусто — поле sender не уходит в API (подпись по умолчанию из ЛК IQSMS)
+        'sender' => env('IQSMS_SENDER', ''),
+        'verify_delivery_after_seconds' => max(0, min(10, (int) env('IQSMS_VERIFY_DELIVERY_SECONDS', 3))),
+    ],
 
     /*
     |--------------------------------------------------------------------------

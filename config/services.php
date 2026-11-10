@@ -40,9 +40,9 @@ return [
     ],
 
     'iqsms' => [
-        'login' => env('IQSMS_LOGIN', 'f1774175860410'),
-        'password' => env('IQSMS_PASSWORD', '559841'),
-        'sender' => env('IQSMS_SENDER', 'INFO'),
+        'login' => env('IQSMS_LOGIN'),
+        'password' => env('IQSMS_PASSWORD'),
+        'sender' => env('IQSMS_SENDER', ''),
     ],
 
 ];

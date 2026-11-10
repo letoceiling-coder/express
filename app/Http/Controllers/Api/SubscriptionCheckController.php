@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\SubscriptionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class SubscriptionCheckController extends Controller
@@ -36,6 +37,23 @@ class SubscriptionCheckController extends Controller
         }
 
         try {
+            if ($this->subscriptionService->isBypassed()) {
+                $until = Carbon::parse(config('subscription.bypass_until'));
+
+                return response()->json([
+                    'success' => true,
+                    'subscription' => [
+                        'status' => 'grace_period',
+                        'is_active' => true,
+                        'expires_at' => $until->toIso8601String(),
+                    ],
+                    'is_active' => true,
+                    'is_expiring_soon' => false,
+                    'days_until_expiry' => max(0, (int) now()->diffInDays($until, false)),
+                    'grace_period' => true,
+                ]);
+            }
+
             // Очищаем кеш для диагностики (можно убрать после выяснения проблемы)
             if ($request->has('clear_cache')) {
                 $this->subscriptionService->clearCache();
